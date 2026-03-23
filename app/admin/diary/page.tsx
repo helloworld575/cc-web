@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import MarkdownEditor from '@/components/MarkdownEditor';
 import Pagination from '@/components/Pagination';
+import DateRangeFilter from '@/components/DateRangeFilter';
 
 interface DiaryEntry { id: number; date: string; content: string; }
 const PAGE_SIZE = 10;
@@ -13,6 +14,8 @@ export default function AdminDiaryPage() {
   const [content, setContent] = useState('');
   const [editing, setEditing] = useState<DiaryEntry | null>(null);
   const [search, setSearch] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
 
   useEffect(() => { fetch('/api/diary').then(r => r.json()).then(setEntries); }, []);
@@ -51,9 +54,13 @@ export default function AdminDiaryPage() {
     setEntries(entries.filter(e => e.id !== id));
   }
 
-  const filtered = entries.filter(e =>
-    e.date.includes(search) || e.content.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = entries
+    .filter(e => e.date.includes(search) || e.content.toLowerCase().includes(search.toLowerCase()))
+    .filter(e => {
+      if (from && e.date < from) return false;
+      if (to && e.date > to) return false;
+      return true;
+    });
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
@@ -69,6 +76,7 @@ export default function AdminDiaryPage() {
       </div>
       <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search entries..."
         className="w-full border rounded px-3 py-2 mb-4 text-sm" />
+      <DateRangeFilter from={from} to={to} onFrom={v => { setFrom(v); setPage(1); }} onTo={v => { setTo(v); setPage(1); }} onReset={() => { setFrom(''); setTo(''); setPage(1); }} />
       <ul className="space-y-4">
         {paged.map(e => (
           <li key={e.id} className="border rounded px-4 py-3">

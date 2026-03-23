@@ -1,17 +1,16 @@
 'use client';
 import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
-import '@uiw/react-markdown-preview/markdown.css';
+import ReactMarkdown from 'react-markdown';
 import Pagination from '@/components/Pagination';
-
-const MarkdownPreview = dynamic(() => import('@uiw/react-markdown-preview'), { ssr: false });
+import FortuneTool from '@/components/FortuneTool';
+import { useLocale } from '@/components/useLocale';
 
 interface Todo { id: number; text: string; done: number; }
 interface DiaryEntry { id: number; date: string; content: string; }
 const PAGE_SIZE = 10;
 
 export default function ToolsPage() {
-  const [tab, setTab] = useState<'todos' | 'diary'>('todos');
+  const [tab, setTab] = useState<'todos' | 'diary' | 'bazi'>('todos');
   const [todos, setTodos] = useState<Todo[]>([]);
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [todoSearch, setTodoSearch] = useState('');
@@ -19,6 +18,7 @@ export default function ToolsPage() {
   const [todoFilter, setTodoFilter] = useState<'all' | 'done' | 'pending'>('all');
   const [todoPage, setTodoPage] = useState(1);
   const [diaryPage, setDiaryPage] = useState(1);
+  const { t } = useLocale();
 
   useEffect(() => {
     fetch('/api/todos').then(r => r.json()).then(setTodos);
@@ -26,8 +26,8 @@ export default function ToolsPage() {
   }, []);
 
   const filteredTodos = todos
-    .filter(t => t.text.toLowerCase().includes(todoSearch.toLowerCase()))
-    .filter(t => todoFilter === 'all' ? true : todoFilter === 'done' ? t.done : !t.done);
+    .filter(todo => todo.text.toLowerCase().includes(todoSearch.toLowerCase()))
+    .filter(todo => todoFilter === 'all' ? true : todoFilter === 'done' ? todo.done : !todo.done);
   const pagedTodos = filteredTodos.slice((todoPage - 1) * PAGE_SIZE, todoPage * PAGE_SIZE);
 
   const filteredDiary = entries.filter(e =>
@@ -36,28 +36,38 @@ export default function ToolsPage() {
   const pagedDiary = filteredDiary.slice((diaryPage - 1) * PAGE_SIZE, diaryPage * PAGE_SIZE);
 
   return (
-    <main className="max-w-2xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold mb-6">Tools</h1>
-      <div className="flex gap-4 mb-8 border-b">
-        <button onClick={() => setTab('todos')} className={`pb-2 text-sm font-medium ${tab === 'todos' ? 'border-b-2 border-black' : 'text-gray-500'}`}>To-Do List</button>
-        <button onClick={() => setTab('diary')} className={`pb-2 text-sm font-medium ${tab === 'diary' ? 'border-b-2 border-black' : 'text-gray-500'}`}>Diary</button>
+    <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <h1 className="text-3xl font-bold mb-6">{t('tools')}</h1>
+      <div className="flex gap-1 mb-8 border-b overflow-x-auto">
+        {([
+          ['todos', t('toolsTitle')],
+          ['diary', t('diary')],
+          ['bazi', t('bazi')],
+        ] as const).map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            className={`pb-2 px-1 mr-3 text-sm font-medium whitespace-nowrap transition-colors ${tab === id ? 'border-b-2 border-black' : 'text-gray-500 hover:text-black'}`}>
+            {label}
+          </button>
+        ))}
       </div>
 
       {tab === 'todos' && (
         <>
           <div className="flex gap-2 mb-4">
-            <input value={todoSearch} onChange={e => { setTodoSearch(e.target.value); setTodoPage(1); }} placeholder="Search todos..." className="border rounded px-3 py-1 text-sm flex-1" />
-            <select value={todoFilter} onChange={e => { setTodoFilter(e.target.value as any); setTodoPage(1); }} className="border rounded px-2 py-1 text-sm">
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="done">Done</option>
+            <input value={todoSearch} onChange={e => { setTodoSearch(e.target.value); setTodoPage(1); }}
+              placeholder={t('searchPlaceholder')} className="border rounded px-3 py-1 text-sm flex-1" />
+            <select value={todoFilter} onChange={e => { setTodoFilter(e.target.value as any); setTodoPage(1); }}
+              className="border rounded px-2 py-1 text-sm">
+              <option value="all">{t('all')}</option>
+              <option value="pending">{t('pending')}</option>
+              <option value="done">{t('done')}</option>
             </select>
           </div>
-          {pagedTodos.length === 0 && <p className="text-gray-500">No todos found.</p>}
+          {pagedTodos.length === 0 && <p className="text-gray-500">{t('noTodos')}</p>}
           <ul className="space-y-2">
-            {pagedTodos.map(t => (
-              <li key={t.id} className={`flex items-center gap-2 ${t.done ? 'line-through text-gray-400' : ''}`}>
-                <span>{t.text}</span>
+            {pagedTodos.map(todo => (
+              <li key={todo.id} className={`flex items-center gap-2 ${todo.done ? 'line-through text-gray-400' : ''}`}>
+                <span>{todo.text}</span>
               </li>
             ))}
           </ul>
@@ -67,19 +77,24 @@ export default function ToolsPage() {
 
       {tab === 'diary' && (
         <>
-          <input value={diarySearch} onChange={e => { setDiarySearch(e.target.value); setDiaryPage(1); }} placeholder="Search by date or content..." className="w-full border rounded px-3 py-2 mb-4 text-sm" />
-          {pagedDiary.length === 0 && <p className="text-gray-500">No entries found.</p>}
+          <input value={diarySearch} onChange={e => { setDiarySearch(e.target.value); setDiaryPage(1); }}
+            placeholder={t('searchPlaceholder')} className="w-full border rounded px-3 py-2 mb-4 text-sm" />
+          {pagedDiary.length === 0 && <p className="text-gray-500">{t('noPosts')}</p>}
           <ul className="space-y-4">
             {pagedDiary.map(e => (
               <li key={e.id} className="border rounded px-4 py-3">
                 <p className="font-semibold mb-2">{e.date}</p>
-                <MarkdownPreview source={e.content} className="!bg-transparent !text-sm" />
+                <article className="prose prose-sm max-w-none">
+                  <ReactMarkdown>{e.content}</ReactMarkdown>
+                </article>
               </li>
             ))}
           </ul>
           <Pagination total={filteredDiary.length} page={diaryPage} pageSize={PAGE_SIZE} onPage={setDiaryPage} />
         </>
       )}
+
+      {tab === 'bazi' && <FortuneTool />}
     </main>
   );
 }

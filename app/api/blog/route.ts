@@ -13,7 +13,6 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { slug, title, date, content } = await req.json();
   if (!slug || !title) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
-  // prevent path traversal
   if (!/^[a-z0-9-]+$/.test(slug)) return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
   savePost(slug, title, date, content);
   return NextResponse.json({ ok: true });

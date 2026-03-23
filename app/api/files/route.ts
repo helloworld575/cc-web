@@ -10,9 +10,35 @@ import { randomUUID } from 'crypto';
 
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
 
-export async function GET() {
-  const files = db.prepare('SELECT * FROM files ORDER BY uploaded_at DESC').all();
-  return NextResponse.json(files);
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'));
+  const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') ?? '24')));
+  const search = searchParams.get('search') ?? '';
+  const from = searchParams.get('from') ?? '';
+  const to = searchParams.get('to') ?? '';
+
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (search) {
+    conditions.push('original_name LIKE ?');
+    params.push(`%${search}%`);
+  }
+  if (from) {
+    conditions.push("date(uploaded_at) >= ?");
+    params.push(from);
+  }
+  if (to) {
+    conditions.push("date(uploaded_at) <= ?");
+    params.push(to);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const total = (db.prepare(`SELECT COUNT(*) as c FROM files ${where}`).get(...params) as { c: number }).c;
+  const files = db.prepare(`SELECT * FROM files ${where} ORDER BY uploaded_at DESC LIMIT ? OFFSET ?`).all(...params, pageSize, (page - 1) * pageSize);
+
+  return NextResponse.json({ files, total });
 }
 
 export async function POST(req: Request) {

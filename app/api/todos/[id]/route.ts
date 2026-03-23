@@ -4,11 +4,22 @@ import db from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
+export async function GET(_: Request, { params }: { params: { id: string } }) {
+  const todo = db.prepare('SELECT * FROM todos WHERE id = ?').get(params.id);
+  if (!todo) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json(todo);
+}
+
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { text, done } = await req.json();
-  db.prepare('UPDATE todos SET text = ?, done = ? WHERE id = ?').run(text, done ? 1 : 0, params.id);
+  const body = await req.json();
+  const existing = db.prepare('SELECT * FROM todos WHERE id = ?').get(params.id) as any;
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const text = body.text ?? existing.text;
+  const done = body.done !== undefined ? (body.done ? 1 : 0) : existing.done;
+  const deadline = body.deadline !== undefined ? (body.deadline || null) : existing.deadline;
+  db.prepare('UPDATE todos SET text = ?, done = ?, deadline = ? WHERE id = ?').run(text, done, deadline, params.id);
   return NextResponse.json({ ok: true });
 }
 

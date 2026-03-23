@@ -28,4 +28,11 @@ db.exec(`
   );
 `);
 
+// Migrate: add deadline column if not exists
+try {
+  db.exec("ALTER TABLE todos ADD COLUMN deadline TEXT");
+} catch {
+  // column already exists, ignore
+}
+
 export default db;

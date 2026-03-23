@@ -13,6 +13,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <Link href="/admin/tools">Todos</Link>
         <Link href="/admin/diary">Diary</Link>
         <Link href="/admin/files">Files</Link>
+        <Link href="/admin/skills">Skills</Link>
       </nav>
       {children}
     </>

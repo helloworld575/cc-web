@@ -19,8 +19,8 @@ export async function PUT(req: Request, { params }: { params: { slug: string } }
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!validSlug(params.slug)) return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
-  const { title, date, content } = await req.json();
-  savePost(params.slug, title, date, content);
+  const { title, date, content, brief } = await req.json();
+  savePost(params.slug, title, date, content, brief);
   return NextResponse.json({ ok: true });
 }
 
