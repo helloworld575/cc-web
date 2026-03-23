@@ -12,8 +12,8 @@ export const translations = {
     logout: 'Logout',
 
     // Home
-    homeTitle: 'Welcome',
-    homeDesc: 'A personal site with blog, tools, and file storage.',
+    homeTitle: "ThomasLee's Blog",
+    homeDesc: 'Tech, tools, and thoughts — welcome to my corner of the internet.',
 
     // Blog
     blogTitle: 'Blog',
@@ -115,8 +115,8 @@ export const translations = {
     logout: '退出',
 
     // Home
-    homeTitle: '欢迎',
-    homeDesc: '一个包含博客、工具和文件存储的个人网站。',
+    homeTitle: 'ThomasLee 的博客',
+    homeDesc: '技术、工具与随想 — 欢迎来到我的小站。',
 
     // Blog
     blogTitle: '博客',

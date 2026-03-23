@@ -14,7 +14,13 @@ export default function Nav() {
   return (
     <nav className="border-b px-4 py-3">
       <div className="flex items-center gap-5 text-sm">
-        <Link href="/" className="font-bold" onClick={close}>{t('home')}</Link>
+        <Link href="/" className="font-bold flex items-center gap-1.5" onClick={close}>
+          <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="8" fill="#111"/>
+            <text x="16" y="22" textAnchor="middle" fill="#fff" fontSize="18" fontWeight="bold" fontFamily="system-ui">T</text>
+          </svg>
+          ThomasLee
+        </Link>
 
         {/* Desktop links */}
         <div className="hidden sm:flex gap-5 items-center">

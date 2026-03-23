@@ -1,124 +1,96 @@
 ---
 name: meihua-fortune
 description: 梅花易数占卜分析 (Mei Hua Yi Shu plum blossom numerology divination). Use this skill whenever the user asks for 梅花易数、体卦、用卦、梅花 readings, wants to use numbers or time to generate a hexagram, or asks about 邵康节 divination method. Also triggers when users want a quick I Ching reading using numbers (like spotting a number and asking what it means).
+user_invocable: true
 ---
 
-# 梅花易数占卜 (Plum Blossom Numerology)
+# 梅花易数占卜
 
-Generate a 梅花易数 hexagram using random, time, or number input — identify 体卦 (subject) and 用卦 (object) — then call Claude API for 五行生克 analysis.
+## 收集信息
 
-## 1. Collect Input
+从用户消息中提取，缺少的字段用默认值：
+- **起卦方式**: `random`(默认) / `time`(时间) / `number`(数字)
+- **所问之事** (可选)
+- 若 `time`: 年/月/日/时
+- 若 `number`: 上卦数、下卦数
 
-Extract from the user's message or ask for missing fields:
+数字来源可以是生活中任何偶然数（门牌号、时间、随机数等）。
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| 起卦方式 | Method: `random` / `time` / `number` | number |
-| 所问之事 | Question (optional) | 此次考试能否通过？ |
-| 年/月/日/时 | Only for `time` method | 2026 3 23 14 |
-| 上卦数/下卦数 | Only for `number` method | 7 3 |
+## 起卦
 
-Default to `random` if no method specified. Numbers can come from anything (门牌号、时间、随机念到的数字).
-
-## 2. Generate Hexagram
-
-**Random:**
 ```bash
+# 随机
 node /Users/bytedance/claude_place/my-site/.claude/skills/meihua-fortune/scripts/calc.js random
-```
-
-**Time:**
-```bash
+# 时间
 node /Users/bytedance/claude_place/my-site/.claude/skills/meihua-fortune/scripts/calc.js time <year> <month> <day> <hour>
-```
-
-**Number:**
-```bash
+# 数字
 node /Users/bytedance/claude_place/my-site/.claude/skills/meihua-fortune/scripts/calc.js number <n1> <n2>
 ```
 
-Parse the JSON output containing: `lines`, `lower`/`upper` (trigram indices), `lowerTrigram`/`upperTrigram` (name/element/nature), `hex` (name/full), `changing` (changing line indices), `transformed`.
+## 展示卦象
 
-## 3. Display Hexagram
-
-In 梅花易数: lower trigram = 体卦 (subject/self), upper trigram = 用卦 (object/situation).
+简洁展示体用关系（这是梅花的核心）：
 
 ```
-🌸 梅花易数卦象
-
-本卦: {hex.fullName}
-体卦（下/主）: {lower.name}（{lower.nature}）{lower.element}
-用卦（上/客）: {upper.name}（{upper.nature}）{upper.element}
-
-五行关系: 体卦 {lower.element} vs 用卦 {upper.element} → {relationship}
-
-动爻: 第N爻（从下数）
-变卦: {transformed.fullName}
+🌸 梅花易数
+本卦: {fullName}
+体卦(下/主): {lower.name}({lower.element}) → 用卦(上/客): {upper.name}({upper.element})
+体用关系: {element}→{element} = {生克关系}
+动爻: 第N爻 | 变卦: {transformed.fullName}
 ```
 
-五行体用关系速记:
-- 体生用 → 我付出，主动，耗力
-- 用生体 → 得贵人相助，有助力（最吉）
-- 体克用 → 我主导，事成但需努力
-- 用克体 → 受阻碍，不利（最凶）
-- 体用同 → 平稳，无大起落
+体用五行关系速判：
+- 用生体 → 最吉（得助力）
+- 体克用 → 吉（我主导）
+- 体用同 → 平（无大波澜）
+- 体生用 → 耗（主动付出）
+- 用克体 → 凶（受阻碍）
 
-## 4. Call Claude API for Analysis
+## 调用 AI 分析
 
-Determine the API key and host:
-
+确定 API 配置:
 ```bash
 API_KEY="${CLAUDE_API_KEY:-$ANTHROPIC_API_KEY}"
 API_HOST="${CLAUDE_API_HOST:-https://api.anthropic.com}"
-API_HOST="${API_HOST%/}"
 MODEL="${CLAUDE_MODEL:-claude-sonnet-4-6}"
 ```
 
-If no API key is available, display the hexagram and inform the user that API key is not configured.
+无 API key 时仅展示卦象并提示用户配置。
 
-Make the streaming request:
-
+流式请求:
 ```bash
-curl -s -N "${API_HOST}/v1/messages" \
+curl -s -N "${API_HOST%/}/v1/messages" \
   -H "x-api-key: ${API_KEY}" \
   -H "anthropic-version: 2023-06-01" \
   -H "content-type: application/json" \
-  -d '{
-    "model": "'${MODEL}'",
-    "max_tokens": 2048,
-    "stream": true,
-    "system": "你是一位精通梅花易数的占卜大师，深谙邵康节体用之法。\n\n你的知识涵盖：\n- 体卦（下卦/主）为自己/主体，用卦（上卦/客）为事物/对方\n- 五行生克断吉凶：用生体最吉，用克体最凶\n- 动爻为事物变化的枢纽\n- 变卦显示事态演变方向\n\n解卦以体卦为主，分析体用五行生克，结合动爻变卦，判断吉凶走向。\n每段结尾标注：「占卜仅供参考，请理性看待」",
-    "messages": [{"role": "user", "content": "<PROMPT>"}]
-  }'
+  -d '<JSON_BODY>'
 ```
 
-Build `<PROMPT>`:
-
+**System prompt:**
 ```
-请对以下梅花易数卦象进行占卜分析：
-
-{question ? "问题：" + question : "（起卦，求总体指引）"}
-
-本卦：{hex.fullName}
-体卦（下卦）：{lower.name}（{lower.nature}/{lower.element}）
-用卦（上卦）：{upper.name}（{upper.nature}/{upper.element}）
-{movingLine !== undefined ? "动爻：第" + (movingLine+1) + "爻（从下数）" : "无动爻"}
-{transformed ? "变卦：" + transformed.fullName : ""}
-
-请进行梅花易数解析，包括：
-1. 体卦（{lower.name}/{lower.element}）代表主体的状态
-2. 用卦（{upper.name}/{upper.element}）代表事物发展方向
-3. 体用五行生克关系（{lower.element}与{upper.element}）
-4. 动爻变化与事情走向
-5. 综合建议与吉凶判断
+你是精通梅花易数的占卜师，深谙邵康节体用之法。分析风格：结论先行、直判吉凶、建议可执行。
+要求：
+1. 先给出一句话断卦（体用关系 → 吉凶定性）
+2. 分析体卦与用卦的五行关系及事态走向（2段，不堆砌理论）
+3. 最后必须给出「行动建议」清单（3-5条具体可执行的建议）
+每条建议格式：✅ [具体行为] — [原因]
+结尾标注「占卜仅供参考，请理性看待」
 ```
 
-## 5. Present Results
+**User prompt 模板:**
+```
+本卦: {fullName}
+体卦(下): {lower.name}({lower.element}) | 用卦(上): {upper.name}({upper.element})
+体用关系: {lower.element}与{upper.element}
+动爻: {movingLine} | 变卦: {transformed.fullName}
+{question ? "所问: " + question : "求总体指引"}
 
-Parse SSE stream and print text deltas as they arrive. Format with markdown headers.
+请断卦并给出行动建议。
+```
 
-## Notes
+## 输出要求
 
-- 梅花易数 core principle: 体卦 = 自己, 用卦 = 事物/对方
-- 用生体 is most auspicious; 用克体 is most challenging
-- The moving line shows the pivot point — where change is happening
+流式输出 AI 分析结果。确保最终展示包含：
+1. 卦象 + 体用关系（简表）
+2. **吉凶判断 + 核心解读**（2段，不堆砌理论过程）
+3. **行动建议清单**（✅ 格式，具体可执行）
