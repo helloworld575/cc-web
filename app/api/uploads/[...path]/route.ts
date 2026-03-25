@@ -11,10 +11,18 @@ const MIME: Record<string, string> = {
 
 export async function GET(_: Request, { params }: { params: { path: string[] } }) {
   const filename = params.path.join('/');
-  const filepath = path.join(process.cwd(), 'uploads', filename);
-  if (!existsSync(filepath)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const buffer = await readFile(filepath);
+  const uploadsDir = path.resolve(process.cwd(), 'uploads');
+  const resolved = path.resolve(uploadsDir, filename);
+  if (!resolved.startsWith(uploadsDir + path.sep))
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!existsSync(resolved)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const buffer = await readFile(resolved);
   const ext = path.extname(filename).toLowerCase();
   const contentType = MIME[ext] ?? 'application/octet-stream';
-  return new NextResponse(buffer, { headers: { 'Content-Type': contentType } });
+  const headers: Record<string, string> = {
+    'Content-Type': contentType,
+    'X-Content-Type-Options': 'nosniff',
+  };
+  if (ext === '.svg') headers['Content-Security-Policy'] = "script-src 'none'";
+  return new NextResponse(buffer, { headers });
 }

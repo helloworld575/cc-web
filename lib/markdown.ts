@@ -38,7 +38,7 @@ export function getPost(slug: string): Post | null {
 
 export function savePost(slug: string, title: string, date: string, content: string, brief?: string) {
   if (!fs.existsSync(postsDir)) fs.mkdirSync(postsDir, { recursive: true });
-  const fm = `---\ntitle: ${title}\ndate: ${date}${brief ? `\nbrief: ${brief}` : ''}\n---\n`;
+  const fm = `---\ntitle: "${title.replace(/"/g, '\\"')}"\ndate: ${date}${brief ? `\nbrief: "${brief.replace(/"/g, '\\"')}"` : ''}\n---\n`;
   fs.writeFileSync(path.join(postsDir, `${slug}.md`), fm + content);
 }
 

@@ -62,8 +62,10 @@ function makePillar(stemIdx: number, branchIdx: number, label: string): Pillar {
 export function calcBazi(year: number, month: number, day: number, hour: number): BaziResult {
   // ── Year Pillar ──
   // Chinese year starts at 立春 (~Feb 4); dates before that belong to prior year
+  // 立春 approximate: falls on Feb 3-5 depending on year
+  const lichunDay = (year % 4 === 0) ? 4 : (year % 4 === 3) ? 3 : 4;
   let y = year;
-  if (month < 2 || (month === 2 && day < 4)) y = year - 1;
+  if (month < 2 || (month === 2 && day < lichunDay)) y = year - 1;
   const yearStemIdx = ((y - 4) % 10 + 10) % 10;
   const yearBranchIdx = ((y - 4) % 12 + 12) % 12;
   const yearPillar = makePillar(yearStemIdx, yearBranchIdx, '年');
@@ -72,8 +74,10 @@ export function calcBazi(year: number, month: number, day: number, hour: number)
   // Branch: Jan→丑(1), Feb→寅(2), Mar→卯(3), ..., Dec→子(0)
   // Approximate: shift back one branch if before the ~6th (solar term)
   const monthBranchRaw = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0];
+  // Approximate solar term day by month (when the month's branch changes)
+  const solarTermDay = [6, 4, 6, 5, 6, 6, 7, 7, 8, 8, 7, 7]; // month 1-12
   let monthBranchIdx = monthBranchRaw[month - 1];
-  if (day < 6) {
+  if (day < solarTermDay[month - 1]) {
     monthBranchIdx = monthBranchRaw[month <= 1 ? 11 : month - 2];
   }
   // Month stem start for 寅月, determined by year stem group
@@ -95,7 +99,7 @@ export function calcBazi(year: number, month: number, day: number, hour: number)
     return Math.floor((h + 1) / 2);
   };
   const hourBranchIdx = hourBranchMap(hour);
-  const hourStemIdx = (monthStemStarts[dayIdx % 5] + hourBranchIdx) % 10;
+  const hourStemIdx = (monthStemStarts[(dayIdx % 10) % 5] + hourBranchIdx) % 10;
   const hourPillar = makePillar(hourStemIdx, hourBranchIdx, '时');
 
   // ── Five Elements Count ──

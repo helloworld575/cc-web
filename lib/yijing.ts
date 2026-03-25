@@ -161,15 +161,13 @@ export function timeToHexagram(year: number, month: number, day: number, hour: n
   const upperNum = (((sum + hourBranch) % 8) + 8) % 8;
   const movingIdx = (((sum + hourBranch) % 6) + 6) % 6; // 0-5, bottom=0
 
-  // Build lines: all 7 (少阳) except the one moving line is 9 (老阳)
-  const lines = Array(6).fill(7);
-  lines[movingIdx] = 9;
-
-  // Override with actual trigram binaries
+  // Build lines: use 7 (young yang) and 8 (young yin) for non-moving lines
   // lower trigram bits → set lines[0-2]
-  for (let i = 0; i < 3; i++) lines[i] = ((lowerNum >> i) & 1) ? 9 : 8; // use 9=yang, 8=yin as defaults
-  for (let i = 0; i < 3; i++) lines[i + 3] = ((upperNum >> i) & 1) ? 9 : 8;
-  lines[movingIdx] = lines[movingIdx] === 9 ? 9 : 6; // moving: old yang or old yin
+  const lines: number[] = [];
+  for (let i = 0; i < 3; i++) lines.push(((lowerNum >> i) & 1) ? 7 : 8);
+  for (let i = 0; i < 3; i++) lines.push(((upperNum >> i) & 1) ? 7 : 8);
+  // Moving line: old yang (9) or old yin (6)
+  lines[movingIdx] = lines[movingIdx] === 7 ? 9 : 6;
 
   return computeHexagram(lines);
 }
@@ -190,8 +188,8 @@ export function numberToHexagram(num1: number, num2: number): HexagramResult {
 
 export function formatLines(lines: number[]): string {
   return lines.slice().reverse().map(v => {
-    if (v === 9) return '━━ ━━ ×';  // old yang → becomes yin
-    if (v === 6) return '━━━━━ ○';  // old yin → becomes yang
+    if (v === 9) return '━━━━━ ○';  // old yang (solid) → changes to yin
+    if (v === 6) return '━━ ━━ ×';  // old yin (broken) → changes to yang
     if (v === 7) return '━━━━━';    // young yang
     return '━━ ━━';                 // young yin (8)
   }).join('\n');

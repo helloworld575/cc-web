@@ -6,7 +6,7 @@ import { BRANCHES } from './bazi';
 // Each pair shares the same 纳音 element
 const NAYIN_ELEMENTS: string[] = [
   '金','金','火','火','木','木','土','土','金','金', // 0-9
-  '火','火','水','水','土','土','日月','日月','金','金', // 10-19 (壁上土 etc.)
+  '火','火','水','水','土','土','金','金','金','金', // 10-19 (白蜡金 at 16-17)
   '木','木','水','水','火','火','土','土','木','木', // 20-29
   '金','金','土','土','火','火','水','水','木','木', // 30-39
   '金','金','火','火','木','木','土','土','金','金', // 40-49
@@ -36,7 +36,6 @@ const JU_BY_NAYIN: Record<string, WuxingJu> = {
   '金': { name: '金四局', num: 4, element: '金' },
   '土': { name: '土五局', num: 5, element: '土' },
   '火': { name: '火六局', num: 6, element: '火' },
-  '日月': { name: '火六局', num: 6, element: '火' }, // 日月 → 火六局
 };
 
 // 12 palaces starting from 命宫 position, going clockwise
@@ -93,7 +92,7 @@ export function calcZiwei(
 
   // 12 palaces: start from 命宫, go through 兄弟/夫妻/... in branch order
   const palaces = PALACE_NAMES.map((name, i) => {
-    const branchPos = (mingGongBranchIdx + i) % 12;
+    const branchPos = ((mingGongBranchIdx - i) % 12 + 12) % 12;
     return { name, branch: BRANCHES[branchPos] };
   });
 

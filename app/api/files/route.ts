@@ -8,9 +8,11 @@ import { writeFile } from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
 
-const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
 export async function GET(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { searchParams } = new URL(req.url);
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'));
   const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') ?? '24')));

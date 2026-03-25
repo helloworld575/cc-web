@@ -19,7 +19,9 @@ export async function PUT(req: Request, { params }: { params: { slug: string } }
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!validSlug(params.slug)) return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
-  const { title, date, content, brief } = await req.json();
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  const { title, date, content, brief } = body;
   savePost(params.slug, title, date, content, brief);
   return NextResponse.json({ ok: true });
 }

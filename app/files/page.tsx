@@ -19,10 +19,10 @@ export default function FilesPage() {
 
   const load = useCallback((p: number, s: string, f: string, tDate: string) => {
     const q = new URLSearchParams({ page: String(p), pageSize: String(PAGE_SIZE), search: s, from: f, to: tDate });
-    fetch(`/api/files?${q}`).then(r => r.json()).then(data => {
+    fetch(`/api/files?${q}`).then(r => r.ok ? r.json() : Promise.reject()).then(data => {
       setFiles(data.files ?? []);
       setTotal(data.total ?? 0);
-    });
+    }).catch(() => {});
   }, []);
 
   useEffect(() => { load(page, search, from, to); }, [page, search, from, to, load]);

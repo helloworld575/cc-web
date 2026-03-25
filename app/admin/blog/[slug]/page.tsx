@@ -21,21 +21,22 @@ export default function AdminBlogEditor() {
   const [suggestionLabel, setSuggestionLabel] = useState('');
 
   useEffect(() => {
-    fetch(`/api/blog/${slug}`).then(r => r.json()).then(p => {
+    fetch(`/api/blog/${slug}`).then(r => r.ok ? r.json() : Promise.reject()).then(p => {
       setTitle(p.title ?? '');
       setDate(p.date ?? '');
       setBrief(p.brief ?? '');
       setContent(p.content ?? '');
-    });
-    fetch('/api/skills').then(r => r.json()).then(setSkills);
+    }).catch(() => {});
+    fetch('/api/skills').then(r => r.ok ? r.json() : Promise.reject()).then(setSkills).catch(() => {});
   }, [slug]);
 
   async function save() {
-    await fetch(`/api/blog/${slug}`, {
+    const res = await fetch(`/api/blog/${slug}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, date, brief, content }),
     });
+    if (!res.ok) { alert('Save failed'); return; }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -59,7 +60,8 @@ export default function AdminBlogEditor() {
         return;
       }
 
-      const reader = res.body!.getReader();
+      const reader = res.body?.getReader();
+      if (!reader) { setAiError('无法读取响应'); return; }
       const decoder = new TextDecoder();
       let buf = '';
       let accumulated = '';

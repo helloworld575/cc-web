@@ -5,6 +5,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const todo = db.prepare('SELECT * FROM todos WHERE id = ?').get(params.id);
   if (!todo) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(todo);
@@ -13,7 +15,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const body = await req.json();
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
   const existing = db.prepare('SELECT * FROM todos WHERE id = ?').get(params.id) as any;
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const text = body.text ?? existing.text;

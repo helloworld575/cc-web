@@ -103,6 +103,16 @@ export const translations = {
     write: 'Write',
     preview: 'Preview',
     markdownPlaceholder: 'Write markdown here...',
+
+    // Fortune history
+    fortuneHistory: 'History',
+    fortuneReading: 'Reading',
+    fortuneNoHistory: 'No readings yet.',
+    fortuneDeleteConfirm: 'Delete this reading?',
+    fortuneDeleted: 'Deleted',
+    fortuneSaved: 'Saved to history',
+    fortuneViewFull: 'View full analysis',
+    fortuneBack: 'Back to list',
   },
   zh: {
     // Nav
@@ -206,6 +216,16 @@ export const translations = {
     write: '编写',
     preview: '预览',
     markdownPlaceholder: '在此写 Markdown...',
+
+    // Fortune history
+    fortuneHistory: '历史记录',
+    fortuneReading: '解读',
+    fortuneNoHistory: '暂无记录。',
+    fortuneDeleteConfirm: '确定删除此记录？',
+    fortuneDeleted: '已删除',
+    fortuneSaved: '已保存到历史',
+    fortuneViewFull: '查看完整分析',
+    fortuneBack: '返回列表',
   },
 } satisfies Record<Locale, Record<string, string>>;
 

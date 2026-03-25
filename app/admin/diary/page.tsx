@@ -18,15 +18,16 @@ export default function AdminDiaryPage() {
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
 
-  useEffect(() => { fetch('/api/diary').then(r => r.json()).then(setEntries); }, []);
+  useEffect(() => { fetch('/api/diary').then(r => r.ok ? r.json() : Promise.reject()).then(setEntries).catch(() => {}); }, []);
 
   async function save() {
     if (editing) {
-      await fetch(`/api/diary/${editing.id}`, {
+      const res = await fetch(`/api/diary/${editing.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date, content }),
       });
+      if (!res.ok) { alert('Save failed'); return; }
       setEntries(entries.map(e => e.id === editing.id ? { ...e, date, content } : e));
       setEditing(null);
     } else {
@@ -35,6 +36,7 @@ export default function AdminDiaryPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date, content }),
       });
+      if (!res.ok) { alert('Save failed'); return; }
       const { id } = await res.json();
       setEntries([{ id, date, content }, ...entries]);
     }
@@ -50,7 +52,8 @@ export default function AdminDiaryPage() {
   }
 
   async function deleteEntry(id: number) {
-    await fetch(`/api/diary/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/diary/${id}`, { method: 'DELETE' });
+    if (!res.ok) { alert('Delete failed'); return; }
     setEntries(entries.filter(e => e.id !== id));
   }
 

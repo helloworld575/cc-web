@@ -31,7 +31,7 @@ export default function AdminBlogPage() {
   const router = useRouter();
   const { t } = useLocale();
 
-  useEffect(() => { fetch('/api/blog').then(r => r.json()).then(setPosts); }, []);
+  useEffect(() => { fetch('/api/blog').then(r => r.ok ? r.json() : Promise.reject()).then(setPosts).catch(() => {}); }, []);
 
   function genSlug() {
     const now = new Date();
@@ -55,7 +55,8 @@ export default function AdminBlogPage() {
 
   async function deletePost(s: string) {
     if (!confirm('Delete this post?')) return;
-    await fetch(`/api/blog/${s}`, { method: 'DELETE' });
+    const res = await fetch(`/api/blog/${s}`, { method: 'DELETE' });
+    if (!res.ok) { alert('Delete failed'); return; }
     setPosts(posts.filter(p => p.slug !== s));
   }
 

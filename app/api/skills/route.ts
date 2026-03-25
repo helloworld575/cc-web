@@ -11,7 +11,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const skill = await req.json();
+  let skill: any;
+  try { skill = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
   if (!skill.id || !skill.name || !skill.prompt) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   if (!/^[a-z0-9-]+$/.test(skill.id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   saveSkill(skill);

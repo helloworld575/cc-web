@@ -7,7 +7,9 @@ import { authOptions } from '@/lib/auth';
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { date, content } = await req.json();
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  const { date, content } = body;
   db.prepare('UPDATE diary SET date = ?, content = ? WHERE id = ?').run(date, content, params.id);
   return NextResponse.json({ ok: true });
 }

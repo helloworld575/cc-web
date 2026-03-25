@@ -11,7 +11,7 @@ export default function AdminSkillsPage() {
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => { fetch('/api/skills').then(r => r.json()).then(setSkills); }, []);
+  useEffect(() => { fetch('/api/skills').then(r => r.ok ? r.json() : Promise.reject()).then(setSkills).catch(() => {}); }, []);
 
   function startNew() { setEditing({ ...EMPTY }); setError(''); }
   function startEdit(s: Skill) { setEditing({ ...s }); setError(''); }
@@ -34,7 +34,8 @@ export default function AdminSkillsPage() {
   }
 
   async function del(id: string) {
-    await fetch(`/api/skills/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/skills/${id}`, { method: 'DELETE' });
+    if (!res.ok) return;
     setSkills(skills.filter(s => s.id !== id));
     if (editing?.id === id) setEditing(null);
   }

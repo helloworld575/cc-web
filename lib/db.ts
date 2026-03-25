@@ -2,6 +2,8 @@ import Database from 'better-sqlite3';
 import path from 'path';
 
 const db = new Database(path.join(process.cwd(), 'data', 'site.db'));
+db.pragma('journal_mode = WAL');
+db.pragma('busy_timeout = 5000');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS todos (

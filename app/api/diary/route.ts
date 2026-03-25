@@ -14,7 +14,9 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const { date, content } = await req.json();
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  const { date, content } = body;
   if (!date || !content) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   const result = db.prepare('INSERT INTO diary (date, content) VALUES (?, ?)').run(date, content);
   return NextResponse.json({ id: result.lastInsertRowid });

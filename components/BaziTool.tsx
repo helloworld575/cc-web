@@ -78,7 +78,8 @@ export default function BaziTool() {
         return;
       }
 
-      const reader = res.body!.getReader();
+      const reader = res.body?.getReader();
+      if (!reader) { setError('无法读取响应'); return; }
       const decoder = new TextDecoder();
       let buf = '';
       let accumulated = '';

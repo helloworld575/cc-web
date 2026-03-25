@@ -21,8 +21,8 @@ export default function ToolsPage() {
   const { t } = useLocale();
 
   useEffect(() => {
-    fetch('/api/todos').then(r => r.json()).then(setTodos);
-    fetch('/api/diary').then(r => r.json()).then(setEntries);
+    fetch('/api/todos').then(r => r.ok ? r.json() : Promise.reject()).then(setTodos).catch(() => {});
+    fetch('/api/diary').then(r => r.ok ? r.json() : Promise.reject()).then(setEntries).catch(() => {});
   }, []);
 
   const filteredTodos = todos

@@ -23,14 +23,15 @@ export default function DeadlineAlert() {
 
   useEffect(() => {
     fetch('/api/todos')
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : Promise.reject())
       .then((todos: Todo[]) => {
         const result = todos
           .filter(todo => !todo.done && todo.deadline)
           .map(todo => ({ ...todo, urgency: getUrgency(todo.deadline!) }))
           .filter(todo => todo.urgency !== null) as Array<Todo & { urgency: string }>;
         setUrgent(result);
-      });
+      })
+      .catch(() => {});
   }, []);
 
   if (dismissed || urgent.length === 0) return null;

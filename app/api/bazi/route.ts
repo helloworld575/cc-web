@@ -1,5 +1,8 @@
 export const runtime = 'nodejs';
 import { calcBazi, formatElementsDesc, getTenGod, STEMS } from '@/lib/bazi';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { rateLimitByIp } from '@/lib/rateLimit';
 
 const SYSTEM = `你是一位精通中国传统命理学的算命大师，深谙四柱八字、五行生克、十神体系。
 
@@ -15,7 +18,14 @@ const SYSTEM = `你是一位精通中国传统命理学的算命大师，深谙�
 每段分析结尾请标注：「命理仅供参考，请理性看待」`;
 
 export async function POST(req: Request) {
-  const { year, month, day, hour, gender, aspect } = await req.json();
+  const session = await getServerSession(authOptions);
+  if (!session) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  const rl = rateLimitByIp(req, 'bazi', 10);
+  if (rl) return rl;
+
+  let body: any;
+  try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 }); }
+  const { year, month, day, hour, gender, aspect } = body;
 
   if (!year || !month || !day || hour === undefined || !aspect) {
     return new Response(JSON.stringify({ error: '参数不完整' }), { status: 400 });
@@ -62,7 +72,7 @@ export async function POST(req: Request) {
     },
     body: JSON.stringify({
       model: process.env.CLAUDE_MODEL ?? 'claude-sonnet-4-6',
-      max_tokens: 2048,
+      max_tokens: 4096,
       stream: true,
       system: SYSTEM,
       messages: [{ role: 'user', content: prompt }],
@@ -70,43 +80,51 @@ export async function POST(req: Request) {
   });
 
   if (!upstream.ok) {
-    const err = await upstream.json();
-    return new Response(JSON.stringify({ error: err.error?.message ?? 'API error' }), { status: 502 });
+    let msg = 'API error';
+    try { const err = await upstream.json(); msg = err.error?.message ?? msg; } catch {}
+    return new Response(JSON.stringify({ error: msg }), { status: 502 });
   }
 
   // Also send the calculated bazi as first event
   const encoder = new TextEncoder();
   const baziPayload = JSON.stringify({ bazi });
+  let upstreamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
   const stream = new ReadableStream({
     async start(controller) {
-      controller.enqueue(encoder.encode(`data: ${baziPayload}\n\n`));
+      try {
+        controller.enqueue(encoder.encode(`data: ${baziPayload}\n\n`));
 
-      const reader = upstream.body!.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
+        upstreamReader = upstream.body!.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop() ?? '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const raw = line.slice(6).trim();
-          if (raw === '[DONE]') { controller.close(); return; }
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: parsed.delta.text })}\n\n`));
-            }
-            if (parsed.type === 'message_stop') { controller.close(); return; }
-          } catch { /* skip */ }
+        while (true) {
+          const { done, value } = await upstreamReader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop() ?? '';
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const raw = line.slice(6).trim();
+            if (raw === '[DONE]') { controller.close(); return; }
+            try {
+              const parsed = JSON.parse(raw);
+              if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: parsed.delta.text })}\n\n`));
+              }
+              if (parsed.type === 'message_stop') { controller.close(); return; }
+            } catch { /* skip */ }
+          }
         }
+        controller.close();
+      } catch (err) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
+        controller.close();
       }
-      controller.close();
     },
+    cancel() { upstreamReader?.cancel(); },
   });
 
   return new Response(stream, {

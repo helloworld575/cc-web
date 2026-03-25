@@ -2,12 +2,17 @@ export const runtime = 'nodejs';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getSkill } from '@/lib/skills';
+import { rateLimitByIp } from '@/lib/rateLimit';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  const rl = rateLimitByIp(req, 'ai', 10);
+  if (rl) return rl;
 
-  const { skill: skillId, content } = await req.json();
+  let body: any;
+  try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 }); }
+  const { skill: skillId, content } = body;
   if (!skillId || !content) return new Response(JSON.stringify({ error: 'Missing skill or content' }), { status: 400 });
 
   const skill = getSkill(skillId);
@@ -19,13 +24,13 @@ export async function POST(req: Request) {
   const host = (process.env.CLAUDE_API_HOST ?? 'https://api.anthropic.com').replace(/\/$/, '');
   const prompt = skill.prompt.replace('{{content}}', content);
 
-  const body: Record<string, unknown> = {
+  const payload: Record<string, unknown> = {
     model: process.env.CLAUDE_MODEL ?? 'claude-sonnet-4-6',
     max_tokens: 4096,
     stream: true,
     messages: [{ role: 'user', content: prompt }],
   };
-  if (skill.system) body.system = skill.system;
+  if (skill.system) payload.system = skill.system;
 
   const upstream = await fetch(`${host}/v1/messages`, {
     method: 'POST',
@@ -34,30 +39,31 @@ export async function POST(req: Request) {
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
 
   if (!upstream.ok) {
-    const err = await upstream.json();
-    return new Response(JSON.stringify({ error: err.error?.message ?? 'Claude API error' }), { status: 502 });
+    let msg = 'Claude API error';
+    try { const err = await upstream.json(); msg = err.error?.message ?? msg; } catch {}
+    return new Response(JSON.stringify({ error: msg }), { status: 502 });
   }
 
-  // Stream SSE from Claude to the client, injecting the output type in the first chunk
   const outputType = skill.output;
   const encoder = new TextEncoder();
   const upstreamBody = upstream.body!;
+  let upstreamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
   const stream = new ReadableStream({
     async start(controller) {
       // First, send output type so client knows how to handle result
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ output: outputType })}\n\n`));
 
-      const reader = upstreamBody.getReader();
+      upstreamReader = upstreamBody.getReader();
       const decoder = new TextDecoder();
       let buf = '';
 
       while (true) {
-        const { done, value } = await reader.read();
+        const { done, value } = await upstreamReader.read();
         if (done) break;
         buf += decoder.decode(value, { stream: true });
         const lines = buf.split('\n');
@@ -82,6 +88,7 @@ export async function POST(req: Request) {
       }
       controller.close();
     },
+    cancel() { upstreamReader?.cancel(); },
   });
 
   return new Response(stream, {

@@ -48,7 +48,7 @@ export default function AdminToolsPage() {
   const [page, setPage] = useState(1);
   const { t } = useLocale();
 
-  useEffect(() => { fetch('/api/todos').then(r => r.json()).then(setTodos); }, []);
+  useEffect(() => { fetch('/api/todos').then(r => r.ok ? r.json() : Promise.reject()).then(setTodos).catch(() => {}); }, []);
 
   async function addTodo() {
     if (!text.trim()) return;
@@ -64,17 +64,20 @@ export default function AdminToolsPage() {
   }
 
   async function toggleDone(t: Todo) {
-    await fetch(`/api/todos/${t.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ done: !t.done }) });
+    const res = await fetch(`/api/todos/${t.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ done: !t.done }) });
+    if (!res.ok) return;
     setTodos(todos.map(x => x.id === t.id ? { ...x, done: x.done ? 0 : 1 } : x));
   }
 
   async function setDeadline(t: Todo, deadline: string) {
-    await fetch(`/api/todos/${t.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deadline }) });
+    const res = await fetch(`/api/todos/${t.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deadline }) });
+    if (!res.ok) return;
     setTodos(todos.map(x => x.id === t.id ? { ...x, deadline: deadline || undefined } : x));
   }
 
   async function deleteTodo(id: number) {
-    await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+    if (!res.ok) return;
     setTodos(todos.filter(t => t.id !== id));
   }
 
