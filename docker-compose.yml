@@ -1,11 +1,25 @@
 services:
-  mongo:
-    image: mongo:8
+  app:
+    build: .
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "3000:3000"
     volumes:
-      - mongo-data:/data/db
+      - app-data:/app/data
+      - app-uploads:/app/uploads
+      - ./content:/app/content
+    env_file:
+      - .env.local
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    restart: unless-stopped
+    depends_on:
+      - app
 
 volumes:
-  mongo-data:
+  app-data:
+  app-uploads:

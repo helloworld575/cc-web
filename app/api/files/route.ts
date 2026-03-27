@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { stmts } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { writeFile } from 'fs/promises';
@@ -19,6 +20,7 @@ export async function GET(req: Request) {
   const search = searchParams.get('search') ?? '';
   const from = searchParams.get('from') ?? '';
   const to = searchParams.get('to') ?? '';
+  const albumId = searchParams.get('album_id') ?? '';
 
   const conditions: string[] = [];
   const params: (string | number)[] = [];
@@ -28,15 +30,28 @@ export async function GET(req: Request) {
     params.push(`%${search}%`);
   }
   if (from) {
-    conditions.push("date(uploaded_at) >= ?");
+    conditions.push("uploaded_at >= ?");
     params.push(from);
   }
   if (to) {
-    conditions.push("date(uploaded_at) <= ?");
-    params.push(to);
+    conditions.push("uploaded_at < ?");
+    params.push(to + 'T24');
+  }
+  if (albumId === 'none') {
+    conditions.push('album_id IS NULL');
+  } else if (albumId) {
+    conditions.push('album_id = ?');
+    params.push(Number(albumId));
   }
 
-  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  if (!conditions.length) {
+    // Fast path: use prepared statements for unfiltered queries
+    const total = (stmts.countFiles.get() as { c: number }).c;
+    const files = stmts.listFiles.all(pageSize, (page - 1) * pageSize);
+    return NextResponse.json({ files, total });
+  }
+
+  const where = `WHERE ${conditions.join(' AND ')}`;
   const total = (db.prepare(`SELECT COUNT(*) as c FROM files ${where}`).get(...params) as { c: number }).c;
   const files = db.prepare(`SELECT * FROM files ${where} ORDER BY uploaded_at DESC LIMIT ? OFFSET ?`).all(...params, pageSize, (page - 1) * pageSize);
 
@@ -61,9 +76,8 @@ export async function POST(req: Request) {
   await writeFile(path.join(process.cwd(), 'uploads', filename), buffer);
 
   const mimeType = file.type || `image/${ext.slice(1)}`;
-  db.prepare(
-    'INSERT INTO files (filename, original_name, mime_type, size) VALUES (?, ?, ?, ?)'
-  ).run(filename, file.name, mimeType, file.size);
+  const albumId = formData.get('album_id');
+  stmts.insertFile.run(filename, file.name, mimeType, file.size, albumId ? Number(albumId) : null);
 
   return NextResponse.json({ ok: true, filename });
 }

@@ -1,33 +1,47 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Pagination from '@/components/Pagination';
 import DateRangeFilter from '@/components/DateRangeFilter';
 import { useLocale } from '@/components/useLocale';
 
-interface FileRecord { id: number; filename: string; original_name: string; mime_type: string; size: number; uploaded_at: string; }
+interface FileRecord { id: number; filename: string; original_name: string; mime_type: string; size: number; uploaded_at: string; album_id: number | null; }
+interface Album { id: number; name: string; cover_file_id: number | null; }
 const PAGE_SIZE = 24;
 
 export default function FilesPage() {
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
   const [lightbox, setLightbox] = useState<FileRecord | null>(null);
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [activeAlbum, setActiveAlbum] = useState<string>('');
   const { t } = useLocale();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const load = useCallback((p: number, s: string, f: string, tDate: string) => {
+  useEffect(() => {
+    fetch('/api/albums').then(r => r.json()).then(d => setAlbums(d.albums ?? [])).catch(() => {});
+  }, []);
+
+  const load = useCallback((p: number, s: string, f: string, tDate: string, albumId: string) => {
     const q = new URLSearchParams({ page: String(p), pageSize: String(PAGE_SIZE), search: s, from: f, to: tDate });
+    if (albumId) q.set('album_id', albumId);
     fetch(`/api/files?${q}`).then(r => r.ok ? r.json() : Promise.reject()).then(data => {
       setFiles(data.files ?? []);
       setTotal(data.total ?? 0);
     }).catch(() => {});
   }, []);
 
-  useEffect(() => { load(page, search, from, to); }, [page, search, from, to, load]);
+  useEffect(() => { load(page, debouncedSearch, from, to, activeAlbum); }, [page, debouncedSearch, from, to, activeAlbum, load]);
 
-  function onSearch(v: string) { setSearch(v); setPage(1); }
+  function onSearch(v: string) {
+    setSearch(v);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { setDebouncedSearch(v); setPage(1); }, 300);
+  }
   function onFrom(v: string) { setFrom(v); setPage(1); }
   function onTo(v: string) { setTo(v); setPage(1); }
   function onReset() { setFrom(''); setTo(''); setPage(1); }
@@ -48,6 +62,19 @@ export default function FilesPage() {
   return (
     <main className="max-w-5xl mx-auto px-6 py-12">
       <h1 className="text-3xl font-bold mb-6">{t('filesTitle')}</h1>
+
+      {/* Album tabs */}
+      {albums.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button onClick={() => { setActiveAlbum(''); setPage(1); }}
+            className={`text-sm px-4 py-1.5 rounded-full border ${!activeAlbum ? 'bg-black text-white' : 'hover:bg-gray-100'}`}>{t('allPhotos')}</button>
+          {albums.map(a => (
+            <button key={a.id} onClick={() => { setActiveAlbum(String(a.id)); setPage(1); }}
+              className={`text-sm px-4 py-1.5 rounded-full border ${activeAlbum === String(a.id) ? 'bg-black text-white' : 'hover:bg-gray-100'}`}>{a.name}</button>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <input value={search} onChange={e => onSearch(e.target.value)}
           placeholder={t('searchPlaceholder')} className="border rounded px-3 py-2 text-sm flex-1" />

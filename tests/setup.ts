@@ -38,9 +38,6 @@ vi.mock('@/lib/skills', () => ({
   deleteSkill: vi.fn(),
 }));
 
-// Mock mongo
-vi.mock('@/lib/mongo', () => ({ default: null }));
-
 // Mock bazi lib
 vi.mock('@/lib/bazi', () => ({
   calcBazi: vi.fn(() => ({

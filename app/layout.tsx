@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
 import Nav from "@/components/Nav";
-import DeadlineAlert from "@/components/DeadlineAlert";
+import dynamic from 'next/dynamic';
+
+const DeadlineAlert = dynamic(() => import('@/components/DeadlineAlert'), { ssr: false });
 
 export const metadata: Metadata = {
   title: "ThomasLee's Blog",

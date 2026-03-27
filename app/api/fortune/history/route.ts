@@ -1,28 +1,22 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import clientPromise from '@/lib/mongo';
-
-const DB = 'thomaslee-blog';
-const COLLECTION = 'fortune_history';
-
-const noMongo = () => new Response(JSON.stringify({ error: 'MongoDB not configured' }), { status: 501 });
+import { stmts } from '@/lib/db';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-  if (!clientPromise) return noMongo();
 
-  const client = await clientPromise;
-  const col = client.db(DB).collection(COLLECTION);
-  const docs = await col.find().sort({ createdAt: -1 }).limit(100).toArray();
+  const rows = stmts.listFortune.all().map(r => {
+    const row = r as any;
+    return { ...row, input: JSON.parse(row.input), preflight: JSON.parse(row.preflight) };
+  });
 
-  return Response.json(docs);
+  return Response.json(rows);
 }
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-  if (!clientPromise) return noMongo();
 
   let body: any;
   try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 }); }
@@ -37,10 +31,12 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 });
   }
 
-  const client = await clientPromise;
-  const col = client.db(DB).collection(COLLECTION);
-  const doc = { method, input, preflight, analysis, createdAt: new Date() };
-  const result = await col.insertOne(doc);
+  const result = stmts.insertFortune.run(method, JSON.stringify(input ?? {}), JSON.stringify(preflight ?? {}), analysis);
+  const doc = stmts.getFortune.get(result.lastInsertRowid) as any;
 
-  return Response.json({ _id: result.insertedId, ...doc }, { status: 201 });
+  return Response.json({
+    ...doc,
+    input: JSON.parse(doc.input),
+    preflight: JSON.parse(doc.preflight),
+  }, { status: 201 });
 }

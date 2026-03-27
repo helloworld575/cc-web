@@ -94,6 +94,14 @@ export const translations = {
 
     // Admin — files
     adminFiles: 'Admin — Files',
+    albums: 'Albums',
+    newAlbum: 'New Album',
+    allPhotos: 'All Photos',
+    moveToAlbum: 'Move to Album',
+    removeFromAlbum: 'Remove from Album',
+    albumName: 'Album Name',
+    noAlbum: 'Uncategorized',
+    deleteAlbumConfirm: 'Delete this album? Photos will not be deleted.',
 
     // Admin — todos
     adminTodos: 'Admin — Todos',
@@ -207,6 +215,14 @@ export const translations = {
 
     // Admin — files
     adminFiles: '管理 — 文件',
+    albums: '相册',
+    newAlbum: '新建相册',
+    allPhotos: '全部照片',
+    moveToAlbum: '移入相册',
+    removeFromAlbum: '移出相册',
+    albumName: '相册名称',
+    noAlbum: '未分类',
+    deleteAlbumConfirm: '确认删除此相册？照片不会被删除。',
 
     // Admin — todos
     adminTodos: '管理 — 待办事项',
