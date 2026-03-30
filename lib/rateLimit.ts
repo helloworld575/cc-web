@@ -4,9 +4,9 @@ const MAX_ENTRIES = 1000;
 // Periodic cleanup every 5 minutes
 setInterval(() => {
   const now = Date.now();
-  for (const [key, entry] of hits) {
+  hits.forEach((entry, key) => {
     if (now > entry.reset) hits.delete(key);
-  }
+  });
 }, 5 * 60_000).unref();
 
 export function rateLimit(key: string, limit: number, windowMs = 60_000): boolean {

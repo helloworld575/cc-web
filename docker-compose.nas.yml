@@ -1,14 +1,14 @@
 services:
   app:
-    image: my-site
-    build: .
+    image: my-site:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
       - app-data:/app/data
       - app-uploads:/app/uploads
-      - ./content:/app/content
+      # Optionally override built-in content with local posts:
+      # - ./content:/app/content
     env_file:
       - .env.local
 

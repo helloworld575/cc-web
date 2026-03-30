@@ -5,11 +5,12 @@ RUN apk add --no-cache python3 make g++ libc6-compat
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --prefer-offline --no-audit --no-fund
+RUN npm ci --no-audit --no-fund && ls node_modules/.bin/ | head -20 && ls node_modules/next/dist/bin/ 2>/dev/null || true
 
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN ./node_modules/.bin/next build
+ENV PATH="/app/node_modules/.bin:$PATH"
+RUN next build
 
 # Stage 2: Runner
 FROM node:20-alpine AS runner
@@ -26,8 +27,11 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Content & data dirs — will be mounted as volumes in production
-RUN mkdir -p data uploads content/posts && \
+# Copy content (blog posts etc.) from build stage
+COPY --from=builder /app/content ./content
+
+# Data & uploads dirs — will be mounted as volumes in production
+RUN mkdir -p data uploads && \
     chown -R nextjs:nodejs data uploads content
 
 USER nextjs

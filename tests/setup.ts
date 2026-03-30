@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 
 // Mock better-sqlite3 before anything imports lib/db
 vi.mock('better-sqlite3', () => {
-  const stmt = { get: vi.fn(), all: vi.fn(() => []), run: vi.fn(() => ({ lastInsertRowid: 1, changes: 1 })) };
+  const stmt = { get: vi.fn(() => ({ c: 0 })), all: vi.fn(() => []), run: vi.fn(() => ({ lastInsertRowid: 1, changes: 1 })) };
   const db = {
     prepare: vi.fn(() => stmt),
     pragma: vi.fn(),
@@ -100,7 +100,16 @@ vi.mock('fs/promises', () => ({
 // Mock fs for uploads route
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof import('fs')>('fs');
-  return { ...actual, existsSync: vi.fn(() => true) };
+  const { Readable } = await vi.importActual<typeof import('stream')>('stream');
+  return {
+    ...actual,
+    existsSync: vi.fn(() => true),
+    statSync: vi.fn(() => ({ size: 100, mtimeMs: 1700000000000 })),
+    createReadStream: vi.fn(() => {
+      const s = new Readable({ read() { this.push(Buffer.from('fake')); this.push(null); } });
+      return s;
+    }),
+  };
 });
 
 // Env vars

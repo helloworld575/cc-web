@@ -92,7 +92,8 @@ export const stmts = {
 };
 
 // Graceful shutdown
-process.on('SIGTERM', () => db.close());
-process.on('SIGINT', () => db.close());
+const shutdown = () => { try { db.close(); } catch {} };
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 export default db;

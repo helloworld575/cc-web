@@ -11,9 +11,9 @@ const MAX_AUTH_ENTRIES = 500;
 function cleanupIfNeeded() {
   if (authHits.size < MAX_AUTH_ENTRIES) return;
   const now = Date.now();
-  for (const [key, entry] of authHits) {
+  authHits.forEach((entry, key) => {
     if (now > entry.reset) authHits.delete(key);
-  }
+  });
   // If still over limit after cleanup, evict oldest
   if (authHits.size >= MAX_AUTH_ENTRIES) {
     const firstKey = authHits.keys().next().value;

@@ -10,3 +10,5 @@ uploads/*
 .idea
 log
 *.tar.gz
+**/PaxHeader
+**/__MACOSX
