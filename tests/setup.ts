@@ -1,4 +1,10 @@
 import { vi } from 'vitest';
+import { File as NodeFile } from 'node:buffer';
+
+// Polyfill File for Node 18 (globally available from Node 20+)
+if (typeof globalThis.File === 'undefined') {
+  (globalThis as unknown as Record<string, unknown>).File = NodeFile;
+}
 
 // Mock better-sqlite3 before anything imports lib/db
 vi.mock('better-sqlite3', () => {
