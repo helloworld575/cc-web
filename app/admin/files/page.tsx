@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import DateRangeFilter from '@/components/DateRangeFilter';
 import Pagination from '@/components/Pagination';
 import { useLocale } from '@/components/useLocale';
@@ -174,8 +175,9 @@ export default function AdminFilesPage() {
         {files.map(f => (
           <div key={f.id} className={`border rounded overflow-hidden group relative ${selected.has(f.id) ? 'ring-2 ring-blue-500' : ''}`}>
             <div className="relative w-full cursor-pointer" style={{ paddingBottom: '75%' }} onClick={() => toggleSelect(f.id)}>
-              <img src={`/uploads/${f.filename}`} alt={f.original_name} loading="lazy"
-                className="absolute inset-0 w-full h-full object-cover" />
+              <Image src={`/uploads/${f.filename}`} alt={f.original_name} fill
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="object-cover" />
               {selected.has(f.id) && <div className="absolute top-1 left-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>}
             </div>
             <p className="text-xs text-gray-500 px-2 py-0.5 truncate">{f.original_name}</p>

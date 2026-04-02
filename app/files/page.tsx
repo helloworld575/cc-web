@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import Pagination from '@/components/Pagination';
 import DateRangeFilter from '@/components/DateRangeFilter';
 import { useLocale } from '@/components/useLocale';
@@ -87,8 +88,9 @@ export default function FilesPage() {
           <button key={f.id} onClick={() => setLightbox(f)}
             className="group block overflow-hidden rounded border text-left hover:shadow-md transition-shadow">
             <div className="relative w-full" style={{ paddingBottom: '75%' }}>
-              <img src={`/uploads/${f.filename}`} alt={f.original_name} loading="lazy"
-                className="absolute inset-0 w-full h-full object-cover group-hover:opacity-90 transition-opacity" />
+              <Image src={`/uploads/${f.filename}`} alt={f.original_name} fill
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="object-cover group-hover:opacity-90 transition-opacity" />
             </div>
             <p className="text-xs text-gray-500 px-2 py-1 truncate">{f.original_name}</p>
           </button>

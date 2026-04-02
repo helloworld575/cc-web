@@ -31,8 +31,8 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/content ./content
 
 # Data & uploads dirs — will be mounted as volumes in production
-RUN mkdir -p data uploads && \
-    chown -R nextjs:nodejs data uploads content
+RUN mkdir -p data uploads .next/cache .next/server && \
+    chown -R nextjs:nodejs data uploads content .next
 
 USER nextjs
 
@@ -40,6 +40,6 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-ENV NODE_OPTIONS="--max-old-space-size=256"
+ENV NODE_OPTIONS="--max-old-space-size=512"
 
 CMD ["node", "server.js"]
