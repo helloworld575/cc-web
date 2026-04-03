@@ -14,9 +14,7 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    command: tunnel --no-autoupdate run
-    env_file:
-      - .env.local
+    command: tunnel --no-autoupdate run --token eyJhIjoiNmVkYWQ2NzQwNDgzZDVjMWVjODAzMTM5MTIzMmVlYmUiLCJ0IjoiNGIwNTZiN2UtNzAwYS00MjNiLTkyM2ItNGExOGJkZTQxMGIwIiwicyI6IllXWm1OelUxTWpjdE9EUXhOUzAwTnpWakxXSmhNekF0TjJZeU1EaGpZVEptT0Rnd05EQTFNelZqWmpFdE1qYzNOQzAwTlRFNUxUZzJaVFV0TlRsalptTTRPR014TWpsbCJ9
     restart: unless-stopped
     depends_on:
       - app
