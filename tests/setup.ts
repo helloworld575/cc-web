@@ -121,3 +121,9 @@ vi.mock('fs', async () => {
 // Env vars
 process.env.ADMIN_PASSWORD = 'test-pass';
 process.env.CLAUDE_API_KEY = 'test-key';
+
+// Mock fetchers
+vi.mock('@/lib/fetchers', () => ({
+  fetchByCategory: vi.fn(() => ({ title: 'Test', content: 'Test content' })),
+  fetchGeneric: vi.fn(() => ({ title: 'Test', content: 'Test content' })),
+}));

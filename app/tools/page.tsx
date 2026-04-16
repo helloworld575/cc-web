@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import Pagination from '@/components/Pagination';
 import FortuneTool from '@/components/FortuneTool';
+import AIChatTool from '@/components/AIChatTool';
+import SubscriptionBriefsTool from '@/components/SubscriptionBriefsTool';
 import { useLocale } from '@/components/useLocale';
 
 interface Todo { id: number; text: string; done: number; }
@@ -10,7 +12,7 @@ interface DiaryEntry { id: number; date: string; content: string; }
 const PAGE_SIZE = 10;
 
 export default function ToolsPage() {
-  const [tab, setTab] = useState<'todos' | 'diary' | 'bazi'>('todos');
+  const [tab, setTab] = useState<'todos' | 'diary' | 'bazi' | 'ai-chat' | 'subscriptions'>('todos');
   const [todos, setTodos] = useState<Todo[]>([]);
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [todoSearch, setTodoSearch] = useState('');
@@ -43,6 +45,8 @@ export default function ToolsPage() {
           ['todos', t('toolsTitle')],
           ['diary', t('diary')],
           ['bazi', t('bazi')],
+          ['ai-chat', t('aiChat')],
+          ['subscriptions', t('subscriptions')],
         ] as const).map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`pb-2 px-1 mr-3 text-sm font-medium whitespace-nowrap transition-colors ${tab === id ? 'border-b-2 border-black' : 'text-gray-500 hover:text-black'}`}>
@@ -95,6 +99,10 @@ export default function ToolsPage() {
       )}
 
       {tab === 'bazi' && <FortuneTool />}
+
+      {tab === 'ai-chat' && <AIChatTool />}
+
+      {tab === 'subscriptions' && <SubscriptionBriefsTool />}
     </main>
   );
 }

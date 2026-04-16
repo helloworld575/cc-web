@@ -121,6 +121,26 @@ export const translations = {
     fortuneSaved: 'Saved to history',
     fortuneViewFull: 'View full analysis',
     fortuneBack: 'Back to list',
+
+    // AI Chat
+    aiChat: 'AI Chat',
+    aiChatNoProvider: 'No AI provider configured.',
+    aiChatGoConfig: 'Go to Admin → AI Config to add one',
+    aiChatNew: 'New Chat',
+    aiChatWelcome: 'Start a conversation',
+    aiChatWelcomeDesc: 'Select a provider and type a message to begin.',
+    aiChatPlaceholder: 'Type a message... (Shift+Enter for new line)',
+    aiChatSend: 'Send',
+    aiChatStop: 'Stop',
+
+    // Subscriptions
+    subscriptions: 'Subscriptions',
+    subscriptionBriefs: 'briefs',
+    subscriptionNoBriefs: 'No briefs yet. Add subscriptions to get started.',
+    subscriptionGoConfig: 'Go to Admin → Subscriptions to add sources',
+    subscriptionRefresh: 'Refresh All',
+    subscriptionRefreshing: 'Refreshing...',
+    subscriptionDeleteConfirm: 'Delete this brief?',
   },
   zh: {
     // Nav
@@ -242,6 +262,26 @@ export const translations = {
     fortuneSaved: '已保存到历史',
     fortuneViewFull: '查看完整分析',
     fortuneBack: '返回列表',
+
+    // AI Chat
+    aiChat: 'AI 对话',
+    aiChatNoProvider: '尚未配置 AI 服务商。',
+    aiChatGoConfig: '前往管理后台 → AI 配置 添加',
+    aiChatNew: '新对话',
+    aiChatWelcome: '开始对话',
+    aiChatWelcomeDesc: '选择服务商，输入消息开始聊天。',
+    aiChatPlaceholder: '输入消息... (Shift+Enter 换行)',
+    aiChatSend: '发送',
+    aiChatStop: '停止',
+
+    // Subscriptions
+    subscriptions: '订阅',
+    subscriptionBriefs: '条摘要',
+    subscriptionNoBriefs: '暂无摘要。添加订阅源开始使用。',
+    subscriptionGoConfig: '前往管理后台 → 订阅 添加源',
+    subscriptionRefresh: '全部刷新',
+    subscriptionRefreshing: '刷新中...',
+    subscriptionDeleteConfirm: '确定删除此摘要？',
   },
 } satisfies Record<Locale, Record<string, string>>;
 
