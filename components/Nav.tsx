@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useLocale } from '@/components/useLocale';
 
@@ -8,12 +8,15 @@ export default function Nav() {
   const { data: session } = useSession();
   const { locale, toggle, t } = useLocale();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const close = () => setOpen(false);
 
   return (
-    <nav className="border-b px-4 py-3">
-      <div className="flex items-center gap-5 text-sm">
+    <nav className="border-b px-4 py-3" suppressHydrationWarning>
+      <div className="flex items-center gap-5 text-sm" suppressHydrationWarning>
         <Link href="/" className="font-bold flex items-center gap-1.5" onClick={close}>
           <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect width="32" height="32" rx="8" fill="#111"/>
@@ -23,24 +26,24 @@ export default function Nav() {
         </Link>
 
         {/* Desktop links */}
-        <div className="hidden sm:flex gap-5 items-center">
-          <Link href="/blog">{t('blog')}</Link>
-          <Link href="/tools">{t('tools')}</Link>
-          <Link href="/files">{t('files')}</Link>
+        <div className="hidden sm:flex gap-5 items-center" suppressHydrationWarning>
+          <Link href="/blog" suppressHydrationWarning>{t('blog')}</Link>
+          <Link href="/tools" suppressHydrationWarning>{t('tools')}</Link>
+          <Link href="/files" suppressHydrationWarning>{t('files')}</Link>
         </div>
 
-        <div className="ml-auto flex gap-3 items-center">
-          <div className="hidden sm:flex gap-4 items-center">
-            {session ? (
+        <div className="ml-auto flex gap-3 items-center" suppressHydrationWarning>
+          <div className="hidden sm:flex gap-4 items-center" suppressHydrationWarning>
+            {mounted && session ? (
               <>
-                <Link href="/admin/blog">{t('admin')}</Link>
-                <button onClick={() => signOut({ callbackUrl: '/' })} className="text-gray-500 hover:text-black">{t('logout')}</button>
+                <Link href="/admin/blog" suppressHydrationWarning>{t('admin')}</Link>
+                <button onClick={() => signOut({ callbackUrl: '/' })} className="text-gray-500 hover:text-black" suppressHydrationWarning>{t('logout')}</button>
               </>
-            ) : (
-              <Link href="/login">{t('login')}</Link>
-            )}
+            ) : mounted ? (
+              <Link href="/login" suppressHydrationWarning>{t('login')}</Link>
+            ) : null}
           </div>
-          <button onClick={toggle} className="border rounded px-2 py-0.5 text-xs hover:bg-gray-100 transition-colors">
+          <button onClick={toggle} className="border rounded px-2 py-0.5 text-xs hover:bg-gray-100 transition-colors" suppressHydrationWarning>
             {locale === 'en' ? '中文' : 'EN'}
           </button>
           {/* Hamburger */}

@@ -36,31 +36,31 @@ async function generateBriefWithSkill(
     };
     if (skill.system) payload.system = skill.system;
 
-    const reqConfig = provider.api_type === 'anthropic'
-      ? {
-          url: `${provider.api_url}/v1/messages`,
-          headers: {
-            'x-api-key': provider.api_key,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
-          },
-        }
-      : {
-          url: `${provider.api_url.replace(/\/$/, '')}/v1/chat/completions`,
-          headers: {
-            'Authorization': `Bearer ${provider.api_key}`,
-            'content-type': 'application/json',
-          },
-        };
+    let reqUrl: string;
+    let reqHeaders: Record<string, string>;
 
-    if (provider.api_type !== 'anthropic' && skill.system) {
-      (payload.messages as any[]).unshift({ role: 'system', content: skill.system });
-      delete payload.system;
+    if (provider.api_type === 'anthropic') {
+      reqUrl = `${provider.api_url}/v1/messages`;
+      reqHeaders = {
+        'x-api-key': provider.api_key,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      };
+    } else {
+      reqUrl = `${provider.api_url.replace(/\/$/, '')}/v1/chat/completions`;
+      reqHeaders = {
+        'Authorization': `Bearer ${provider.api_key}`,
+        'content-type': 'application/json',
+      };
+      if (skill.system) {
+        (payload.messages as any[]).unshift({ role: 'system', content: skill.system });
+        delete payload.system;
+      }
     }
 
-    const response = await fetch(reqConfig.url, {
+    const response = await fetch(reqUrl, {
       method: 'POST',
-      headers: reqConfig.headers,
+      headers: reqHeaders,
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(180000),
     });

@@ -65,12 +65,6 @@ EOF
     echo "CLAUDE_API_HOST=$CLAUDE_API_HOST" >> .env.local
   fi
 
-  cat >> .env.local <<EOF
-
-# MongoDB (fortune history)
-MONGODB_URI=mongodb://localhost:27017/thomaslee-blog
-EOF
-
   echo
   echo "[ok] .env.local created"
 fi

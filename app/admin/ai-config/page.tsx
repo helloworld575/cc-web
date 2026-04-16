@@ -71,36 +71,16 @@ export default function AdminAIConfigPage() {
         setTesting(false);
         return;
       }
-      const res = await fetch('/api/ai-chat', {
+      const res = await fetch('/api/ai-providers/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider_id: editing.id,
-          messages: [{ role: 'user', content: 'Say "Hello! Connection successful." and nothing else.' }],
-        }),
+        body: JSON.stringify({ provider_id: editing.id }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        setTestResult({ ok: false, msg: data.error || `HTTP ${res.status}` });
+      const data = await res.json();
+      if (data.ok) {
+        setTestResult({ ok: true, msg: `${data.model}: ${data.text}` });
       } else {
-        // Read SSE stream
-        const reader = res.body!.getReader();
-        const decoder = new TextDecoder();
-        let text = '';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          for (const line of chunk.split('\n')) {
-            if (line.startsWith('data: ')) {
-              try {
-                const parsed = JSON.parse(line.slice(6));
-                if (parsed.text) text += parsed.text;
-              } catch {}
-            }
-          }
-        }
-        setTestResult({ ok: true, msg: text || 'Connected successfully (no text returned)' });
+        setTestResult({ ok: false, msg: data.error || 'Test failed' });
       }
     } catch (e: any) {
       setTestResult({ ok: false, msg: e.message || 'Connection failed' });

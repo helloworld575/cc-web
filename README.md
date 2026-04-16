@@ -1,10 +1,23 @@
 # ThomasLee's Blog
 
-Personal blog & toolbox built with Next.js 14 — blog, todos, diary, file uploads, and AI-powered Chinese fortune telling (BaZi, ZiWei, LiuYao, MeiHua).
+Personal blog & toolbox built with **Next.js 14** and **SQLite**.
+
+📖 [中文版](./README.zh-CN.md) · 📚 [Full docs](./docs/en/)
+
+## Features
+
+- 📝 **Blog** — Markdown posts with AI-assisted editing (brief, tags, title, translate, polish)
+- 📒 **Diary** — Private date-based journal with markdown
+- ✅ **Todos** — Task list with deadlines
+- 🖼️ **Files** — Image uploads organized into albums
+- 🤖 **AI Chat** — Multi-provider chat (OpenAI + Anthropic) with streaming
+- 📰 **Subscriptions** — AI-generated briefs from blogs, GitHub, X/Twitter, RSS, Reddit
+- 🐦 **Post to X** — Turn blog posts or diary entries into tweets/threads, attach site images
+- 🔮 **Fortune** — Chinese divination (BaZi, ZiWei, I Ching, Plum Blossom)
 
 ## Setup
 
-Requires **Node.js >= 18** and **Docker**.
+**Requires Node.js 18+**.
 
 ```bash
 git clone <your-repo-url>
@@ -12,20 +25,44 @@ cd my-site
 ./setup.sh
 ```
 
-The script will:
-- Check prerequisites
-- Ask for your admin password and Claude API key
-- Generate `.env.local` automatically
+The setup script will:
+- Check Node.js version
+- Prompt for admin password and (optional) Claude API key
+- Generate `.env.local`
 - Install npm dependencies
-- Start MongoDB via Docker
 
-Then start the dev server:
+Start the dev server:
 
 ```bash
 npm run dev
 ```
 
-Open http://localhost:3000. Login at http://localhost:3000/login.
+Open [http://localhost:3000](http://localhost:3000). Log in at `/login`.
+
+## Environment Variables
+
+Required in `.env.local`:
+
+```bash
+ADMIN_PASSWORD=changeme                    # your login password
+NEXTAUTH_SECRET=<openssl rand -base64 32>  # session signing key
+NEXTAUTH_URL=http://localhost:3000         # site URL
+```
+
+Optional:
+
+```bash
+# X / Twitter (for Post to X feature)
+X_CONSUMER_KEY=
+X_CONSUMER_SECRET=
+X_ACCESS_TOKEN=
+X_ACCESS_TOKEN_SECRET=
+
+# Cloudflare Tunnel (for deploy)
+CLOUDFLARE_TUNNEL_TOKEN=
+```
+
+AI providers are configured through the admin UI at `/admin/ai-config` — no env var needed.
 
 ## Production
 
@@ -34,16 +71,92 @@ npm run build
 npm start
 ```
 
-## Migrating to Another Machine
+Or run with Docker:
 
-1. Copy the project folder (include `data/`, `content/`, `uploads/`)
+```bash
+docker compose up -d
+```
+
+### Deploy to Synology NAS
+
+See `deploy-to-nas.sh` — builds an AMD64 image, pushes via SCP, runs with Cloudflared tunnel.
+
+## Testing
+
+```bash
+npm test          # run once
+npm run test:watch
+```
+
+152+ tests covering all API routes, auth, rate limiting, and streaming responses.
+
+## Migration
+
+1. Copy the project folder including `data/` (SQLite DB), `content/` (blog markdown), `uploads/` (photos)
 2. Run `./setup.sh` on the new machine
-3. Done
+3. Start the server
+
+## Tech Stack
+
+| Layer | Choice |
+|-------|--------|
+| Framework | Next.js 14 (App Router) |
+| Language | TypeScript |
+| Database | SQLite (`better-sqlite3`) |
+| Auth | NextAuth.js (credentials) |
+| Styling | Tailwind CSS |
+| Markdown | `react-markdown` + `gray-matter` |
+| Editor | `@uiw/react-md-editor` |
+| Testing | Vitest |
+
+## Project Layout
+
+```
+my-site/
+├── app/              # Next.js App Router (pages + API routes)
+├── components/       # Shared React components
+├── lib/              # Server utilities (db, auth, fetchers, x api, skills)
+├── .claude/skills/   # AI skills (used by web app + Claude Code)
+├── content/posts/    # Blog markdown files
+├── uploads/          # User-uploaded images
+├── data/site.db      # SQLite database
+├── docs/             # Usage, API, and development docs (EN + ZH)
+└── tests/            # Vitest tests
+```
+
+## AI Skills
+
+AI behaviors are defined as reusable skills in `.claude/skills/<name>/SKILL.md`. Built-in skills:
+
+| Skill | Purpose |
+|-------|---------|
+| `article-brief` | Generate blog excerpts |
+| `article-polish` | Rewrite for clarity |
+| `article-tags` | Extract tags |
+| `article-title` | Generate SEO titles |
+| `article-translate-en` | Translate ZH → EN |
+| `subscription` | News-focused brief of subscribed content |
+| `blog-to-x` | Convert blog/diary → tweets/threads |
+| `bazi-fortune`, `ziwei-fortune`, `liuyao-fortune`, `meihua-fortune` | Chinese divination |
+
+See [docs/en/development.md](./docs/en/development.md#adding-an-ai-skill) for how to add your own.
 
 ## Troubleshooting
 
 | Problem | Fix |
-|---|---|
+|---------|-----|
 | `better-sqlite3` build error | `npm rebuild better-sqlite3` |
-| MongoDB won't connect | `docker compose ps` to check status |
+| Hydration mismatch in Nav | Make sure locale cookie matches or clear cookies |
+| AI proxy rejects streaming test | Use `/api/ai-providers/test` endpoint (non-streaming) |
+| X post fails with empty `{}` | Check app has Read+Write permissions, regenerate access tokens |
 | Fortune streaming stops early | Increase `max_tokens` in `app/api/fortune/route.ts` |
+
+## Documentation
+
+- [Usage Guide](./docs/en/how-to-use.md)
+- [API Reference](./docs/en/api.md)
+- [Development Guide](./docs/en/development.md)
+
+## License
+
+Personal project — feel free to fork for your own use.

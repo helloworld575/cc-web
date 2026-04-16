@@ -127,3 +127,11 @@ vi.mock('@/lib/fetchers', () => ({
   fetchByCategory: vi.fn(() => ({ title: 'Test', content: 'Test content' })),
   fetchGeneric: vi.fn(() => ({ title: 'Test', content: 'Test content' })),
 }));
+
+// Mock xapi
+vi.mock('@/lib/xapi', () => ({
+  postTweet: vi.fn(() => ({ id: '123', text: 'test' })),
+  postThread: vi.fn(() => ({ results: [{ id: '123', text: 'test' }], errors: [] })),
+  uploadMedia: vi.fn(() => ({ media_id_string: 'media_123' })),
+  buildOAuthHeader: vi.fn(() => 'OAuth test'),
+}));
