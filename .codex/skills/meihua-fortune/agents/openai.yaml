@@ -1,0 +1,4 @@
+interface:
+  display_name: "Meihua Fortune"
+  short_description: "Codex mirror for Meihua Fortune"
+  default_prompt: "Use $meihua-fortune to apply the Meihua Fortune workflow to this task."

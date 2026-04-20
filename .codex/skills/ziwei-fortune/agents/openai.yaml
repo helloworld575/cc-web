@@ -1,0 +1,4 @@
+interface:
+  display_name: "ZiWei Fortune"
+  short_description: "Codex mirror for ZiWei Fortune"
+  default_prompt: "Use $ziwei-fortune to apply the ZiWei Fortune workflow to this task."

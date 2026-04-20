@@ -1,0 +1,4 @@
+interface:
+  display_name: "Article Translate En"
+  short_description: "Codex mirror for Article Translate En"
+  default_prompt: "Use $article-translate-en to apply the Article Translate En workflow to this task."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Article Polish"
+  short_description: "Codex mirror for Article Polish"
+  default_prompt: "Use $article-polish to apply the Article Polish workflow to this task."

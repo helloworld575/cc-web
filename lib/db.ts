@@ -1,7 +1,12 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
-const db = new Database(path.join(process.cwd(), 'data', 'site.db'));
+const isBuildDatabase = process.env.BUILDING_DOCKER_IMAGE === '1'
+  || process.env.NEXT_PHASE === 'phase-production-build';
+
+const dbPath = isBuildDatabase ? ':memory:' : path.join(process.cwd(), 'data', 'site.db');
+
+const db = new Database(dbPath);
 
 // Performance PRAGMAs
 db.pragma('journal_mode = WAL');

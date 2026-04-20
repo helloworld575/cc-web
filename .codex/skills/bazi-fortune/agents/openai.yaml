@@ -1,0 +1,4 @@
+interface:
+  display_name: "BaZi Fortune"
+  short_description: "Codex mirror for BaZi Fortune"
+  default_prompt: "Use $bazi-fortune to apply the BaZi Fortune workflow to this task."

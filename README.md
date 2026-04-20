@@ -126,7 +126,14 @@ my-site/
 
 ## AI Skills
 
-AI behaviors are defined as reusable skills in `.claude/skills/<name>/SKILL.md`. Built-in skills:
+The app runtime still reads `.claude/skills/<name>/SKILL.md` via `lib/skills.ts`.
+For Codex-native discovery, mirror those skills into `.codex/skills/` with:
+
+```bash
+npm run codex:skills
+```
+
+Built-in skills:
 
 | Skill | Purpose |
 |-------|---------|

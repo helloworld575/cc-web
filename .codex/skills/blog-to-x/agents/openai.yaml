@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blog To X"
+  short_description: "Codex mirror for Blog To X"
+  default_prompt: "Use $blog-to-x to apply the Blog To X workflow to this task."

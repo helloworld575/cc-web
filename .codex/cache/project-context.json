@@ -1,0 +1,654 @@
+{
+  "generatedAt": "2026-04-17T08:58:16.083Z",
+  "project": {
+    "name": "my-site",
+    "version": "0.1.0",
+    "private": true,
+    "packageManager": "npm",
+    "framework": "Next.js 14 App Router",
+    "language": "TypeScript",
+    "database": "SQLite via better-sqlite3",
+    "styling": "Tailwind CSS",
+    "testing": "Vitest"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "codex:skills": "node scripts/migrate-claude-skills-to-codex.mjs",
+    "codex:cache": "node scripts/refresh-codex-cache.mjs"
+  },
+  "directories": [
+    {
+      "path": "app",
+      "description": "Next.js App Router pages, layouts, and API routes."
+    },
+    {
+      "path": "components",
+      "description": "Shared client and server React components."
+    },
+    {
+      "path": "lib",
+      "description": "Server-side helpers for auth, SQLite, AI skills, fetchers, i18n, X integration, and fortune logic."
+    },
+    {
+      "path": "tests",
+      "description": "Vitest coverage, mainly for API routes."
+    },
+    {
+      "path": "docs",
+      "description": "English and Chinese user/development/API documentation."
+    },
+    {
+      "path": ".claude",
+      "description": "Legacy assistant folder containing runtime AI skills and planning notes."
+    },
+    {
+      "path": ".codex",
+      "description": "Codex-native cache, guidance, and generated skill mirrors."
+    }
+  ],
+  "keyFiles": [
+    {
+      "file": "AGENTS.md",
+      "description": "Codex working guide for repository-specific workflow and constraints."
+    },
+    {
+      "file": "middleware.ts",
+      "description": "Edge middleware for admin auth protection and auth-route rate limiting."
+    },
+    {
+      "file": "package.json",
+      "description": "Project metadata and npm scripts for Next.js, Vitest, and Codex cache refresh."
+    },
+    {
+      "file": "next.config.mjs",
+      "description": "Next.js configuration."
+    },
+    {
+      "file": "tailwind.config.ts",
+      "description": "Tailwind theme configuration."
+    },
+    {
+      "file": "lib/db.ts",
+      "description": "SQLite connection, schema bootstrap, light migrations, indexes, and prepared statements."
+    },
+    {
+      "file": "lib/auth.ts",
+      "description": "NextAuth credentials configuration and session helpers."
+    },
+    {
+      "file": "lib/skills.ts",
+      "description": "Reads and writes runtime AI skills from .claude/skills."
+    },
+    {
+      "file": "lib/fetchers.ts",
+      "description": "Subscription source fetchers and content normalization helpers."
+    },
+    {
+      "file": "lib/xapi.ts",
+      "description": "X/Twitter API integration and media upload helpers."
+    },
+    {
+      "file": "lib/i18n.ts",
+      "description": "Localization strings and locale helpers."
+    },
+    {
+      "file": "app/layout.tsx",
+      "description": "Root layout, global shell, and shared providers."
+    },
+    {
+      "file": "app/page.tsx",
+      "description": "Homepage entry point."
+    },
+    {
+      "file": "app/tools/page.tsx",
+      "description": "Tool hub entry page."
+    },
+    {
+      "file": "app/admin/layout.tsx",
+      "description": "Admin shell and protected navigation."
+    },
+    {
+      "file": "app/api/ai/route.ts",
+      "description": "Generic AI skill execution route."
+    },
+    {
+      "file": "app/api/ai-chat/route.ts",
+      "description": "Streaming AI chat session management."
+    },
+    {
+      "file": "app/api/ai-providers/route.ts",
+      "description": "CRUD for configured AI providers."
+    },
+    {
+      "file": "app/api/blog/route.ts",
+      "description": "Blog collection API."
+    },
+    {
+      "file": "app/api/blog/[slug]/route.ts",
+      "description": "Single-post blog API."
+    },
+    {
+      "file": "app/api/files/route.ts",
+      "description": "Uploaded file metadata API."
+    },
+    {
+      "file": "app/api/uploads/[...path]/route.ts",
+      "description": "Uploaded file streaming endpoint."
+    },
+    {
+      "file": "app/api/subscriptions/route.ts",
+      "description": "Subscription source CRUD."
+    },
+    {
+      "file": "app/api/subscriptions/fetch/route.ts",
+      "description": "Fetch and cache subscription content."
+    },
+    {
+      "file": "app/api/subscriptions/briefs/route.ts",
+      "description": "Subscription brief retrieval."
+    },
+    {
+      "file": "app/api/fortune/route.ts",
+      "description": "Streaming fortune analysis route with history integration."
+    },
+    {
+      "file": "app/api/bazi/route.ts",
+      "description": "Dedicated BaZi streaming route."
+    }
+  ],
+  "routes": {
+    "pages": [
+      {
+        "route": "/admin/ai-config",
+        "file": "app/admin/ai-config/page.tsx",
+        "description": "Admin page for AI provider configuration."
+      },
+      {
+        "route": "/admin/blog/[slug]",
+        "file": "app/admin/blog/[slug]/page.tsx",
+        "description": "Admin editor for a single blog post."
+      },
+      {
+        "route": "/admin/blog",
+        "file": "app/admin/blog/page.tsx",
+        "description": "Admin blog list/editor entry."
+      },
+      {
+        "route": "/admin/diary",
+        "file": "app/admin/diary/page.tsx",
+        "description": "Diary management page."
+      },
+      {
+        "route": "/admin/files",
+        "file": "app/admin/files/page.tsx",
+        "description": "File and album management page."
+      },
+      {
+        "route": "/admin/skills",
+        "file": "app/admin/skills/page.tsx",
+        "description": "Admin skill management UI."
+      },
+      {
+        "route": "/admin/subscriptions",
+        "file": "app/admin/subscriptions/page.tsx",
+        "description": "Subscription source and brief management."
+      },
+      {
+        "route": "/admin/tools",
+        "file": "app/admin/tools/page.tsx",
+        "description": "Admin tool dashboard."
+      },
+      {
+        "route": "/admin/x-post",
+        "file": "app/admin/x-post/page.tsx",
+        "description": "Publish content to X/Twitter."
+      },
+      {
+        "route": "/blog/[slug]",
+        "file": "app/blog/[slug]/page.tsx",
+        "description": "Single blog post page."
+      },
+      {
+        "route": "/blog",
+        "file": "app/blog/page.tsx",
+        "description": "Public blog index."
+      },
+      {
+        "route": "/files",
+        "file": "app/files/page.tsx",
+        "description": "Public or shared file listing page."
+      },
+      {
+        "route": "/login",
+        "file": "app/login/page.tsx",
+        "description": "Credentials login page."
+      },
+      {
+        "route": "/",
+        "file": "app/page.tsx",
+        "description": "Public homepage."
+      },
+      {
+        "route": "/tools",
+        "file": "app/tools/page.tsx",
+        "description": "Main tool hub."
+      }
+    ],
+    "api": [
+      {
+        "route": "/api/ai-chat/[id]",
+        "file": "app/api/ai-chat/[id]/route.ts",
+        "description": "Read, update, or delete stored AI chat sessions."
+      },
+      {
+        "route": "/api/ai-chat",
+        "file": "app/api/ai-chat/route.ts",
+        "description": "Create and stream AI chat sessions."
+      },
+      {
+        "route": "/api/ai-providers/[id]",
+        "file": "app/api/ai-providers/[id]/route.ts",
+        "description": "Operate on a single AI provider."
+      },
+      {
+        "route": "/api/ai-providers",
+        "file": "app/api/ai-providers/route.ts",
+        "description": "List and manage configured AI providers."
+      },
+      {
+        "route": "/api/ai-providers/test",
+        "file": "app/api/ai-providers/test/route.ts",
+        "description": "Test an AI provider with a non-streaming call."
+      },
+      {
+        "route": "/api/ai",
+        "file": "app/api/ai/route.ts",
+        "description": "Execute reusable AI skills against submitted content."
+      },
+      {
+        "route": "/api/albums/[id]",
+        "file": "app/api/albums/[id]/route.ts",
+        "description": "Single-album operations."
+      },
+      {
+        "route": "/api/albums",
+        "file": "app/api/albums/route.ts",
+        "description": "Album CRUD for uploaded files."
+      },
+      {
+        "route": "/api/auth/[...nextauth]",
+        "file": "app/api/auth/[...nextauth]/route.ts",
+        "description": "NextAuth credentials endpoint."
+      },
+      {
+        "route": "/api/bazi",
+        "file": "app/api/bazi/route.ts",
+        "description": "Specialized BaZi analysis endpoint."
+      },
+      {
+        "route": "/api/blog/[slug]",
+        "file": "app/api/blog/[slug]/route.ts",
+        "description": "Read, update, or delete a single blog post."
+      },
+      {
+        "route": "/api/blog",
+        "file": "app/api/blog/route.ts",
+        "description": "List or create blog content."
+      },
+      {
+        "route": "/api/diary/[id]",
+        "file": "app/api/diary/[id]/route.ts",
+        "description": "Single diary entry operations."
+      },
+      {
+        "route": "/api/diary",
+        "file": "app/api/diary/route.ts",
+        "description": "Diary entry CRUD."
+      },
+      {
+        "route": "/api/files/[id]",
+        "file": "app/api/files/[id]/route.ts",
+        "description": "Single file operations."
+      },
+      {
+        "route": "/api/files",
+        "file": "app/api/files/route.ts",
+        "description": "File metadata CRUD."
+      },
+      {
+        "route": "/api/fortune/history/[id]",
+        "file": "app/api/fortune/history/[id]/route.ts",
+        "description": "Read or delete a single fortune record."
+      },
+      {
+        "route": "/api/fortune/history",
+        "file": "app/api/fortune/history/route.ts",
+        "description": "Fortune history listing and creation."
+      },
+      {
+        "route": "/api/fortune",
+        "file": "app/api/fortune/route.ts",
+        "description": "General fortune workflow with streaming response."
+      },
+      {
+        "route": "/api/skills/[id]",
+        "file": "app/api/skills/[id]/route.ts",
+        "description": "Read, update, or delete a single skill."
+      },
+      {
+        "route": "/api/skills",
+        "file": "app/api/skills/route.ts",
+        "description": "List and manage web-app AI skills."
+      },
+      {
+        "route": "/api/subscriptions/[id]",
+        "file": "app/api/subscriptions/[id]/route.ts",
+        "description": "Single subscription source operations."
+      },
+      {
+        "route": "/api/subscriptions/briefs",
+        "file": "app/api/subscriptions/briefs/route.ts",
+        "description": "List stored subscription briefs."
+      },
+      {
+        "route": "/api/subscriptions/fetch",
+        "file": "app/api/subscriptions/fetch/route.ts",
+        "description": "Fetch and cache remote subscription content."
+      },
+      {
+        "route": "/api/subscriptions",
+        "file": "app/api/subscriptions/route.ts",
+        "description": "Manage subscription sources."
+      },
+      {
+        "route": "/api/todos/[id]",
+        "file": "app/api/todos/[id]/route.ts",
+        "description": "Single todo operations."
+      },
+      {
+        "route": "/api/todos",
+        "file": "app/api/todos/route.ts",
+        "description": "Todo CRUD."
+      },
+      {
+        "route": "/api/uploads/[...path]",
+        "file": "app/api/uploads/[...path]/route.ts",
+        "description": "Stream uploaded files from disk."
+      },
+      {
+        "route": "/api/x-auth",
+        "file": "app/api/x-auth/route.ts",
+        "description": "X/Twitter authentication flow."
+      },
+      {
+        "route": "/api/x-post",
+        "file": "app/api/x-post/route.ts",
+        "description": "Publish generated content to X/Twitter."
+      }
+    ]
+  },
+  "modules": {
+    "components": [
+      "components/AIChatTool.tsx",
+      "components/BaziTool.tsx",
+      "components/DateRangeFilter.tsx",
+      "components/DeadlineAlert.tsx",
+      "components/FortuneTool.tsx",
+      "components/MarkdownEditor.tsx",
+      "components/Nav.tsx",
+      "components/Pagination.tsx",
+      "components/SessionProvider.tsx",
+      "components/SubscriptionBriefsTool.tsx",
+      "components/useLocale.ts"
+    ],
+    "lib": [
+      "lib/auth.ts",
+      "lib/bazi.ts",
+      "lib/db.ts",
+      "lib/fetchers.ts",
+      "lib/i18n.ts",
+      "lib/markdown.ts",
+      "lib/rateLimit.ts",
+      "lib/skills.ts",
+      "lib/xapi.ts",
+      "lib/yijing.ts",
+      "lib/ziwei.ts"
+    ]
+  },
+  "database": {
+    "pragmas": [
+      "journal_mode = WAL",
+      "busy_timeout = 5000",
+      "synchronous = NORMAL",
+      "cache_size = -8000",
+      "temp_store = MEMORY",
+      "mmap_size = 67108864",
+      "page_size = 4096"
+    ],
+    "tables": [
+      "todos",
+      "files",
+      "albums",
+      "diary",
+      "fortune_history",
+      "ai_providers",
+      "ai_chat_history",
+      "subscription_sources",
+      "subscription_briefs"
+    ],
+    "migrations": [
+      {
+        "table": "todos",
+        "column": "deadline"
+      },
+      {
+        "table": "files",
+        "column": "album_id"
+      }
+    ],
+    "preparedStatements": [
+      "countFiles",
+      "listFiles",
+      "insertFile",
+      "listFortune",
+      "insertFortune",
+      "getFortune",
+      "deleteFortune",
+      "listProviders",
+      "getProvider",
+      "insertProvider",
+      "updateProvider",
+      "deleteProvider",
+      "clearDefaultProvider",
+      "listChats",
+      "listChatsByProvider",
+      "getChat",
+      "insertChat",
+      "updateChat",
+      "deleteChat"
+    ]
+  },
+  "ai": {
+    "runtimeSkillLoader": "lib/skills.ts reads and writes .claude/skills/*/SKILL.md",
+    "codexSkillMirror": ".codex/skills/* is generated from .claude/skills via npm run codex:skills",
+    "skills": [
+      {
+        "id": "article-brief",
+        "name": "article-brief",
+        "description": "Generate a short excerpt or summary teaser for a blog post.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "brief",
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "article-faq",
+        "name": "article-faq",
+        "description": "Generate a reader-facing FAQ section for an article.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "text",
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "article-polish",
+        "name": "article-polish",
+        "description": "Rewrite and polish article copy for clarity and engagement.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "content",
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "article-structure",
+        "name": "article-structure",
+        "description": "Restructure an article to improve flow and readability.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "content",
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "article-tags",
+        "name": "article-tags",
+        "description": "Extract high-value tags and keywords for a post.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "tags",
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "article-title",
+        "name": "article-title",
+        "description": "Generate SEO-friendly headline or title options.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "titles",
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "article-translate-en",
+        "name": "article-translate-en",
+        "description": "Translate Chinese article content into natural English.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "content",
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "bazi-fortune",
+        "name": "bazi-fortune",
+        "description": "BaZi / Four Pillars fortune analysis skill with helper scripts.",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": true,
+        "hasReferences": false
+      },
+      {
+        "id": "blog-to-x",
+        "name": "blog-to-x",
+        "description": "Convert long-form blog or diary content into X/Twitter posts or threads.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "text",
+        "hasScripts": false,
+        "hasReferences": true
+      },
+      {
+        "id": "liuyao-fortune",
+        "name": "liuyao-fortune",
+        "description": "Liu Yao / I Ching divination skill with helper scripts.",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": true,
+        "hasReferences": false
+      },
+      {
+        "id": "meihua-fortune",
+        "name": "meihua-fortune",
+        "description": "Meihua Yishu numerology divination skill with helper scripts.",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": true,
+        "hasReferences": false
+      },
+      {
+        "id": "subscription",
+        "name": "subscription",
+        "description": "Summarize the latest updates from subscribed sources such as blogs, GitHub, X, RSS, or Reddit.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "content",
+        "hasScripts": true,
+        "hasReferences": true
+      },
+      {
+        "id": "ziwei-fortune",
+        "name": "ziwei-fortune",
+        "description": "Zi Wei Dou Shu astrology analysis skill with helper scripts.",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": true,
+        "hasReferences": false
+      }
+    ],
+    "legacy": {
+      "claudePlanFiles": [],
+      "kiroFiles": [],
+      "ideaFiles": []
+    }
+  },
+  "docs": [
+    "docs/en/api.md",
+    "docs/en/development.md",
+    "docs/en/how-to-use.md",
+    "docs/zh/API文档.md",
+    "docs/zh/使用指南.md",
+    "docs/zh/开发指南.md"
+  ],
+  "tests": {
+    "files": [
+      "tests/api/ai-chat/id.test.ts",
+      "tests/api/ai-chat/route.test.ts",
+      "tests/api/ai-providers/id.test.ts",
+      "tests/api/ai-providers/route.test.ts",
+      "tests/api/ai/route.test.ts",
+      "tests/api/bazi/route.test.ts",
+      "tests/api/blog/route.test.ts",
+      "tests/api/blog/slug.test.ts",
+      "tests/api/diary/id.test.ts",
+      "tests/api/diary/route.test.ts",
+      "tests/api/files/id.test.ts",
+      "tests/api/files/route.test.ts",
+      "tests/api/fortune/history/id.test.ts",
+      "tests/api/fortune/history/route.test.ts",
+      "tests/api/fortune/route.test.ts",
+      "tests/api/skills/id.test.ts",
+      "tests/api/skills/route.test.ts",
+      "tests/api/subscriptions/briefs.test.ts",
+      "tests/api/subscriptions/id.test.ts",
+      "tests/api/subscriptions/route.test.ts",
+      "tests/api/todos/id.test.ts",
+      "tests/api/todos/route.test.ts",
+      "tests/api/uploads/route.test.ts",
+      "tests/api/x-post/route.test.ts"
+    ],
+    "count": 24
+  }
+}

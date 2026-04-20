@@ -1,0 +1,4 @@
+interface:
+  display_name: "Liuyao Fortune"
+  short_description: "Codex mirror for Liuyao Fortune"
+  default_prompt: "Use $liuyao-fortune to apply the Liuyao Fortune workflow to this task."

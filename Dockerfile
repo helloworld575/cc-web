@@ -5,12 +5,13 @@ RUN apk add --no-cache python3 make g++ libc6-compat
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund && ls node_modules/.bin/ | head -20 && ls node_modules/next/dist/bin/ 2>/dev/null || true
+RUN npm install --no-audit --no-fund --package-lock=false --registry=https://registry.npmjs.org/
 
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PATH="/app/node_modules/.bin:$PATH"
-RUN next build
+RUN mkdir -p data uploads public content
+RUN BUILDING_DOCKER_IMAGE=1 next build
 
 # Stage 2: Runner
 FROM node:20-alpine AS runner

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Article Title"
+  short_description: "Codex mirror for Article Title"
+  default_prompt: "Use $article-title to apply the Article Title workflow to this task."

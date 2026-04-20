@@ -161,13 +161,21 @@ Human-readable explanation of the skill.
 ```
 
 2. Optional: bundle scripts in `scripts/` or references in `references/`
-3. Use it from code:
+3. Regenerate the Codex mirrors:
+
+   ```bash
+   npm run codex:skills
+   ```
+
+4. Use it from code:
 
 ```typescript
 import { getSkill } from '@/lib/skills';
 const skill = getSkill('my-skill');
 // skill.system, skill.prompt, skill.output
 ```
+
+The web app runtime source of truth stays in `.claude/skills/`. The generated `.codex/skills/` copy exists so local Codex can discover the same workflows using Codex skill format.
 
 ## Testing
 

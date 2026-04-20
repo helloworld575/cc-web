@@ -1,0 +1,4 @@
+interface:
+  display_name: "Article Tags"
+  short_description: "Codex mirror for Article Tags"
+  default_prompt: "Use $article-tags to apply the Article Tags workflow to this task."

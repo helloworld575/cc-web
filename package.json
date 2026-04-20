@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "codex:skills": "node scripts/migrate-claude-skills-to-codex.mjs",
+    "codex:cache": "node scripts/refresh-codex-cache.mjs"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
