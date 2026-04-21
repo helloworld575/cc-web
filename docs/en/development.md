@@ -52,7 +52,7 @@ my-site/
    cp .env.example .env.local
    ```
 4. Required env vars:
-   - `ADMIN_PASSWORD` — login password
+   - `ADMIN_PASSWORD` — login password; use a strong value (`changeme` is blocked in production)
    - `NEXTAUTH_SECRET` — generate with `openssl rand -base64 32`
    - `NEXTAUTH_URL` — e.g., `http://localhost:3000`
 5. Optional but recommended:
@@ -212,8 +212,14 @@ See `Dockerfile` and `docker-compose.yml`.
 ./deploy-to-nas.sh
 ```
 
-Uses `docker-compose.nas.yml` — mounts volumes for `data/`, `uploads/`, `content/`.
-Cloudflared tunnel token goes in `CLOUDFLARE_TUNNEL_TOKEN` env var.
+Required deploy vars live in the root `.env.local`:
+- `NAS_HOST`
+- `NAS_USER`
+- `NAS_PATH`
+- `NAS_PASSWORD`
+- `CLOUDFLARE_TUNNEL_TOKEN`
+
+The script uploads `.env.local` and `docker-compose.nas.yml`, builds `my-site:latest` on the NAS, then runs `docker compose --env-file .env.local -f docker-compose.nas.yml up -d`.
 
 ## Code Style
 

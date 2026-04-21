@@ -44,7 +44,7 @@ npm run dev
 `.env.local` 必填：
 
 ```bash
-ADMIN_PASSWORD=changeme                    # 登录密码
+ADMIN_PASSWORD=<设置强密码>                 # 生产环境禁止使用 "changeme"
 NEXTAUTH_SECRET=<openssl rand -base64 32>  # 会话签名密钥
 NEXTAUTH_URL=http://localhost:3000         # 站点 URL
 ```
@@ -60,6 +60,12 @@ X_ACCESS_TOKEN_SECRET=
 
 # Cloudflare Tunnel（部署用）
 CLOUDFLARE_TUNNEL_TOKEN=
+
+# Synology NAS 部署（./deploy-to-nas.sh 读取）
+NAS_HOST=
+NAS_USER=
+NAS_PATH=/volume1/docker/my-site
+NAS_PASSWORD=
 ```
 
 AI 服务商通过管理后台 `/admin/ai-config` 配置，无需环境变量。
@@ -79,7 +85,13 @@ docker compose up -d
 
 ### 部署到群晖 NAS
 
-参见 `deploy-to-nas.sh` —— 构建 AMD64 镜像、通过 SCP 推送、用 Cloudflared tunnel 暴露。
+现在可以直接运行 `./deploy-to-nas.sh`。脚本会读取根目录 `.env.local`，上传环境文件和 `docker-compose.nas.yml`，在 NAS 上构建 `my-site:latest`，然后执行：
+
+```bash
+docker compose --env-file .env.local -f docker-compose.nas.yml up -d
+```
+
+部署所需变量统一放在 `.env.local`：`NAS_HOST`、`NAS_USER`、`NAS_PATH`、`NAS_PASSWORD`、`CLOUDFLARE_TUNNEL_TOKEN`。
 
 ## 测试
 

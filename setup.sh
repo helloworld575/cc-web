@@ -33,8 +33,12 @@ if [ -f .env.local ]; then
 fi
 
 if [ -z "$SKIP_ENV" ]; then
-  read -rp "Admin password [changeme]: " ADMIN_PASSWORD
-  ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme}
+  GENERATED_ADMIN_PASSWORD=$(openssl rand -base64 24 | tr -d '=+/' | cut -c1-24)
+  read -rp "Admin password (leave blank to generate a strong password): " ADMIN_PASSWORD
+  if [ -z "$ADMIN_PASSWORD" ]; then
+    ADMIN_PASSWORD=$GENERATED_ADMIN_PASSWORD
+    echo "[info] Generated a strong admin password and saved it to .env.local"
+  fi
 
   read -rp "Claude API Key (required): " CLAUDE_API_KEY
   while [ -z "$CLAUDE_API_KEY" ]; do

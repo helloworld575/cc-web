@@ -5,7 +5,7 @@ RUN apk add --no-cache python3 make g++ libc6-compat
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm install --no-audit --no-fund --package-lock=false --registry=https://registry.npmjs.org/
+RUN npm ci --no-audit --no-fund --registry=https://registry.npmjs.org/
 
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1

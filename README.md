@@ -44,7 +44,7 @@ Open [http://localhost:3000](http://localhost:3000). Log in at `/login`.
 Required in `.env.local`:
 
 ```bash
-ADMIN_PASSWORD=changeme                    # your login password
+ADMIN_PASSWORD=<set-a-strong-password>     # "changeme" is blocked in production
 NEXTAUTH_SECRET=<openssl rand -base64 32>  # session signing key
 NEXTAUTH_URL=http://localhost:3000         # site URL
 ```
@@ -60,6 +60,12 @@ X_ACCESS_TOKEN_SECRET=
 
 # Cloudflare Tunnel (for deploy)
 CLOUDFLARE_TUNNEL_TOKEN=
+
+# Synology NAS deploy (used by ./deploy-to-nas.sh)
+NAS_HOST=
+NAS_USER=
+NAS_PATH=/volume1/docker/my-site
+NAS_PASSWORD=
 ```
 
 AI providers are configured through the admin UI at `/admin/ai-config` — no env var needed.
@@ -79,7 +85,13 @@ docker compose up -d
 
 ### Deploy to Synology NAS
 
-See `deploy-to-nas.sh` — builds an AMD64 image, pushes via SCP, runs with Cloudflared tunnel.
+`./deploy-to-nas.sh` reads the root `.env.local`, uploads that env file plus `docker-compose.nas.yml`, builds `my-site:latest` on the NAS, and runs:
+
+```bash
+docker compose --env-file .env.local -f docker-compose.nas.yml up -d
+```
+
+Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`.
 
 ## Testing
 
