@@ -92,15 +92,33 @@ docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```
 
 Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`.
+The deploy script writes timestamped logs to `log/deploy/` and always attempts to remove the remote staging directory and close SSH/SFTP sessions before exiting.
 
 ## Testing
 
 ```bash
 npm test          # run once
+npm run test:managed
 npm run test:watch
 ```
 
 152+ tests covering all API routes, auth, rate limiting, and streaming responses.
+
+Use the managed runner when a command may leave ports or child processes behind:
+
+```bash
+npm run dev:managed
+node scripts/run-managed-command.mjs --label e2e-local --clear-port 3000 -- <your-e2e-command>
+```
+
+Managed logs are written to `log/automation/`.
+
+## Workflow Rules
+
+- If a code change affects behavior, operations, testing, or deployment, update the relevant README/docs in the same change set.
+- Finished change sets should be committed and pushed to Git instead of being left only in the local worktree.
+- Reserve `./deploy-to-nas.sh` for large or release-worthy changes. Small updates should usually stop after Git push.
+- After tests, e2e runs, or NAS deployments, make sure spawned processes, occupied ports, SSH/SFTP sessions, and temporary staging files are fully cleaned up.
 
 ## Migration
 

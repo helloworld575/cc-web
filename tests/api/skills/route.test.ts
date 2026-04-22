@@ -1,13 +1,21 @@
 import { describe, it, expect, vi } from 'vitest';
 import { mockSession, postReq } from '../../helpers';
-import { getSkills, saveSkill } from '@/lib/skills';
+import { findSkills, getSkills, saveSkill } from '@/lib/skills';
 
 describe('GET /api/skills', () => {
   it('returns 200 with skills (public)', async () => {
     (getSkills as ReturnType<typeof vi.fn>).mockReturnValue([{ id: 'a', name: 'A' }]);
     const { GET } = await import('@/app/api/skills/route');
-    const res = await GET();
+    const res = await GET(new Request('http://localhost/api/skills'));
     expect(res.status).toBe(200);
+  });
+
+  it('filters skills when query is present', async () => {
+    (findSkills as ReturnType<typeof vi.fn>).mockReturnValue([{ id: 'b', name: 'B' }]);
+    const { GET } = await import('@/app/api/skills/route');
+    const res = await GET(new Request('http://localhost/api/skills?q=faq'));
+    expect(res.status).toBe(200);
+    expect(findSkills).toHaveBeenCalledWith('faq');
   });
 });
 

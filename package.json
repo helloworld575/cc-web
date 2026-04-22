@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:managed": "node scripts/run-managed-command.mjs --label next-dev --clear-port 3000 -- node ./node_modules/next/dist/bin/next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
+    "test:managed": "node scripts/run-managed-command.mjs --label vitest -- node ./node_modules/vitest/vitest.mjs run",
     "test:watch": "vitest",
+    "run:managed": "node scripts/run-managed-command.mjs",
     "codex:skills": "node scripts/migrate-claude-skills-to-codex.mjs",
     "codex:cache": "node scripts/refresh-codex-cache.mjs"
   },

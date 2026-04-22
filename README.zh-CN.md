@@ -92,15 +92,33 @@ docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```
 
 部署所需变量统一放在 `.env.local`：`NAS_HOST`、`NAS_USER`、`NAS_PATH`、`NAS_PASSWORD`、`CLOUDFLARE_TUNNEL_TOKEN`。
+部署日志会按时间写入 `log/deploy/`，脚本退出前会尽量清理远端暂存目录并关闭 SSH / SFTP 会话。
 
 ## 测试
 
 ```bash
 npm test          # 跑一次
+npm run test:managed
 npm run test:watch
 ```
 
 152+ 测试覆盖所有 API 路由、认证、频率限制、流式响应。
+
+如果本地命令可能留下监听端口或子进程，优先使用受控执行入口：
+
+```bash
+npm run dev:managed
+node scripts/run-managed-command.mjs --label e2e-local --clear-port 3000 -- <你的 e2e 命令>
+```
+
+受控执行日志会写到 `log/automation/`。
+
+## 工作规则
+
+- 只要改动影响功能、运维、测试或部署流程，就要在同一组变更里同步更新 README / 文档。
+- 一组已完成的改动不应只停留在本地工作区，应提交并推送到 Git。
+- `./deploy-to-nas.sh` 只用于大改动、发布级变更或明确要求的 NAS 部署，小改动通常到 Git 推送为止。
+- 测试、e2e 和 NAS 部署结束后，要确认相关进程、占用端口、SSH / SFTP 会话以及临时目录都已彻底清理。
 
 ## 迁移
 

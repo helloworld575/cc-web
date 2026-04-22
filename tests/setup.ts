@@ -39,7 +39,9 @@ vi.mock('@/lib/markdown', () => ({
 // Mock skills lib
 vi.mock('@/lib/skills', () => ({
   getSkills: vi.fn(() => []),
+  findSkills: vi.fn(() => []),
   getSkill: vi.fn(() => null),
+  resolveSkillReference: vi.fn(() => null),
   saveSkill: vi.fn(),
   deleteSkill: vi.fn(),
 }));

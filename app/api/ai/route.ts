@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getSkill } from '@/lib/skills';
+import { getSkill, resolveSkillReference } from '@/lib/skills';
 import { rateLimitByIp } from '@/lib/rateLimit';
 
 export async function POST(req: Request) {
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const { skill: skillId, content } = body;
   if (!skillId || !content) return new Response(JSON.stringify({ error: 'Missing skill or content' }), { status: 400 });
 
-  const skill = getSkill(skillId);
+  const skill = getSkill(skillId) ?? resolveSkillReference(skillId);
   if (!skill) return new Response(JSON.stringify({ error: `Unknown skill: ${skillId}` }), { status: 400 });
 
   const apiKey = process.env.CLAUDE_API_KEY;

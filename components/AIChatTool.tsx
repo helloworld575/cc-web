@@ -1,7 +1,7 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import { useLocale } from '@/components/useLocale';
+import StreamingMarkdown from '@/components/StreamingMarkdown';
 
 interface Provider {
   id: number;
@@ -16,13 +16,6 @@ interface ChatMessage {
   content: string;
 }
 
-interface ChatSession {
-  id: number;
-  provider_id: number;
-  title: string;
-  updated_at: string;
-}
-
 export default function AIChatTool() {
   const { t } = useLocale();
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -31,244 +24,379 @@ export default function AIChatTool() {
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState('');
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-  const [currentChatId, setCurrentChatId] = useState<number | null>(null);
-  const [showSidebar, setShowSidebar] = useState(false);
+  const [streamStage, setStreamStage] = useState<'ready' | 'dispatch' | 'thinking' | 'rendering'>('ready');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     fetch('/api/ai-providers')
-      .then(r => r.ok ? r.json() : [])
+      .then(res => (res.ok ? res.json() : []))
       .then((list: Provider[]) => {
         setProviders(list);
-        const def = list.find(p => p.is_default);
-        if (def) setSelectedProvider(def.id);
-        else if (list.length > 0) setSelectedProvider(list[0].id);
+        const defaultProvider = list.find(provider => provider.is_default);
+        if (defaultProvider) {
+          setSelectedProvider(defaultProvider.id);
+          return;
+        }
+
+        if (list[0]) {
+          setSelectedProvider(list[0].id);
+        }
       })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, streaming]);
 
-  async function loadChatSessions() {
-    const res = await fetch('/api/ai-chat/history');
-    if (res.ok) setChatSessions(await res.json());
+  function resetComposerHeight() {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
   }
 
   function newChat() {
     setMessages([]);
-    setCurrentChatId(null);
+    setInput('');
     setError('');
-  }
-
-  async function saveChat(msgs: ChatMessage[]) {
-    if (msgs.length === 0 || !selectedProvider) return;
-    const title = msgs[0]?.content.slice(0, 50) || 'New Chat';
-    if (currentChatId) {
-      await fetch(`/api/ai-chat/${currentChatId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, messages: msgs }),
-      });
-    } else {
-      const res = await fetch('/api/ai-chat/history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider_id: selectedProvider, title, messages: msgs }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentChatId(data.id);
-      }
-    }
+    setStreaming(false);
+    setStreamStage('ready');
+    abortRef.current = null;
+    resetComposerHeight();
   }
 
   async function send() {
     if (!input.trim() || !selectedProvider || streaming) return;
-    setError('');
 
-    const userMsg: ChatMessage = { role: 'user', content: input.trim() };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+    const userMessage: ChatMessage = { role: 'user', content: input.trim() };
+    const outboundMessages = [...messages, userMessage];
+    setError('');
     setInput('');
     setStreaming(true);
-
-    // Reset textarea height
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
-
-    const assistantMsg: ChatMessage = { role: 'assistant', content: '' };
-    setMessages([...newMessages, assistantMsg]);
+    setStreamStage('dispatch');
+    resetComposerHeight();
+    setMessages([...outboundMessages, { role: 'assistant', content: '' }]);
 
     try {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const res = await fetch('/api/ai-chat', {
+      const response = await fetch('/api/ai-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider_id: selectedProvider,
-          messages: newMessages,
-          chat_id: currentChatId,
+          messages: outboundMessages,
         }),
         signal: controller.signal,
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || `HTTP ${res.status}`);
-        setMessages(newMessages); // remove the empty assistant msg
+      if (!response.ok) {
+        const data = await response.json();
+        setError(data.error || `HTTP ${response.status}`);
+        setMessages(outboundMessages);
+        setStreamStage('ready');
         setStreaming(false);
         return;
       }
 
-      const reader = res.body!.getReader();
+      setStreamStage('thinking');
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        setError('Stream is unavailable.');
+        setMessages(outboundMessages);
+        setStreamStage('ready');
+        setStreaming(false);
+        return;
+      }
+
       const decoder = new TextDecoder();
+      let buffer = '';
       let fullText = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split('\n')) {
-          if (line.startsWith('data: ')) {
-            try {
-              const parsed = JSON.parse(line.slice(6));
-              if (parsed.text) {
-                fullText += parsed.text;
-                setMessages([...newMessages, { role: 'assistant', content: fullText }]);
-              }
-            } catch {}
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+
+          try {
+            const parsed = JSON.parse(line.slice(6));
+            if (!parsed.text) continue;
+
+            fullText += parsed.text;
+            setStreamStage('rendering');
+            startTransition(() => {
+              setMessages([
+                ...outboundMessages,
+                { role: 'assistant', content: fullText },
+              ]);
+            });
+          } catch {
+            continue;
           }
         }
       }
 
-      const finalMessages = [...newMessages, { role: 'assistant' as const, content: fullText }];
-      setMessages(finalMessages);
-      await saveChat(finalMessages);
-    } catch (e: any) {
-      if (e.name !== 'AbortError') {
-        setError(e.message || 'Failed to send message');
-        setMessages(newMessages);
+      setMessages([
+        ...outboundMessages,
+        { role: 'assistant', content: fullText },
+      ]);
+    } catch (caught: unknown) {
+      const errorLike = caught as { name?: string; message?: string };
+      if (errorLike?.name !== 'AbortError') {
+        setError(errorLike?.message || 'Failed to send message.');
+        setMessages(outboundMessages);
       }
+    } finally {
+      abortRef.current = null;
+      setStreaming(false);
+      setStreamStage('ready');
     }
-    abortRef.current = null;
-    setStreaming(false);
   }
 
   function stopStreaming() {
     abortRef.current?.abort();
     abortRef.current = null;
     setStreaming(false);
+    setStreamStage('ready');
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
       send();
     }
   }
 
-  function autoResize(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    const ta = e.target;
-    ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
-    setInput(ta.value);
+  function autoResize(event: React.ChangeEvent<HTMLTextAreaElement>) {
+    const target = event.target;
+    target.style.height = 'auto';
+    target.style.height = `${Math.min(target.scrollHeight, 220)}px`;
+    setInput(target.value);
   }
 
   if (providers.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        <p className="mb-2">{t('aiChatNoProvider')}</p>
-        <a href="/admin/ai-config" className="text-blue-500 hover:underline text-sm">{t('aiChatGoConfig')}</a>
+      <div className="rounded-[28px] border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center text-slate-500 shadow-sm backdrop-blur">
+        <p className="mb-2 text-base font-medium text-slate-700">{t('aiChatNoProvider')}</p>
+        <a href="/admin/ai-config" className="text-sm text-sky-700 underline decoration-sky-300 underline-offset-4">
+          {t('aiChatGoConfig')}
+        </a>
       </div>
     );
   }
 
-  const currentProviderName = providers.find(p => p.id === selectedProvider)?.name || '';
+  const activeProvider = providers.find(provider => provider.id === selectedProvider);
+  const stageLabel = {
+    ready: 'Ready',
+    dispatch: 'Dispatching',
+    thinking: 'Thinking',
+    rendering: 'Streaming markdown',
+  }[streamStage];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-220px)] min-h-[400px]">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <select
-          value={selectedProvider ?? ''}
-          onChange={e => { setSelectedProvider(Number(e.target.value)); newChat(); }}
-          className="border rounded px-2 py-1 text-sm flex-shrink-0"
-        >
-          {providers.map(p => (
-            <option key={p.id} value={p.id}>
-              {p.name} ({p.model})
-            </option>
-          ))}
-        </select>
-        <button onClick={newChat} className="border rounded px-2 py-1 text-sm hover:bg-gray-50 flex-shrink-0">
-          {t('aiChatNew')}
-        </button>
-      </div>
+    <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <aside className="glass-panel rounded-[28px] px-5 py-5">
+        <div className="mb-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Chat Studio</p>
+          <h2 className="mt-2 font-display text-3xl text-slate-900">{t('aiChat')}</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Live markdown rendering, gentler motion, and a clearer generation state for every response.
+          </p>
+        </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto border rounded-lg px-4 py-3 mb-3 space-y-4 bg-gray-50/50">
-        {messages.length === 0 && (
-          <div className="text-center text-gray-400 py-12">
-            <p className="text-lg mb-1">{t('aiChatWelcome')}</p>
-            <p className="text-sm">{t('aiChatWelcomeDesc')}</p>
-          </div>
-        )}
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-              msg.role === 'user'
-                ? 'bg-black text-white'
-                : 'bg-white border shadow-sm'
-            }`}>
-              {msg.role === 'assistant' ? (
-                <article className="prose prose-sm max-w-none prose-p:my-1 prose-pre:my-1">
-                  <ReactMarkdown>{msg.content || '...'}</ReactMarkdown>
-                </article>
-              ) : (
-                <div className="whitespace-pre-wrap">{msg.content}</div>
-              )}
+        <div className="space-y-4">
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Provider</span>
+            <select
+              value={selectedProvider ?? ''}
+              onChange={event => {
+                setSelectedProvider(Number(event.target.value));
+                newChat();
+              }}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+            >
+              {providers.map(provider => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.name} ({provider.model})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">{activeProvider?.name}</p>
+                <p className="text-xs text-slate-500">{activeProvider?.model}</p>
+              </div>
+              <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] ${
+                streaming
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-emerald-100 text-emerald-700'
+              }`}>
+                {stageLabel}
+              </span>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+              {[
+                ['Ask', 'Prompt and queue'],
+                ['Stream', 'Render markdown'],
+                ['Refine', 'Stop when ready'],
+              ].map(([title, description], index) => (
+                <div
+                  key={title}
+                  className="rounded-2xl bg-slate-50 px-3 py-3 text-left animate-slide-up"
+                  style={{ animationDelay: `${index * 90}ms` }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{title}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+                </div>
+              ))}
             </div>
           </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
 
-      {/* Error */}
-      {error && (
-        <div className="text-red-500 text-xs mb-2 px-1">{error}</div>
-      )}
+          <button
+            onClick={newChat}
+            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+          >
+            {t('aiChatNew')}
+          </button>
+        </div>
+      </aside>
 
-      {/* Input */}
-      <div className="flex gap-2 items-end">
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={autoResize}
-          onKeyDown={handleKeyDown}
-          placeholder={t('aiChatPlaceholder')}
-          rows={1}
-          className="flex-1 border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-gray-400"
-          disabled={streaming}
-        />
-        {streaming ? (
-          <button onClick={stopStreaming}
-            className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm flex-shrink-0 hover:bg-red-600">
-            {t('aiChatStop')}
-          </button>
-        ) : (
-          <button onClick={send}
-            disabled={!input.trim() || !selectedProvider}
-            className="bg-black text-white px-4 py-2 rounded-lg text-sm flex-shrink-0 disabled:opacity-40 hover:bg-gray-800">
-            {t('aiChatSend')}
-          </button>
+      <section className="glass-panel flex min-h-[640px] flex-col rounded-[32px] px-4 py-4 sm:px-5 sm:py-5">
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.95),rgba(241,245,249,0.88))] px-4 py-4 shadow-sm">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Session</p>
+            <h3 className="mt-1 text-lg font-semibold text-slate-900">
+              {messages.length === 0 ? t('aiChatWelcome') : `${messages.length} messages`}
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {messages.length === 0 ? t('aiChatWelcomeDesc') : 'Assistant bubbles render markdown as tokens arrive.'}
+            </p>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
+            <span className="status-dot" />
+            {streaming ? 'Live response' : 'Idle'}
+          </div>
+        </div>
+
+        <div className="relative flex-1 overflow-hidden rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.88))] p-3 shadow-inner">
+          <div className="pointer-events-none absolute inset-x-6 top-0 h-16 bg-gradient-to-b from-white/75 via-white/35 to-transparent" />
+          <div className="relative flex h-full flex-col gap-4 overflow-y-auto px-1 py-1">
+            {messages.length === 0 && (
+              <div className="flex h-full flex-col items-center justify-center text-center">
+                <div className="orb-shell mb-5">
+                  <span className="orb orb-a" />
+                  <span className="orb orb-b" />
+                  <span className="orb orb-c" />
+                </div>
+                <p className="font-display text-3xl text-slate-900">{t('aiChatWelcome')}</p>
+                <p className="mt-3 max-w-md text-sm leading-7 text-slate-500">{t('aiChatWelcomeDesc')}</p>
+              </div>
+            )}
+
+            {messages.map((message, index) => {
+              const isAssistant = message.role === 'assistant';
+              const isStreamingMessage = streaming && index === messages.length - 1 && isAssistant;
+
+              return (
+                <div
+                  key={`${message.role}-${index}`}
+                  className={`flex ${isAssistant ? 'justify-start' : 'justify-end'} animate-slide-up`}
+                  style={{ animationDelay: `${Math.min(index, 6) * 45}ms` }}
+                >
+                  <div
+                    className={`max-w-[92%] rounded-[24px] px-4 py-3 shadow-sm sm:max-w-[82%] ${
+                      isAssistant
+                        ? 'border border-white/80 bg-white/95 text-slate-800'
+                        : 'bg-slate-900 text-white'
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em]">
+                      <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${
+                        isAssistant ? 'bg-sky-100 text-sky-700' : 'bg-white/15 text-white'
+                      }`}>
+                        {isAssistant ? 'AI' : 'You'}
+                      </span>
+                      <span className={isAssistant ? 'text-slate-400' : 'text-white/65'}>
+                        {isAssistant && isStreamingMessage ? stageLabel : message.role}
+                      </span>
+                    </div>
+
+                    {isAssistant ? (
+                      message.content ? (
+                        <StreamingMarkdown content={message.content} streaming={isStreamingMessage} />
+                      ) : (
+                        <div className="space-y-2 py-2">
+                          <div className="skeleton-line w-24" />
+                          <div className="skeleton-line w-full" />
+                          <div className="skeleton-line w-4/5" />
+                        </div>
+                      )
+                    ) : (
+                      <div className="whitespace-pre-wrap text-sm leading-7">{message.content}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {error && (
+          <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error}
+          </div>
         )}
-      </div>
+
+        <div className="mt-4 rounded-[28px] border border-white/70 bg-white/90 p-3 shadow-sm">
+          <div className="flex items-end gap-3">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={autoResize}
+              onKeyDown={handleKeyDown}
+              placeholder={t('aiChatPlaceholder')}
+              rows={1}
+              className="min-h-[56px] flex-1 resize-none rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-700 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
+              disabled={streaming}
+            />
+            {streaming ? (
+              <button
+                onClick={stopStreaming}
+                className="rounded-[22px] bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-red-600 hover:shadow-lg"
+              >
+                {t('aiChatStop')}
+              </button>
+            ) : (
+              <button
+                onClick={send}
+                disabled={!input.trim() || !selectedProvider}
+                className="rounded-[22px] bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              >
+                {t('aiChatSend')}
+              </button>
+            )}
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-3 px-1 text-xs text-slate-400">
+            <span>{streaming ? 'Markdown is rendering token by token.' : 'Supports markdown streaming, code blocks, and lists.'}</span>
+            <span>{input.length} chars</span>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

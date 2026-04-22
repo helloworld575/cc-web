@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockSession, postReq, mockStreamResponse, mockRateLimit429 } from '../../helpers';
 import { rateLimitByIp } from '@/lib/rateLimit';
-import { getSkill } from '@/lib/skills';
+import { getSkill, resolveSkillReference } from '@/lib/skills';
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
@@ -39,9 +39,32 @@ describe('POST /api/ai', () => {
   it('returns 400 on unknown skill', async () => {
     mockSession(true);
     (getSkill as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    (resolveSkillReference as ReturnType<typeof vi.fn>).mockReturnValue(null);
     const { POST } = await import('@/app/api/ai/route');
     const res = await POST(postReq({ skill: 'nonexistent', content: 'c' }));
     expect(res.status).toBe(400);
+  });
+
+  it('resolves skills by lookup reference', async () => {
+    mockSession(true);
+    (getSkill as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    (resolveSkillReference as ReturnType<typeof vi.fn>).mockReturnValue({
+      id: 'article-faq',
+      name: 'Article FAQ',
+      prompt: '{{content}}',
+      output: 'text',
+      system: 'sys',
+      description: 'd',
+      hierarchy: { domain: 'content', category: 'article', subcategory: 'faq', path: ['content', 'article', 'faq'], order: 1 },
+      lookup: { invoke: 'content/article/faq', aliases: ['faq'], keywords: ['faq'] },
+    });
+    mockStreamResponse(mockFetch);
+    const { POST } = await import('@/app/api/ai/route');
+    const res = await POST(postReq(
+      { skill: 'content/article/faq', content: 'hello' },
+      { 'x-forwarded-for': '1.2.3.4' },
+    ));
+    expect(res.status).toBe(200);
   });
 
   it('returns SSE stream on success', async () => {

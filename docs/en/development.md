@@ -77,6 +77,35 @@ Prepared statements are exported from `lib/db.ts` via `stmts` for performance.
 
 Use `sqlite3 data/site.db` to inspect directly.
 
+## TDD Policy
+
+For meaningful work in this repo, default to TDD:
+
+1. Red: write or update a failing test that captures the required behavior or regression
+2. Green: implement the smallest change that makes the test pass
+3. Refactor: improve the design while keeping the tests green
+
+Rules:
+- Any API or interface change must begin with a test change before implementation.
+- API/interface changes include request or response contracts, auth rules, status codes, streaming behavior, and externally visible data side effects.
+- For route work, place or extend coverage in `tests/api/` unless a more specific nearby test file is the better fit.
+- Large refactors and architecture changes are not done until both `npm test` and the affected e2e flow pass.
+- If there is no committed e2e for an affected user flow yet, add or update that e2e path as part of the same task rather than skipping it.
+
+## Operational Workflow
+
+- If a change affects behavior, operations, testing, or deployment, update the relevant README/docs in the same change set.
+- Completed change sets should be committed and pushed to Git instead of being left only in the local worktree.
+- Reserve `./deploy-to-nas.sh` for large or release-worthy changes. Small changes usually stop after Git push.
+- Long-running local test and smoke flows should use the managed runner so logs are captured and cleanup is enforced:
+  ```bash
+  npm run dev:managed
+  npm run test:managed
+  node scripts/run-managed-command.mjs --label e2e-local --clear-port 3000 -- <your-e2e-command>
+  ```
+- Managed local logs are written to `log/automation/`. NAS deploy logs are written to `log/deploy/`.
+- After tests, e2e runs, or NAS deployment, shut down spawned processes, free dedicated test ports, close SSH/SFTP sessions, and remove temporary staging artifacts before calling the task done.
+
 ## Adding a New Feature
 
 ### 1. Add an API route
@@ -121,7 +150,7 @@ export default function MyFeaturePage() {
 
 Add a nav link in `app/admin/layout.tsx`.
 
-### 3. Write tests
+### 3. Write tests first
 
 Create `tests/api/<name>/route.test.ts`:
 
@@ -139,7 +168,7 @@ describe('POST /api/my-feature', () => {
 });
 ```
 
-Run: `npm test`
+Write the test to fail first, then implement the route, then rerun `npm test`.
 
 ## Adding an AI Skill
 
@@ -181,8 +210,14 @@ The web app runtime source of truth stays in `.claude/skills/`. The generated `.
 
 ```bash
 npm test                 # Run all tests once
+npm run test:managed     # Run tests with timestamped logging
 npm run test:watch       # Watch mode
 ```
+
+Repository policy:
+- API changes are test-first by default.
+- Large or architecture-level changes must pass both `npm test` and the relevant e2e flow before they are considered complete.
+- If the repo lacks e2e coverage for the changed user flow, the change should add or update that coverage instead of waiving the check.
 
 The test setup (`tests/setup.ts`) mocks:
 - `better-sqlite3` (all `db.prepare().*` return vitest mocks)
@@ -220,6 +255,7 @@ Required deploy vars live in the root `.env.local`:
 - `CLOUDFLARE_TUNNEL_TOKEN`
 
 The script uploads `.env.local` and `docker-compose.nas.yml`, builds `my-site:latest` on the NAS, then runs `docker compose --env-file .env.local -f docker-compose.nas.yml up -d`.
+It also writes a timestamped deploy log to `log/deploy/`, removes the remote staging directory, and closes SSH/SFTP sessions before exiting.
 
 ## Code Style
 

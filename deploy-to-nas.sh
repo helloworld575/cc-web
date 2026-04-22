@@ -18,10 +18,14 @@ export ENV_FILE PACKAGE_FILE
 "${PYTHON_BIN}" - <<'PY'
 import os
 import posixpath
+import re
 import shlex
 import sys
 import tarfile
 import tempfile
+import time
+import traceback
+from datetime import datetime
 from pathlib import Path
 
 try:
@@ -33,6 +37,24 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+root = Path.cwd()
+log_dir = root / "log" / "deploy"
+log_dir.mkdir(parents=True, exist_ok=True)
+log_file = log_dir / f"{datetime.now().astimezone().strftime('%Y%m%d-%H%M%S')}-deploy-to-nas.log"
+log_handle = log_file.open("a", encoding="utf-8")
+
+
+def log(message: str, level: str = "INFO") -> None:
+    line = f"[{datetime.now().astimezone().isoformat(timespec='seconds')}] [{level}] {message}"
+    print(line)
+    log_handle.write(f"{line}\n")
+    log_handle.flush()
+
+
+def log_multiline(prefix: str, content: str, level: str = "INFO") -> None:
+    for line in content.rstrip().splitlines():
+        log(f"{prefix}{line}", level=level)
 
 
 def load_dotenv(path: Path) -> None:
@@ -68,7 +90,6 @@ def should_reject_admin_password(admin_password: str) -> bool:
 ENV_FILE = os.environ.get("ENV_FILE", ".env.local")
 PACKAGE_FILE = os.environ.get("PACKAGE_FILE", "my-site-deploy.tar.gz")
 
-root = Path.cwd()
 env_file = (root / ENV_FILE).resolve()
 if not env_file.exists():
     raise SystemExit(
@@ -182,10 +203,24 @@ def run_remote(client: "paramiko.SSHClient", cmd: str, timeout: int = 300) -> tu
     return code, out, err
 
 
+def run_remote_step(client: "paramiko.SSHClient", label: str, cmd: str, timeout: int = 300) -> None:
+    log(f"{label}: {cmd}")
+    started_at = time.monotonic()
+    code, out, err = run_remote(client, cmd, timeout=timeout)
+    if out.strip():
+        log_multiline("[remote stdout] ", out)
+    if err.strip():
+        log_multiline("[remote stderr] ", err, level="WARN")
+    duration = time.monotonic() - started_at
+    if code != 0:
+        raise RuntimeError(f"{label} failed with exit code {code} after {duration:.1f}s")
+    log(f"{label} finished in {duration:.1f}s")
+
+
 def to_sftp_path(shell_path: str) -> str:
-    prefix = "/volume1/"
-    if shell_path.startswith(prefix):
-        return shell_path[len(prefix):]
+    match = re.match(r"^/volume\d+/(.+)$", shell_path)
+    if match:
+        return match.group(1)
     raise RuntimeError(f"Cannot map shell path to SFTP path: {shell_path}")
 
 
@@ -203,43 +238,44 @@ def ensure_sftp_dir(sftp: "paramiko.SFTPClient", sftp_path: str) -> None:
 
 
 def main() -> int:
+    client: "paramiko.SSHClient | None" = None
+    sftp: "paramiko.SFTPClient | None" = None
+    remote_stage: str | None = None
     with tempfile.TemporaryDirectory() as tmp_dir:
         package_path = Path(tmp_dir) / REMOTE_PACKAGE_NAME
         packaged = create_package(package_path)
         if not packaged:
             raise SystemExit("Package is empty; nothing to deploy.")
-        print(f"Using env file: {env_file}")
-        print(f"Packaged {len(packaged)} files into {package_path.name}")
-
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(NAS_HOST, username=NAS_USER, password=NAS_PASSWORD, timeout=20)
-        sftp = client.open_sftp()
-
-        remote_stage = REMOTE_STAGE_BASE
-        remote_package = posixpath.join(remote_stage, REMOTE_PACKAGE_NAME)
-        remote_env = posixpath.join(NAS_PATH, NAS_ENV_FILE)
-        remote_compose = posixpath.join(NAS_PATH, compose_file_name)
-        remote_stage_sftp = to_sftp_path(remote_stage)
-        remote_path_sftp = to_sftp_path(NAS_PATH)
-
+        log(f"Using env file: {env_file}")
+        log(f"Packaged {len(packaged)} files into {package_path.name}")
         try:
-            for cmd in [
-                f"mkdir -p {shlex.quote(remote_stage)}",
-                f"mkdir -p {shlex.quote(NAS_PATH)}",
-            ]:
-                code, out, err = run_remote(client, cmd, timeout=60)
-                if code != 0:
-                    raise RuntimeError(f"Remote mkdir failed\nOUT:\n{out}\nERR:\n{err}")
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            log(f"Connecting to NAS {NAS_HOST} as {NAS_USER}")
+            client.connect(NAS_HOST, username=NAS_USER, password=NAS_PASSWORD, timeout=20)
+            log("SSH connection established")
+            sftp = client.open_sftp()
+            log("SFTP session opened")
+
+            remote_stage = REMOTE_STAGE_BASE
+            remote_package = posixpath.join(remote_stage, REMOTE_PACKAGE_NAME)
+            remote_env = posixpath.join(NAS_PATH, NAS_ENV_FILE)
+            remote_compose = posixpath.join(NAS_PATH, compose_file_name)
+            remote_stage_sftp = to_sftp_path(remote_stage)
+            remote_path_sftp = to_sftp_path(NAS_PATH)
+
+            run_remote_step(client, "Prepare remote stage", f"mkdir -p {shlex.quote(remote_stage)}", timeout=60)
+            run_remote_step(client, "Prepare NAS deploy path", f"mkdir -p {shlex.quote(NAS_PATH)}", timeout=60)
 
             ensure_sftp_dir(sftp, remote_stage_sftp)
             ensure_sftp_dir(sftp, remote_path_sftp)
+            log("Verified SFTP directories")
 
-            print("Uploading env and compose files")
+            log("Uploading environment file")
             sftp.put(str(env_file), to_sftp_path(remote_env))
+            log("Uploading compose file")
             sftp.put(str(compose_file), to_sftp_path(remote_compose))
-
-            print(f"Uploading package {REMOTE_PACKAGE_NAME}")
+            log(f"Uploading package {REMOTE_PACKAGE_NAME}")
             sftp.put(str(package_path), to_sftp_path(remote_package))
 
             extract_dir = posixpath.join(remote_stage, "src")
@@ -248,32 +284,46 @@ def main() -> int:
                 f"-f {shlex.quote(compose_file_name)}"
             )
             remote_cmds = [
-                f"rm -rf {shlex.quote(extract_dir)}",
-                f"mkdir -p {shlex.quote(extract_dir)}",
-                f"tar -xzf {shlex.quote(remote_package)} -C {shlex.quote(extract_dir)}",
-                f"cd {shlex.quote(extract_dir)} && docker build -t {shlex.quote(NAS_IMAGE_NAME)} .",
-                f"cd {shlex.quote(NAS_PATH)} && {compose_cmd} up -d",
-                f"cd {shlex.quote(NAS_PATH)} && {compose_cmd} ps",
+                ("Reset extracted source", f"rm -rf {shlex.quote(extract_dir)}", 120),
+                ("Create extract directory", f"mkdir -p {shlex.quote(extract_dir)}", 120),
+                ("Extract deployment package", f"tar -xzf {shlex.quote(remote_package)} -C {shlex.quote(extract_dir)}", 600),
+                ("Build Docker image", f"cd {shlex.quote(extract_dir)} && docker build -t {shlex.quote(NAS_IMAGE_NAME)} .", 1800),
+                ("Start compose stack", f"cd {shlex.quote(NAS_PATH)} && {compose_cmd} up -d", 600),
+                ("Inspect compose stack", f"cd {shlex.quote(NAS_PATH)} && {compose_cmd} ps", 180),
             ]
-            for cmd in remote_cmds:
-                print(f"Running remote command: {cmd}")
-                code, out, err = run_remote(client, cmd, timeout=1800)
-                if out.strip():
-                    print(out)
-                if err.strip():
-                    print(err, file=sys.stderr)
-                if code != 0:
-                    raise RuntimeError(f"Remote command failed: {cmd}")
+            for label, cmd, timeout in remote_cmds:
+                run_remote_step(client, label, cmd, timeout=timeout)
         finally:
-            cleanup_cmd = f"rm -rf {shlex.quote(remote_stage)}"
-            run_remote(client, cleanup_cmd, timeout=120)
-            sftp.close()
-            client.close()
+            if client is not None and remote_stage is not None:
+                try:
+                    run_remote_step(client, "Remote cleanup", f"rm -rf {shlex.quote(remote_stage)}", timeout=120)
+                except Exception as cleanup_error:
+                    log(f"Remote cleanup failed: {cleanup_error}", level="WARN")
+            if sftp is not None:
+                try:
+                    sftp.close()
+                    log("SFTP session closed")
+                except Exception as close_error:
+                    log(f"SFTP close failed: {close_error}", level="WARN")
+            if client is not None:
+                try:
+                    client.close()
+                    log("SSH session closed")
+                except Exception as close_error:
+                    log(f"SSH close failed: {close_error}", level="WARN")
 
-    print(f"Deployment completed to {NAS_HOST}:{NAS_PATH}")
+    log(f"Deployment completed to {NAS_HOST}:{NAS_PATH}")
+    log(f"Deployment log saved to {log_file.relative_to(root).as_posix()}")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except Exception:
+        log("Deployment failed with an exception", level="ERROR")
+        log_multiline("", traceback.format_exc(), level="ERROR")
+        raise
+    finally:
+        log_handle.close()
 PY

@@ -1,11 +1,12 @@
 export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
-import { getSkills, saveSkill } from '@/lib/skills';
+import { findSkills, getSkills, saveSkill } from '@/lib/skills';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-export async function GET() {
-  return NextResponse.json(getSkills());
+export async function GET(req: Request) {
+  const query = new URL(req.url).searchParams.get('q');
+  return NextResponse.json(query ? findSkills(query) : getSkills());
 }
 
 export async function POST(req: Request) {
