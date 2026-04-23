@@ -16,6 +16,7 @@ fi
 export ENV_FILE PACKAGE_FILE
 
 "${PYTHON_BIN}" - <<'PY'
+import hashlib
 import os
 import posixpath
 import re
@@ -75,6 +76,25 @@ def load_dotenv(path: Path) -> None:
             os.environ.setdefault(key, value)
 
 
+def read_env_value(text: str, key: str) -> str | None:
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        if "=" not in line:
+            continue
+        current_key, value = line.split("=", 1)
+        if current_key.strip() != key:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        return value
+    return None
+
+
 def require_env(names: list[str]) -> None:
     missing = [name for name in names if not os.environ.get(name)]
     if missing:
@@ -85,6 +105,10 @@ def require_env(names: list[str]) -> None:
 
 def should_reject_admin_password(admin_password: str) -> bool:
     return admin_password == "changeme"
+
+
+def hash_secret(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 ENV_FILE = os.environ.get("ENV_FILE", ".env.local")
@@ -217,6 +241,85 @@ def run_remote_step(client: "paramiko.SSHClient", label: str, cmd: str, timeout:
     log(f"{label} finished in {duration:.1f}s")
 
 
+def read_remote_file(client: "paramiko.SSHClient", remote_path: str, timeout: int = 60) -> str:
+    code, out, err = run_remote(client, f"cat {shlex.quote(remote_path)}", timeout=timeout)
+    if code != 0:
+        raise RuntimeError(f"Unable to read {remote_path}: {err.strip() or 'unknown error'}")
+    return out
+
+
+def verify_remote_env_value(
+    client: "paramiko.SSHClient",
+    remote_env_path: str,
+    key: str,
+    expected_value: str,
+) -> None:
+    remote_text = read_remote_file(client, remote_env_path, timeout=60)
+    remote_value = read_env_value(remote_text, key)
+    if remote_value != expected_value:
+        raise RuntimeError(
+            f"Remote {key} mismatch after upload (local={hash_secret(expected_value)}, remote={hash_secret(remote_value or '')})"
+        )
+    log(f"Verified remote {key} hash {hash_secret(expected_value)}")
+
+
+def read_container_env_value(
+    client: "paramiko.SSHClient",
+    nas_path: str,
+    compose_file_name: str,
+    env_file_name: str,
+    service: str,
+    key: str,
+) -> str:
+    code, container_id, err = run_remote(
+        client,
+        (
+            f"cd {shlex.quote(nas_path)} && "
+            f"docker compose --env-file {shlex.quote(env_file_name)} "
+            f"-f {shlex.quote(compose_file_name)} ps -q {shlex.quote(service)}"
+        ),
+        timeout=60,
+    )
+    container_id = container_id.strip()
+    if code != 0 or not container_id:
+        raise RuntimeError(f"Unable to resolve container for service {service}: {err.strip() or 'no container id'}")
+
+    code, value, err = run_remote(
+        client,
+        f"docker exec {shlex.quote(container_id)} printenv {shlex.quote(key)}",
+        timeout=60,
+    )
+    if code != 0:
+        raise RuntimeError(
+            f"Unable to read {key} from container {container_id}: {err.strip() or 'docker exec failed'}"
+        )
+    return value.strip()
+
+
+def verify_container_env_value(
+    client: "paramiko.SSHClient",
+    nas_path: str,
+    compose_file_name: str,
+    env_file_name: str,
+    service: str,
+    key: str,
+    expected_value: str,
+) -> None:
+    container_value = read_container_env_value(
+        client,
+        nas_path=nas_path,
+        compose_file_name=compose_file_name,
+        env_file_name=env_file_name,
+        service=service,
+        key=key,
+    )
+    if container_value != expected_value:
+        raise RuntimeError(
+            f"Container {service} {key} mismatch after deploy (local={hash_secret(expected_value)}, container={hash_secret(container_value)})"
+        )
+    log(f"Verified container {service} {key} hash {hash_secret(expected_value)}")
+
+
 def to_sftp_path(shell_path: str) -> str:
     match = re.match(r"^/volume\d+/(.+)$", shell_path)
     if match:
@@ -273,6 +376,7 @@ def main() -> int:
 
             log("Uploading environment file")
             sftp.put(str(env_file), to_sftp_path(remote_env))
+            verify_remote_env_value(client, remote_env, "ADMIN_PASSWORD", os.environ["ADMIN_PASSWORD"])
             log("Uploading compose file")
             sftp.put(str(compose_file), to_sftp_path(remote_compose))
             log(f"Uploading package {REMOTE_PACKAGE_NAME}")
@@ -288,11 +392,20 @@ def main() -> int:
                 ("Create extract directory", f"mkdir -p {shlex.quote(extract_dir)}", 120),
                 ("Extract deployment package", f"tar -xzf {shlex.quote(remote_package)} -C {shlex.quote(extract_dir)}", 600),
                 ("Build Docker image", f"cd {shlex.quote(extract_dir)} && docker build -t {shlex.quote(NAS_IMAGE_NAME)} .", 1800),
-                ("Start compose stack", f"cd {shlex.quote(NAS_PATH)} && {compose_cmd} up -d", 600),
+                ("Start compose stack", f"cd {shlex.quote(NAS_PATH)} && {compose_cmd} up -d --force-recreate", 600),
                 ("Inspect compose stack", f"cd {shlex.quote(NAS_PATH)} && {compose_cmd} ps", 180),
             ]
             for label, cmd, timeout in remote_cmds:
                 run_remote_step(client, label, cmd, timeout=timeout)
+            verify_container_env_value(
+                client,
+                nas_path=NAS_PATH,
+                compose_file_name=compose_file_name,
+                env_file_name=NAS_ENV_FILE,
+                service="app",
+                key="ADMIN_PASSWORD",
+                expected_value=os.environ["ADMIN_PASSWORD"],
+            )
         finally:
             if client is not None and remote_stage is not None:
                 try:
