@@ -8,6 +8,7 @@ import { authOptions } from '@/lib/auth';
 import { writeFile } from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
+import { getRuntimePaths } from '@/lib/runtime-paths';
 
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
@@ -73,7 +74,8 @@ export async function POST(req: Request) {
 
   const filename = `${randomUUID()}${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(process.cwd(), 'uploads', filename), buffer);
+  const { uploadsDir } = getRuntimePaths();
+  await writeFile(path.join(uploadsDir, filename), buffer);
 
   const mimeType = file.type || `image/${ext.slice(1)}`;
   const albumId = formData.get('album_id');

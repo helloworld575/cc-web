@@ -1,12 +1,15 @@
 import Database from 'better-sqlite3';
-import path from 'path';
+import { getRuntimePaths } from '@/lib/runtime-paths';
 
 const isBuildDatabase = process.env.BUILDING_DOCKER_IMAGE === '1'
   || process.env.NEXT_PHASE === 'phase-production-build';
 
-const dbPath = isBuildDatabase ? ':memory:' : path.join(process.cwd(), 'data', 'site.db');
+const dbPath = isBuildDatabase ? ':memory:' : getRuntimePaths().dbPath;
 
 const db = new Database(dbPath);
+const processForDb = process as NodeJS.Process & {
+  __siteDbShutdownRegistered?: boolean;
+};
 
 // Performance PRAGMAs
 db.pragma('journal_mode = WAL');
@@ -166,7 +169,10 @@ export const stmts = {
 
 // Graceful shutdown
 const shutdown = () => { try { db.close(); } catch {} };
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+if (!processForDb.__siteDbShutdownRegistered) {
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
+  processForDb.__siteDbShutdownRegistered = true;
+}
 
 export default db;

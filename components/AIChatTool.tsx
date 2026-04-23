@@ -218,6 +218,7 @@ export default function AIChatTool() {
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Provider</span>
             <select
+              data-testid="ai-chat-provider"
               value={selectedProvider ?? ''}
               onChange={event => {
                 setSelectedProvider(Number(event.target.value));
@@ -293,7 +294,7 @@ export default function AIChatTool() {
 
         <div className="relative flex-1 overflow-hidden rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.88))] p-3 shadow-inner">
           <div className="pointer-events-none absolute inset-x-6 top-0 h-16 bg-gradient-to-b from-white/75 via-white/35 to-transparent" />
-          <div className="relative flex h-full flex-col gap-4 overflow-y-auto px-1 py-1">
+          <div data-testid="ai-chat-messages" className="relative flex h-full flex-col gap-4 overflow-y-auto px-1 py-1">
             {messages.length === 0 && (
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <div className="orb-shell mb-5">
@@ -365,6 +366,7 @@ export default function AIChatTool() {
         <div className="mt-4 rounded-[28px] border border-white/70 bg-white/90 p-3 shadow-sm">
           <div className="flex items-end gap-3">
             <textarea
+              data-testid="ai-chat-input"
               ref={textareaRef}
               value={input}
               onChange={autoResize}
@@ -376,6 +378,7 @@ export default function AIChatTool() {
             />
             {streaming ? (
               <button
+                data-testid="ai-chat-stop"
                 onClick={stopStreaming}
                 className="rounded-[22px] bg-red-500 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-red-600 hover:shadow-lg"
               >
@@ -383,6 +386,7 @@ export default function AIChatTool() {
               </button>
             ) : (
               <button
+                data-testid="ai-chat-send"
                 onClick={send}
                 disabled={!input.trim() || !selectedProvider}
                 className="rounded-[22px] bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"

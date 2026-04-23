@@ -1,8 +1,13 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { mockSession } from '../../helpers';
 import { getPost, savePost, deletePost } from '@/lib/markdown';
+import { revalidatePath } from 'next/cache';
 
 const params = { params: { slug: 'hello' } };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('GET /api/blog/[slug]', () => {
   it('returns 400 on bad slug', async () => {
@@ -42,6 +47,8 @@ describe('PUT /api/blog/[slug]', () => {
     }), params);
     expect(res.status).toBe(200);
     expect(savePost).toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith('/blog');
+    expect(revalidatePath).toHaveBeenCalledWith('/blog/hello');
   });
 });
 
@@ -59,5 +66,7 @@ describe('DELETE /api/blog/[slug]', () => {
     const res = await DELETE(new Request('http://localhost'), params);
     expect(res.status).toBe(200);
     expect(deletePost).toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith('/blog');
+    expect(revalidatePath).toHaveBeenCalledWith('/blog/hello');
   });
 });

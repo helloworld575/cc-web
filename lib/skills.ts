@@ -2,8 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import type { Skill, SkillHierarchy, SkillLookup, SkillSummary } from '@/lib/skill-taxonomy';
+import { getRuntimePaths } from '@/lib/runtime-paths';
 
-const skillsDir = path.join(process.cwd(), '.claude', 'skills');
+const { skillsDir } = getRuntimePaths();
 
 type SkillFrontmatter = Record<string, unknown> & {
   name?: string;

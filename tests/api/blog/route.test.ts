@@ -1,6 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { mockSession, postReq } from '../../helpers';
 import { getPosts, savePost } from '@/lib/markdown';
+import { revalidatePath } from 'next/cache';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('GET /api/blog', () => {
   it('returns 200 with posts (public)', async () => {
@@ -39,5 +44,7 @@ describe('POST /api/blog', () => {
     const res = await POST(postReq({ slug: 'hello', title: 'Hello', date: '2024-01-01', content: 'hi' }));
     expect(res.status).toBe(200);
     expect(savePost).toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith('/blog');
+    expect(revalidatePath).toHaveBeenCalledWith('/blog/hello');
   });
 });

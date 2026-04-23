@@ -116,6 +116,7 @@ export default function ToolsPage() {
           return (
             <button
               key={id}
+              data-testid={`tools-tab-${id}`}
               onClick={() => setTab(id)}
               className={`rounded-[26px] border px-4 py-4 text-left transition duration-300 animate-slide-up ${
                 active

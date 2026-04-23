@@ -22,6 +22,7 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-80">
         <h1 className="text-2xl font-bold">{t('loginTitle')}</h1>
         <input
+          data-testid="login-password"
           type="password"
           placeholder={t('passwordPlaceholder')}
           value={password}
@@ -29,7 +30,7 @@ export default function LoginPage() {
           className="border rounded px-3 py-2"
         />
         {error && <p className="text-red-500 text-sm">{error}</p>}
-        <button type="submit" className="bg-black text-white rounded px-4 py-2">
+        <button data-testid="login-submit" type="submit" className="bg-black text-white rounded px-4 py-2">
           {t('loginBtn')}
         </button>
       </form>

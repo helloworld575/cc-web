@@ -461,6 +461,7 @@ export default function FortuneTool() {
           ] as const).map(([value, label]) => (
             <button
               key={value}
+              data-testid={`fortune-tab-${value}`}
               onClick={() => setTab(value)}
               className={`flex-1 rounded-[20px] px-4 py-3 text-sm font-semibold transition ${
                 tab === value
@@ -479,6 +480,7 @@ export default function FortuneTool() {
               {(Object.entries(METHOD_META) as [Method, (typeof METHOD_META)[Method]][]).map(([value, meta], index) => (
                 <button
                   key={value}
+                  data-testid={`fortune-method-${value}`}
                   onClick={() => {
                     setMethod(value);
                     resetResults();
@@ -689,6 +691,7 @@ export default function FortuneTool() {
               )}
 
               <button
+                data-testid="fortune-start"
                 onClick={calculate}
                 disabled={loading}
                 className="mt-5 w-full rounded-[22px] bg-amber-500 px-5 py-4 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-400 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
@@ -927,7 +930,7 @@ export default function FortuneTool() {
                 </div>
 
                 {analysis ? (
-                  <div className="mt-5 rounded-[28px] border border-white/70 bg-white/92 px-5 py-5 shadow-sm">
+                  <div data-testid="fortune-analysis" className="mt-5 rounded-[28px] border border-white/70 bg-white/92 px-5 py-5 shadow-sm">
                     <StreamingMarkdown content={analysis} streaming={loading} />
                   </div>
                 ) : (

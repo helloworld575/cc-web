@@ -9,6 +9,19 @@ interface ChatMessage {
   content: string;
 }
 
+function createMockStream(chunks: string[]) {
+  const encoder = new TextEncoder();
+
+  return new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
+      }
+      controller.close();
+    },
+  });
+}
+
 function buildAnthropicRequest(provider: any, messages: ChatMessage[]) {
   const systemMessages = messages.filter(m => m.role === 'system');
   const chatMessages = messages.filter(m => m.role !== 'system');
@@ -164,6 +177,27 @@ export async function POST(req: Request) {
   const provider = db.prepare('SELECT * FROM ai_providers WHERE id = ?').get(provider_id) as any;
   if (!provider) {
     return Response.json({ error: 'Provider not found' }, { status: 404 });
+  }
+
+  if (process.env.E2E_MOCK_STREAMS === '1') {
+    const latestUserMessage = [...messages].reverse().find(
+      (message: ChatMessage) => message.role === 'user'
+    )?.content ?? 'mock prompt';
+    const stream = createMockStream([
+      '## Mock response\n\n',
+      `Echo: ${latestUserMessage}\n\n`,
+      '- streamed item\n',
+      '- second item\n\n',
+      '```md\nflow-ready\n```',
+    ]);
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
   }
 
   // Build request based on provider type

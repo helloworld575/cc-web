@@ -211,6 +211,8 @@ The web app runtime source of truth stays in `.claude/skills/`. The generated `.
 ```bash
 npm test                 # Run all tests once
 npm run test:managed     # Run tests with timestamped logging
+npm run e2e              # Run Playwright e2e against the isolated runtime
+npm run e2e:headed       # Same suite with a visible browser
 npm run test:watch       # Watch mode
 ```
 
@@ -218,6 +220,8 @@ Repository policy:
 - API changes are test-first by default.
 - Large or architecture-level changes must pass both `npm test` and the relevant e2e flow before they are considered complete.
 - If the repo lacks e2e coverage for the changed user flow, the change should add or update that coverage instead of waiving the check.
+- The Playwright suite boots a dedicated Next dev server on port `3001`, seeds `.tmp/e2e-runtime`, and enables `E2E_MOCK_STREAMS=1` so streaming UI can be validated without live provider calls.
+- Use the managed scripts instead of raw long-running commands so ports, child processes, and temporary artifacts are cleaned up automatically.
 
 The test setup (`tests/setup.ts`) mocks:
 - `better-sqlite3` (all `db.prepare().*` return vitest mocks)

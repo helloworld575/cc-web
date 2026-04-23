@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
+import { getRuntimePaths } from '@/lib/runtime-paths';
 
-const postsDir = path.join(process.cwd(), 'content', 'posts');
+const { postsDir } = getRuntimePaths();
 
 export interface PostMeta {
   slug: string;

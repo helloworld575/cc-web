@@ -193,4 +193,37 @@ describe('POST /api/ai-chat', () => {
     const body = JSON.parse(fetchCall[1].body);
     expect(body.messages[0]).toEqual({ role: 'system', content: 'You are a pirate' });
   });
+
+  it('streams deterministic markdown without upstream calls when E2E_MOCK_STREAMS is enabled', async () => {
+    process.env.E2E_MOCK_STREAMS = '1';
+    mockSession(true);
+    mockDbStmt({
+      get: vi.fn(() => ({
+        id: 1, name: 'Mock GPT', api_type: 'openai', api_url: 'https://api.openai.com',
+        api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
+      })),
+    });
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: 1,
+      messages: [{ role: 'user', content: 'Render markdown' }],
+    }));
+
+    expect(res.status).toBe(200);
+    expect(mockFetch).not.toHaveBeenCalled();
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += decoder.decode(value);
+    }
+
+    expect(text).toContain('## Mock response');
+    expect(text).toContain('- streamed item');
+    delete process.env.E2E_MOCK_STREAMS;
+  });
 });

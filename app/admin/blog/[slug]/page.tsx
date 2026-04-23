@@ -169,21 +169,23 @@ export default function AdminBlogEditor() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={save} className="rounded-[20px] bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg">
+            <button data-testid="admin-blog-save" onClick={save} className="rounded-[20px] bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg">
               {t('save')}
             </button>
-            {saved && <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">{t('saved')}</span>}
+            {saved && <span data-testid="admin-blog-saved" className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">{t('saved')}</span>}
           </div>
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
           <input
+            data-testid="admin-blog-editor-title"
             value={title}
             onChange={event => setTitle(event.target.value)}
             placeholder={t('colTitle')}
             className="rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-lg font-semibold text-slate-900 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
           />
           <input
+            data-testid="admin-blog-editor-date"
             value={date}
             onChange={event => setDate(event.target.value)}
             placeholder="YYYY-MM-DD"
@@ -192,6 +194,7 @@ export default function AdminBlogEditor() {
         </div>
 
         <textarea
+          data-testid="admin-blog-editor-brief"
           value={brief}
           onChange={event => setBrief(event.target.value)}
           placeholder={t('briefPlaceholder')}
@@ -209,6 +212,7 @@ export default function AdminBlogEditor() {
           </p>
 
           <input
+            data-testid="admin-blog-skill-search"
             value={skillQuery}
             onChange={event => setSkillQuery(event.target.value)}
             placeholder="Find by name, path, or keyword"
@@ -316,7 +320,13 @@ export default function AdminBlogEditor() {
         </aside>
 
         <section className="glass-panel rounded-[32px] px-5 py-5">
-          <MarkdownEditor value={content} onChange={setContent} rows={28} />
+          <MarkdownEditor
+            value={content}
+            onChange={setContent}
+            rows={28}
+            textareaTestId="admin-blog-editor-content"
+            previewTestId="admin-blog-editor-preview"
+          />
         </section>
       </section>
     </main>

@@ -78,9 +78,10 @@ export default function AdminBlogPage() {
 
       <div className="flex gap-2 mb-5">
         <input placeholder={t('newPostPlaceholder')} value={title} onChange={e => setTitle(e.target.value)}
+          data-testid="admin-blog-new-title"
           onKeyDown={e => e.key === 'Enter' && createPost()}
           className="border rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-black/10" />
-        <button onClick={createPost}
+        <button data-testid="admin-blog-create" onClick={createPost}
           className="bg-black text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors whitespace-nowrap">
           {t('newPost')}
         </button>

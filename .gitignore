@@ -47,3 +47,6 @@ next-env.d.ts
 # logs
 /log/
 /.codex-ui-start*.log
+/.tmp/
+/playwright-report/
+/test-results/

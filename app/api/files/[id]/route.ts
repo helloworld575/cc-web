@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { unlink } from 'fs/promises';
 import path from 'path';
+import { getRuntimePaths } from '@/lib/runtime-paths';
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -23,7 +24,8 @@ export async function DELETE(_: Request, { params }: { params: { id: string } })
   if (!file) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   try {
-    await unlink(path.join(process.cwd(), 'uploads', file.filename));
+    const { uploadsDir } = getRuntimePaths();
+    await unlink(path.join(uploadsDir, file.filename));
   } catch { /* file may already be gone */ }
 
   db.prepare('DELETE FROM files WHERE id = ?').run(params.id);

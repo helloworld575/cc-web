@@ -7,9 +7,11 @@ interface Props {
   value: string;
   onChange: (val: string) => void;
   rows?: number;
+  textareaTestId?: string;
+  previewTestId?: string;
 }
 
-export default function MarkdownEditor({ value, onChange, rows = 24 }: Props) {
+export default function MarkdownEditor({ value, onChange, rows = 24, textareaTestId, previewTestId }: Props) {
   const height = rows * 20;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [mobileTab, setMobileTab] = useState<'write' | 'preview'>('write');
@@ -45,6 +47,7 @@ export default function MarkdownEditor({ value, onChange, rows = 24 }: Props) {
       <div className="md:hidden" style={{ height }}>
         {mobileTab === 'write' ? (
           <textarea
+            data-testid={textareaTestId}
             ref={textareaRef}
             value={value}
             onChange={e => onChange(e.target.value)}
@@ -54,7 +57,7 @@ export default function MarkdownEditor({ value, onChange, rows = 24 }: Props) {
             spellCheck={false}
           />
         ) : (
-          <div className="h-full overflow-y-auto p-4 prose prose-sm max-w-none dark:prose-invert">
+          <div data-testid={previewTestId} className="h-full overflow-y-auto p-4 prose prose-sm max-w-none dark:prose-invert">
             <ReactMarkdown>{value}</ReactMarkdown>
           </div>
         )}
@@ -63,6 +66,7 @@ export default function MarkdownEditor({ value, onChange, rows = 24 }: Props) {
       {/* Desktop: split pane */}
       <div className="hidden md:flex" style={{ height }}>
         <textarea
+          data-testid={textareaTestId}
           ref={textareaRef}
           value={value}
           onChange={e => onChange(e.target.value)}
@@ -71,7 +75,7 @@ export default function MarkdownEditor({ value, onChange, rows = 24 }: Props) {
           placeholder="Write markdown here..."
           spellCheck={false}
         />
-        <div className="w-1/2 h-full overflow-y-auto p-4 prose prose-sm max-w-none dark:prose-invert">
+        <div data-testid={previewTestId} className="w-1/2 h-full overflow-y-auto p-4 prose prose-sm max-w-none dark:prose-invert">
           <ReactMarkdown>{value}</ReactMarkdown>
         </div>
       </div>

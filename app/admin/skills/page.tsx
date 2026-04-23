@@ -191,6 +191,7 @@ export default function AdminSkillsPage() {
       <section className="mt-6 grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
         <aside className="glass-panel rounded-[32px] px-5 py-5">
           <input
+            data-testid="admin-skills-search"
             value={query}
             onChange={event => setQuery(event.target.value)}
             placeholder="Search by skill name, invoke path, alias, or keyword"

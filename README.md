@@ -99,16 +99,19 @@ The deploy script writes timestamped logs to `log/deploy/` and always attempts t
 ```bash
 npm test          # run once
 npm run test:managed
+npm run e2e
+npm run e2e:headed
 npm run test:watch
 ```
 
 152+ tests covering all API routes, auth, rate limiting, and streaming responses.
+The Playwright suite runs against `.tmp/e2e-runtime`, uses mock streaming for AI chat and fortune flows, and always goes through the managed runner so port `3001`, child processes, and temp artifacts are cleaned up after each run.
 
 Use the managed runner when a command may leave ports or child processes behind:
 
 ```bash
 npm run dev:managed
-node scripts/run-managed-command.mjs --label e2e-local --clear-port 3000 -- <your-e2e-command>
+node scripts/run-managed-command.mjs --label e2e-local --clear-port 3001 -- <your-e2e-command>
 ```
 
 Managed logs are written to `log/automation/`.

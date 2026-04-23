@@ -22,6 +22,10 @@ vi.mock('next-auth', () => ({
   getServerSession: vi.fn(() => null),
 }));
 
+vi.mock('next/cache', () => ({
+  revalidatePath: vi.fn(),
+}));
+
 // Mock rateLimit
 vi.mock('@/lib/rateLimit', () => ({
   rateLimit: vi.fn(() => true),

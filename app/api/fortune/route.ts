@@ -174,6 +174,25 @@ ${result.transformed ? `变卦：${result.transformed.fullName} ${result.transfo
   return { preflight, prompt };
 }
 
+function createMockFortuneStream(preflight: string, method: string) {
+  const encoder = new TextEncoder();
+  const chunks = [
+    `data: ${preflight}\n\n`,
+    `data: ${JSON.stringify({ text: `## Mock fortune analysis\n\nMethod: ${method}\n\n` })}\n\n`,
+    'data: {"text":"- chart prepared\\n- interpretation streamed\\n\\n"}\n\n',
+    'data: {"text":"命理仅供参考，请理性看待。"}\n\n',
+  ];
+
+  return new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(encoder.encode(chunk));
+      }
+      controller.close();
+    },
+  });
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -187,9 +206,6 @@ export async function POST(req: Request) {
   if (!method) {
     return new Response(JSON.stringify({ error: '缺少 method 参数' }), { status: 400 });
   }
-
-  const apiKey = process.env.CLAUDE_API_KEY;
-  if (!apiKey) return new Response(JSON.stringify({ error: 'CLAUDE_API_KEY 未配置' }), { status: 500 });
 
   let preflight: string;
   let prompt: string;
@@ -206,6 +222,15 @@ export async function POST(req: Request) {
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), { status: 400 });
   }
+
+  if (process.env.E2E_MOCK_STREAMS === '1') {
+    return new Response(createMockFortuneStream(preflight, method), {
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' },
+    });
+  }
+
+  const apiKey = process.env.CLAUDE_API_KEY;
+  if (!apiKey) return new Response(JSON.stringify({ error: 'CLAUDE_API_KEY not configured' }), { status: 500 });
 
   const host = (process.env.CLAUDE_API_HOST ?? 'https://api.anthropic.com').replace(/\/$/, '');
 

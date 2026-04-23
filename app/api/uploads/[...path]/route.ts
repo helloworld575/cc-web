@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import path from 'path';
 import { existsSync, statSync, createReadStream } from 'fs';
+import { getRuntimePaths } from '@/lib/runtime-paths';
 
 const MIME: Record<string, string> = {
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
@@ -10,9 +11,10 @@ const MIME: Record<string, string> = {
 
 export async function GET(_: Request, { params }: { params: { path: string[] } }) {
   const filename = params.path.join('/');
-  const uploadsDir = path.resolve(process.cwd(), 'uploads');
-  const resolved = path.resolve(uploadsDir, filename);
-  if (!resolved.startsWith(uploadsDir + path.sep))
+  const { uploadsDir } = getRuntimePaths();
+  const rootUploadsDir = path.resolve(uploadsDir);
+  const resolved = path.resolve(rootUploadsDir, filename);
+  if (!resolved.startsWith(rootUploadsDir + path.sep))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   if (!existsSync(resolved)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
