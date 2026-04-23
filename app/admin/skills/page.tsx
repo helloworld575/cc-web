@@ -3,9 +3,8 @@ import { useDeferredValue, useEffect, useState } from 'react';
 import {
   formatSkillPath,
   groupSkillSummaries,
-  isInvocableSkillSummary,
   matchSkillSummary,
-  type InvocableSkill,
+  type Skill,
   type SkillSummary,
 } from '@/lib/skill-taxonomy';
 
@@ -15,9 +14,11 @@ interface SkillEditorState {
   name_zh: string;
   description: string;
   description_zh: string;
+  invocable: boolean;
   system: string;
   prompt: string;
   output: string;
+  content: string;
   hierarchy: {
     domain: string;
     category: string;
@@ -37,9 +38,11 @@ const EMPTY_EDITOR: SkillEditorState = {
   name_zh: '',
   description: '',
   description_zh: '',
+  invocable: true,
   system: '',
   prompt: '{{content}}',
   output: 'content',
+  content: '# New Skill\n',
   hierarchy: {
     domain: '',
     category: '',
@@ -53,16 +56,18 @@ const EMPTY_EDITOR: SkillEditorState = {
   },
 };
 
-function toEditorState(skill: InvocableSkill): SkillEditorState {
+function toEditorState(skill: Skill): SkillEditorState {
   return {
     id: skill.id,
     name: skill.name,
     name_zh: skill.name_zh ?? '',
     description: skill.description,
     description_zh: skill.description_zh ?? '',
+    invocable: skill.invocable,
     system: skill.system ?? '',
-    prompt: skill.prompt,
-    output: skill.output,
+    prompt: skill.prompt ?? '{{content}}',
+    output: skill.output ?? 'content',
+    content: skill.content,
     hierarchy: {
       domain: skill.hierarchy.domain,
       category: skill.hierarchy.category,
@@ -80,7 +85,7 @@ function toEditorState(skill: InvocableSkill): SkillEditorState {
 export default function AdminSkillsPage() {
   const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [editing, setEditing] = useState<SkillEditorState | null>(null);
-  const [selectedSkill, setSelectedSkill] = useState<SkillSummary | null>(null);
+  const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const [error, setError] = useState('');
@@ -98,15 +103,9 @@ export default function AdminSkillsPage() {
   }, []);
 
   async function startEdit(summary: SkillSummary) {
-    setSelectedSkill(summary);
+    setActiveSkillId(summary.id);
     setLoadingId(summary.id);
     setError('');
-
-    if (!isInvocableSkillSummary(summary)) {
-      setEditing(null);
-      setLoadingId(null);
-      return;
-    }
 
     try {
       const response = await fetch(`/api/skills/${summary.id}`);
@@ -116,7 +115,7 @@ export default function AdminSkillsPage() {
         return;
       }
 
-      const detail = await response.json() as InvocableSkill;
+      const detail = await response.json() as Skill;
       setEditing(toEditorState(detail));
     } finally {
       setLoadingId(null);
@@ -125,7 +124,7 @@ export default function AdminSkillsPage() {
 
   function startNew() {
     setEditing({ ...EMPTY_EDITOR });
-    setSelectedSkill(null);
+    setActiveSkillId(null);
     setError('');
   }
 
@@ -143,9 +142,11 @@ export default function AdminSkillsPage() {
         name_zh: editing.name_zh || undefined,
         description: editing.description,
         description_zh: editing.description_zh || undefined,
-        system: editing.system || undefined,
-        prompt: editing.prompt,
-        output: editing.output,
+        invocable: editing.invocable,
+        system: editing.invocable ? editing.system || undefined : undefined,
+        prompt: editing.invocable ? editing.prompt : undefined,
+        output: editing.invocable ? editing.output : undefined,
+        content: editing.content,
         hierarchy: editing.hierarchy,
         lookup: {
           invoke: editing.lookup.invoke || undefined,
@@ -163,8 +164,7 @@ export default function AdminSkillsPage() {
 
     await loadSkills();
     setSaved(true);
-    setEditing(null);
-    setSelectedSkill(null);
+    setActiveSkillId(editing.id);
     window.setTimeout(() => setSaved(false), 2000);
   }
 
@@ -174,11 +174,12 @@ export default function AdminSkillsPage() {
 
     setSkills(current => current.filter(skill => skill.id !== id));
     if (editing?.id === id) setEditing(null);
-    if (selectedSkill?.id === id) setSelectedSkill(null);
+    if (activeSkillId === id) setActiveSkillId(null);
   }
 
   const filteredSkills = skills.filter(skill => matchSkillSummary(skill, deferredQuery));
   const groups = groupSkillSummaries(filteredSkills);
+  const editingExistingSkill = editing ? skills.some(skill => skill.id === editing.id) : false;
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
@@ -200,8 +201,11 @@ export default function AdminSkillsPage() {
         </div>
       </section>
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-        <aside className="glass-panel rounded-[32px] px-5 py-5">
+      <section className="mt-6 grid gap-6 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
+        <aside
+          data-testid="admin-skills-list-panel"
+          className="glass-panel flex flex-col rounded-[32px] px-5 py-5 lg:sticky lg:top-6 lg:h-[calc(100vh-2rem)]"
+        >
           <input
             data-testid="admin-skills-search"
             value={query}
@@ -210,7 +214,11 @@ export default function AdminSkillsPage() {
             className="w-full rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
           />
 
-          <div className="mt-5 space-y-4">
+          <div
+            data-testid="admin-skills-list-scroll"
+            className="mt-5 space-y-4 pr-1"
+            style={{ height: '28rem', overflowY: 'auto' }}
+          >
             {groups.map(group => (
               <section key={group.key} className="rounded-[24px] border border-white/70 bg-white/90 px-4 py-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{group.label}</p>
@@ -220,7 +228,7 @@ export default function AdminSkillsPage() {
                       key={skill.id}
                       onClick={() => startEdit(skill)}
                       className={`w-full rounded-[20px] border px-3 py-3 text-left transition ${
-                        editing?.id === skill.id
+                        activeSkillId === skill.id
                           ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                           : 'border-slate-200 bg-slate-50 text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-sm'
                       }`}
@@ -228,15 +236,15 @@ export default function AdminSkillsPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold">{skill.name}</p>
-                          <p className={`mt-1 text-xs leading-5 ${editing?.id === skill.id ? 'text-white/65' : 'text-slate-500'}`}>
+                          <p className={`mt-1 text-xs leading-5 ${activeSkillId === skill.id ? 'text-white/65' : 'text-slate-500'}`}>
                             {skill.description}
                           </p>
-                          <p className={`mt-2 text-[11px] font-medium uppercase tracking-[0.18em] ${editing?.id === skill.id ? 'text-white/45' : 'text-slate-400'}`}>
+                          <p className={`mt-2 text-[11px] font-medium uppercase tracking-[0.18em] ${activeSkillId === skill.id ? 'text-white/45' : 'text-slate-400'}`}>
                             {formatSkillPath(skill)}
                           </p>
                         </div>
                         <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
-                          editing?.id === skill.id
+                          activeSkillId === skill.id
                             ? 'bg-white/15 text-white/75'
                             : 'bg-slate-200 text-slate-500'
                         }`}>
@@ -257,13 +265,30 @@ export default function AdminSkillsPage() {
           </div>
         </aside>
 
-        <section className="glass-panel rounded-[32px] px-5 py-5">
+        <section
+          data-testid="admin-skill-detail-panel"
+          className="glass-panel rounded-[32px] px-5 py-5 lg:sticky lg:top-6 lg:h-[calc(100vh-2rem)] lg:overflow-y-auto"
+        >
           {editing ? (
             <div className="space-y-5">
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_180px]">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                  editing.invocable
+                    ? 'bg-sky-100 text-sky-700'
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {editing.invocable ? 'Invocable app skill' : 'Catalog guide'}
+                </span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {editing.hierarchy.domain || 'domain'} / {editing.hierarchy.category || 'category'} / {editing.hierarchy.subcategory || 'subcategory'}
+                </span>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">ID</span>
                   <input
+                    data-testid="admin-skill-id"
                     value={editing.id}
                     onChange={event => setEditing({ ...editing, id: event.target.value })}
                     className="w-full rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm font-mono text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
@@ -271,18 +296,10 @@ export default function AdminSkillsPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Output</span>
-                  <select
-                    value={editing.output}
-                    onChange={event => setEditing({ ...editing, output: event.target.value })}
-                    className="w-full rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
-                  >
-                    <option value="content">content</option>
-                    <option value="brief">brief</option>
-                    <option value="titles">titles</option>
-                    <option value="tags">tags</option>
-                    <option value="text">text</option>
-                  </select>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Type</span>
+                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+                    {editing.invocable ? 'Invocable skill' : 'Guide skill'}
+                  </div>
                 </label>
               </div>
 
@@ -323,6 +340,23 @@ export default function AdminSkillsPage() {
                   />
                 </label>
               </div>
+
+              {editing.invocable && (
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Output</span>
+                  <select
+                    value={editing.output}
+                    onChange={event => setEditing({ ...editing, output: event.target.value })}
+                    className="w-full rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                  >
+                    <option value="content">content</option>
+                    <option value="brief">brief</option>
+                    <option value="titles">titles</option>
+                    <option value="tags">tags</option>
+                    <option value="text">text</option>
+                  </select>
+                </label>
+              )}
 
               <div className="rounded-[28px] border border-white/70 bg-white/90 px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Hierarchy</p>
@@ -417,22 +451,37 @@ export default function AdminSkillsPage() {
                 </div>
               </div>
 
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">System prompt</span>
-                <textarea
-                  value={editing.system}
-                  onChange={event => setEditing({ ...editing, system: event.target.value })}
-                  rows={6}
-                  className="w-full rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-sm font-mono text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
-                />
-              </label>
+              {editing.invocable && (
+                <>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">System prompt</span>
+                    <textarea
+                      value={editing.system}
+                      onChange={event => setEditing({ ...editing, system: event.target.value })}
+                      rows={6}
+                      className="w-full rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-sm font-mono text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Prompt</span>
+                    <textarea
+                      value={editing.prompt}
+                      onChange={event => setEditing({ ...editing, prompt: event.target.value })}
+                      rows={10}
+                      className="w-full rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-sm font-mono text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                    />
+                  </label>
+                </>
+              )}
 
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Prompt</span>
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">SKILL.md body</span>
                 <textarea
-                  value={editing.prompt}
-                  onChange={event => setEditing({ ...editing, prompt: event.target.value })}
-                  rows={10}
+                  data-testid="admin-skill-body"
+                  value={editing.content}
+                  onChange={event => setEditing({ ...editing, content: event.target.value })}
+                  rows={16}
                   className="w-full rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-sm font-mono text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
                 />
               </label>
@@ -445,10 +494,10 @@ export default function AdminSkillsPage() {
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  {editing.hierarchy.domain || 'domain'} / {editing.hierarchy.category || 'category'} / {editing.hierarchy.subcategory || 'subcategory'}
+                  {editing.lookup.invoke || 'invoke path will be inferred'}
                 </div>
                 <div className="flex items-center gap-2">
-                  {editing.id && (
+                  {editingExistingSkill && (
                     <button
                       onClick={() => remove(editing.id)}
                       className="rounded-full border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-600 transition hover:bg-red-50"
@@ -457,7 +506,11 @@ export default function AdminSkillsPage() {
                     </button>
                   )}
                   <button
-                    onClick={() => setEditing(null)}
+                    onClick={() => {
+                      setEditing(null);
+                      setActiveSkillId(null);
+                      setError('');
+                    }}
                     className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 transition hover:bg-slate-100"
                   >
                     Cancel
@@ -471,39 +524,12 @@ export default function AdminSkillsPage() {
                 </div>
               </div>
             </div>
-          ) : selectedSkill ? (
-            <div className="flex min-h-[720px] items-center justify-center rounded-[28px] border border-white/70 bg-white/90 px-6 py-10">
-              <div className="w-full max-w-2xl">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    {selectedSkill.invocable ? selectedSkill.output : 'Guide'}
-                  </span>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    {formatSkillPath(selectedSkill)}
-                  </span>
-                </div>
-                <p className="mt-5 text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Skill</p>
-                <h2 className="mt-2 font-display text-4xl text-slate-950">{selectedSkill.name}</h2>
-                <p className="mt-4 text-sm leading-7 text-slate-600">{selectedSkill.description}</p>
-
-                <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Invoke path</p>
-                  <p className="mt-2 font-mono text-sm text-slate-700">{selectedSkill.lookup.invoke}</p>
-                </div>
-
-                {!selectedSkill.invocable && (
-                  <div className="mt-6 rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-7 text-amber-800">
-                    This skill is part of the Codex catalog, but it does not expose an app prompt contract. It is visible here for discovery and hierarchy review, while the editor remains limited to invocable web-app skills.
-                  </div>
-                )}
-              </div>
-            </div>
           ) : (
             <div className="flex min-h-[720px] items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-white/70 px-6 text-center">
               <div>
                 <p className="font-display text-4xl text-slate-950">Select a skill</p>
                 <p className="mt-3 text-sm leading-7 text-slate-500">
-                  The list on the left is the lightweight finder view. Open any entry to inspect or edit the full prompt and metadata.
+                  The list on the left now scrolls independently. Open any entry to edit its metadata and SKILL.md body while keeping this panel anchored in place.
                 </p>
               </div>
             </div>

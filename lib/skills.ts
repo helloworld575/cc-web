@@ -35,7 +35,7 @@ type SkillFrontmatter = Record<string, unknown> & {
   keywords?: string[] | string;
 };
 
-type SkillDraft = Partial<Skill> & Pick<Skill, 'id' | 'name' | 'description' | 'prompt' | 'output'>;
+type SkillDraft = Partial<Skill> & Pick<Skill, 'id' | 'name' | 'description'>;
 type SkillQueryOptions = {
   includeNonInvocable?: boolean;
 };
@@ -256,10 +256,15 @@ function parseSkillMd(id: string, includeDetail = false): Skill | SkillSummary |
 
   if (!includeDetail) return summary;
 
+  const skillContent = content.trim().length > 0
+    ? content.trimEnd()
+    : `# ${summary.name}\n`;
+
   return {
     ...summary,
     system,
     prompt: prompt || undefined,
+    content: skillContent,
   };
 }
 
@@ -355,28 +360,63 @@ export function saveSkill(skill: SkillDraft) {
   const file = path.join(dir, 'SKILL.md');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
+  let existingFrontmatter: Record<string, unknown> = {};
   let body = `# ${skill.name}\n`;
   if (fs.existsSync(file)) {
     const existing = matter(fs.readFileSync(file, 'utf8'));
-    body = existing.content;
+    existingFrontmatter = existing.data as Record<string, unknown>;
+    body = existing.content.trim().length > 0 ? existing.content.trimEnd() : body;
   }
+  if (typeof skill.content === 'string') body = skill.content;
 
-  const hierarchy = inferHierarchy(skill.id, skill as SkillFrontmatter);
-  const lookup = inferLookup(skill.id, skill as SkillFrontmatter, hierarchy);
+  const draft = {
+    ...existingFrontmatter,
+    ...skill,
+  } as SkillFrontmatter;
+
+  const invocable = skill.invocable ?? Boolean(skill.prompt && skill.output);
+  const hierarchy = inferHierarchy(skill.id, draft);
+  const lookup = inferLookup(skill.id, draft, hierarchy);
 
   const frontmatter: Record<string, unknown> = {
+    ...existingFrontmatter,
     name: skill.name,
     description: skill.description,
-    invocable: true,
-    system: skill.system,
-    prompt: skill.prompt,
-    output: skill.output,
+    invocable,
     hierarchy,
     lookup,
   };
 
   if (skill.name_zh) frontmatter.name_zh = skill.name_zh;
+  else delete frontmatter.name_zh;
+
   if (skill.description_zh) frontmatter.description_zh = skill.description_zh;
+  else delete frontmatter.description_zh;
+
+  delete frontmatter.user_invocable;
+  delete frontmatter.domain;
+  delete frontmatter.category;
+  delete frontmatter.subcategory;
+  delete frontmatter.order;
+  delete frontmatter.path;
+  delete frontmatter.invoke;
+  delete frontmatter.aliases;
+  delete frontmatter.keywords;
+
+  if (invocable) {
+    if (skill.system) frontmatter.system = skill.system;
+    else delete frontmatter.system;
+
+    if (skill.prompt) frontmatter.prompt = skill.prompt;
+    else delete frontmatter.prompt;
+
+    if (skill.output) frontmatter.output = skill.output;
+    else delete frontmatter.output;
+  } else {
+    delete frontmatter.system;
+    delete frontmatter.prompt;
+    delete frontmatter.output;
+  }
 
   const output = matter.stringify(body, frontmatter);
   fs.writeFileSync(file, output);

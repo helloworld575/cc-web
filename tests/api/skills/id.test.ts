@@ -32,17 +32,18 @@ describe('GET /api/skills/[id]', () => {
     expect(res.status).toBe(200);
   });
 
-  it('returns 404 for non-invocable catalog skills', async () => {
+  it('returns 200 for non-invocable catalog skills', async () => {
     mockSession(true);
     (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
       id: 'find-skills',
       name: 'Find Skills',
       description: 'Guide only',
       invocable: false,
+      content: '# Find Skills',
     });
     const { GET } = await import('@/app/api/skills/[id]/route');
     const res = await GET(new Request('http://localhost'), { params: { id: 'find-skills' } });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
   });
 });
 
@@ -62,6 +63,21 @@ describe('PUT /api/skills/[id]', () => {
     }), params);
     expect(res.status).toBe(200);
     expect(saveSkill).toHaveBeenCalled();
+  });
+
+  it('supports updating catalog skills without prompt contracts', async () => {
+    mockSession(true);
+    const { PUT } = await import('@/app/api/skills/[id]/route');
+    const res = await PUT(new Request('http://localhost', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'Find Skills', description: 'Guide', invocable: false, content: '# Updated' }),
+    }), { params: { id: 'find-skills' } });
+    expect(res.status).toBe(200);
+    expect(saveSkill).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'find-skills',
+      invocable: false,
+      content: '# Updated',
+    }));
   });
 });
 

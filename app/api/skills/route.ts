@@ -20,8 +20,10 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   let skill: any;
   try { skill = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
-  if (!skill.id || !skill.name || !skill.prompt) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  const invocable = skill.invocable !== false;
+  if (!skill.id || !skill.name || !skill.description) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  if (invocable && (!skill.prompt || !skill.output)) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   if (!/^[a-z0-9-]+$/.test(skill.id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
-  saveSkill(skill);
+  saveSkill({ ...skill, invocable });
   return NextResponse.json({ ok: true });
 }

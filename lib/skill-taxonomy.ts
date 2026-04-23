@@ -27,6 +27,7 @@ export interface SkillSummary {
 export interface Skill extends SkillSummary {
   system?: string;
   prompt?: string;
+  content: string;
 }
 
 export interface InvocableSkillSummary extends SkillSummary {

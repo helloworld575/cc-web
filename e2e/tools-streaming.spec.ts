@@ -28,6 +28,7 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   await page.getByTestId('tools-tab-bazi').click();
   await page.getByTestId('fortune-start').click();
   await expect(page.getByTestId('fortune-analysis')).toContainText('Mock fortune analysis');
+  await expect(page.getByText('Saved to history.')).toBeVisible();
 
   await page.getByTestId('fortune-tab-history').click();
   await expect(page.getByRole('button', { name: /BaZi/ }).first()).toBeVisible();
