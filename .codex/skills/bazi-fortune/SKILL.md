@@ -1,10 +1,10 @@
 ---
 name: bazi-fortune
-description: "Analyze BaZi or Four Pillars fortune charts. Use when Codex receives birth date and time details for BaZi, 四柱, 天干地支, 五行, or related Chinese astrology analysis."
+description: >-
+  Analyze BaZi or Four Pillars fortune charts. Use when Codex receives birth
+  date and time details for BaZi, 四柱, 天干地支, 五行, or related Chinese astrology
+  analysis.
 ---
-
-This skill mirrors `.claude/skills/bazi-fortune` for Codex. Keep `.claude/skills/bazi-fortune/SKILL.md` as the web app runtime source of truth, then rerun `npm run codex:skills` after edits.
-
 # 八字命理分析
 
 ## 收集信息
@@ -17,7 +17,7 @@ This skill mirrors `.claude/skills/bazi-fortune` for Codex. Keep `.claude/skills
 ## 计算命盘
 
 ```bash
-node /Users/bytedance/claude_place/my-site/.claude/skills/bazi-fortune/scripts/calc.js <year> <month> <day> <hour>
+node /Users/bytedance/claude_place/my-site/.codex/skills/bazi-fortune/scripts/calc.js <year> <month> <day> <hour>
 ```
 
 ## 展示结果

@@ -146,7 +146,7 @@ my-site/
 ├── app/              # Next.js App Router（页面 + API）
 ├── components/       # 共享 React 组件
 ├── lib/              # 服务端工具（db、auth、fetchers、x api、skills）
-├── .claude/skills/   # AI 技能（web 应用 + Claude Code 共用）
+├── .codex/skills/    # AI 技能（运行时源 + Codex 技能目录）
 ├── content/posts/    # 博客 markdown 文件
 ├── uploads/          # 用户上传图片
 ├── data/site.db      # SQLite 数据库
@@ -156,7 +156,7 @@ my-site/
 
 ## AI 技能
 
-AI 行为以可复用的"技能"定义在 `.claude/skills/<name>/SKILL.md`。内置技能：
+AI 行为以可复用的"技能"定义在 `.codex/skills/<name>/SKILL.md`。修改 skill 元数据或 prompt contract 后，可运行 `npm run codex:skills` 做一次规范化。内置技能：
 
 | 技能 | 用途 |
 |------|------|

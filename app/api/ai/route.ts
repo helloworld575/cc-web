@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getSkill, resolveSkillReference } from '@/lib/skills';
 import { rateLimitByIp } from '@/lib/rateLimit';
+import { isInvocableSkill } from '@/lib/skill-taxonomy';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -17,6 +18,9 @@ export async function POST(req: Request) {
 
   const skill = getSkill(skillId) ?? resolveSkillReference(skillId);
   if (!skill) return new Response(JSON.stringify({ error: `Unknown skill: ${skillId}` }), { status: 400 });
+  if (!isInvocableSkill(skill)) {
+    return new Response(JSON.stringify({ error: `Skill is not invocable: ${skillId}` }), { status: 400 });
+  }
 
   const apiKey = process.env.CLAUDE_API_KEY;
   if (!apiKey) return new Response(JSON.stringify({ error: 'CLAUDE_API_KEY not configured' }), { status: 500 });

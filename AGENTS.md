@@ -10,8 +10,8 @@ This repository is a Next.js 14 App Router application backed by SQLite. It mixe
 
 ## Source Of Truth
 
-- Runtime AI skills still live in `.claude/skills/` and are loaded by `lib/skills.ts`.
-- Codex-native skill mirrors live in `.codex/skills/` and are generated from `.claude/skills/` with `npm run codex:skills`.
+- Runtime AI skills now live in `.codex/skills/` and are loaded by `lib/skills.ts`.
+- `npm run codex:skills` normalizes `.codex/skills/` metadata and prompt contracts in place.
 - Database schema, migrations, and prepared statements live in `lib/db.ts`.
 - Auth and admin protection are split between `lib/auth.ts` and `middleware.ts`.
 - Tests under `tests/api/` are the expected safety net for API changes.
@@ -25,8 +25,8 @@ This repository is a Next.js 14 App Router application backed by SQLite. It mixe
 ## Working Rules
 
 - Prefer the cache files above before re-reading broad parts of the repo.
-- Keep `.claude/skills/` compatible unless you intentionally update `lib/skills.ts`.
-- When `.claude/skills/` changes, regenerate the Codex mirrors with `npm run codex:skills`.
+- Keep `.codex/skills/` as the single source of truth for both runtime and Codex discovery.
+- When `.codex/skills/` changes structurally, rerun `npm run codex:skills` to normalize metadata and prompt contracts.
 - Routes that touch SQLite, filesystem, or streaming should stay on `runtime = 'nodejs'`.
 - Styling is Tailwind-first; do not introduce CSS modules unless the repo direction changes.
 - New or changed API routes should be covered by Vitest tests in `tests/api/`.

@@ -1,10 +1,9 @@
 ---
 name: ziwei-fortune
-description: "Analyze Zi Wei Dou Shu fortune charts. Use when Codex receives birth details for 紫微斗数, 命宫, 十二宫, or related palace-based Chinese astrology analysis."
+description: >-
+  Analyze Zi Wei Dou Shu fortune charts. Use when Codex receives birth details
+  for 紫微斗数, 命宫, 十二宫, or related palace-based Chinese astrology analysis.
 ---
-
-This skill mirrors `.claude/skills/ziwei-fortune` for Codex. Keep `.claude/skills/ziwei-fortune/SKILL.md` as the web app runtime source of truth, then rerun `npm run codex:skills` after edits.
-
 # 紫微斗数分析
 
 ## 收集信息
@@ -17,7 +16,7 @@ This skill mirrors `.claude/skills/ziwei-fortune` for Codex. Keep `.claude/skill
 ## 计算命盘
 
 ```bash
-node /Users/bytedance/claude_place/my-site/.claude/skills/ziwei-fortune/scripts/calc.js <year> <month> <day> <hour>
+node /Users/bytedance/claude_place/my-site/.codex/skills/ziwei-fortune/scripts/calc.js <year> <month> <day> <hour>
 ```
 
 ## 展示结果

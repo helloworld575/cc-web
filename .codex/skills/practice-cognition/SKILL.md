@@ -1,10 +1,13 @@
 ---
 name: practice-cognition
-description: |
-  触发：当你提出了方案、假设或判断，需要通过实践验证、试错迭代或复盘升级认知时调用；常见信号包括 experiment、prototype、validate、iterate、feedback loop。
-  English: Trigger when an idea, hypothesis, or plan must be tested in practice and improved through iteration. Use this skill to move from action to understanding and back to action in a spiral learning loop.
----
+description: >
+  触发：当你提出了方案、假设或判断，需要通过实践验证、试错迭代或复盘升级认知时调用；常见信号包括
+  experiment、prototype、validate、iterate、feedback loop。
 
+  English: Trigger when an idea, hypothesis, or plan must be tested in practice
+  and improved through iteration. Use this skill to move from action to
+  understanding and back to action in a spiral learning loop.
+---
 # 实践认识论
 
 > "实践、认识、再实践、再认识，这种形式，循环往复以至无穷，而实践和认识之每一循环的内容，都比较地进到了高一级的程度。这就是辩证唯物论的全部认识论，这就是辩证唯物论的知行统一观。"

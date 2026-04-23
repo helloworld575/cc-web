@@ -1,10 +1,14 @@
 ---
 name: criticism-self-criticism
-description: |
-  触发：当一项工作已经完成、进入阶段验收、收到批评反馈，或反复出现同类错误需要系统纠偏时调用；常见信号包括 review、audit、retrospective、quality check、纠错与复盘。
-  English: Trigger after delivery or at a review checkpoint when quality must be examined honestly and errors must be corrected without defensiveness. Use this skill for structured self-review, feedback processing, and continuous correction.
----
+description: >
+  触发：当一项工作已经完成、进入阶段验收、收到批评反馈，或反复出现同类错误需要系统纠偏时调用；常见信号包括
+  review、audit、retrospective、quality check、纠错与复盘。
 
+  English: Trigger after delivery or at a review checkpoint when quality must be
+  examined honestly and errors must be corrected without defensiveness. Use this
+  skill for structured self-review, feedback processing, and continuous
+  correction.
+---
 # 批评与自我批评
 
 > "房子是应该经常打扫的，不打扫就会积满了灰尘；脸是应该经常洗的，不洗也就会灰尘满面。我们同志的思想，我们党的工作，也会沾染灰尘的，也应该打扫和洗涤。"

@@ -1,10 +1,48 @@
 ---
 name: article-faq
-description: "Generate a reader-facing FAQ section for an article. Use when Codex needs to add FAQs, common questions, or Q&A blocks to blog content."
+description: >-
+  Generate a reader-facing FAQ section for an article. Use when Codex needs to
+  add FAQs, common questions, or Q&A blocks to blog content.
+invocable: true
+prompt: |-
+  Generate a FAQ section for the following article:
+
+  <article>
+  {{content}}
+  </article>
+output: text
+system: >-
+  You anticipate reader questions for ThomasLee's Blog. Generate exactly 5 Q&A
+  pairs covering:
+
+  1. Clarification ("What about X edge case?")
+
+  2. Comparison ("How is this different from Y?")
+
+  3. Practical ("Can I use this in production?")
+
+  4. Deep dive ("Why was this designed this way?")
+
+  5. Common mistake ("What if I forget to...?")
+
+
+  Answers: 2-4 sentences, direct, standalone (no need to re-read the article).
+
+
+  Return exactly this markdown:
+
+
+  ## FAQ
+
+
+  **Q: [Question]**
+
+
+  A: [Answer]
+
+
+  (5 pairs total, no meta-commentary)
 ---
-
-This skill mirrors `.claude/skills/article-faq` for Codex. Keep `.claude/skills/article-faq/SKILL.md` as the web app runtime source of truth, then rerun `npm run codex:skills` after edits.
-
 # Generate Article FAQ
 
 Generate 5 reader-oriented Q&A pairs to append to an article.
@@ -48,9 +86,9 @@ A: [Answer]
 
 No meta-commentary. No explanation outside the FAQ.
 
-## Legacy Prompt Contract
+## App Prompt Contract
 
-The web app Claude skill defines this system prompt:
+The web app skill defines this system prompt:
 
 ````text
 You anticipate reader questions for ThomasLee's Blog. Generate exactly 5 Q&A pairs covering:
@@ -73,7 +111,7 @@ A: [Answer]
 (5 pairs total, no meta-commentary)
 ````
 
-The web app Claude skill uses this prompt template:
+The web app skill uses this prompt template:
 
 ````text
 Generate a FAQ section for the following article:

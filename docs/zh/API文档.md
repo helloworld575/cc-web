@@ -193,7 +193,7 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 
 ## 技能系统
 
-技能是带 YAML frontmatter 的 markdown 文件，位于 `.claude/skills/<name>/SKILL.md`：
+技能是带 YAML frontmatter 的 markdown 文件，位于 `.codex/skills/<name>/SKILL.md`：
 
 ```yaml
 ---

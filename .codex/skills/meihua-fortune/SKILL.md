@@ -1,10 +1,9 @@
 ---
 name: meihua-fortune
-description: "Analyze Meihua Yishu divination results. Use when Codex needs 梅花易数, numerology-style divination, or related Chinese fortune interpretation."
+description: >-
+  Analyze Meihua Yishu divination results. Use when Codex needs 梅花易数,
+  numerology-style divination, or related Chinese fortune interpretation.
 ---
-
-This skill mirrors `.claude/skills/meihua-fortune` for Codex. Keep `.claude/skills/meihua-fortune/SKILL.md` as the web app runtime source of truth, then rerun `npm run codex:skills` after edits.
-
 # 梅花易数占卜
 
 ## 收集信息
@@ -21,11 +20,11 @@ This skill mirrors `.claude/skills/meihua-fortune` for Codex. Keep `.claude/skil
 
 ```bash
 # 随机
-node /Users/bytedance/claude_place/my-site/.claude/skills/meihua-fortune/scripts/calc.js random
+node /Users/bytedance/claude_place/my-site/.codex/skills/meihua-fortune/scripts/calc.js random
 # 时间
-node /Users/bytedance/claude_place/my-site/.claude/skills/meihua-fortune/scripts/calc.js time <year> <month> <day> <hour>
+node /Users/bytedance/claude_place/my-site/.codex/skills/meihua-fortune/scripts/calc.js time <year> <month> <day> <hour>
 # 数字
-node /Users/bytedance/claude_place/my-site/.claude/skills/meihua-fortune/scripts/calc.js number <n1> <n2>
+node /Users/bytedance/claude_place/my-site/.codex/skills/meihua-fortune/scripts/calc.js number <n1> <n2>
 ```
 
 ## 展示卦象

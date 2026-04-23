@@ -1,10 +1,13 @@
 ---
 name: concentrate-forces
-description: |
+description: >
   触发：当多个任务同时争夺时间、注意力、算力或预算，必须确定主攻方向并停止分散用力时调用；常见信号包括优先级过多、资源紧张、推进分散、需要决定先做什么。
-  English: Trigger when limited resources are being split across too many tasks and one main target must be chosen. Use this skill to concentrate effort, sequence work decisively, and finish a meaningful breakthrough before expanding.
----
 
+  English: Trigger when limited resources are being split across too many tasks
+  and one main target must be chosen. Use this skill to concentrate effort,
+  sequence work decisively, and finish a meaningful breakthrough before
+  expanding.
+---
 # 集中兵力
 
 > "对于人，伤其十指不如断其一指；对于敌，击溃其十个师不如歼灭其一个师。"

@@ -1,10 +1,14 @@
 ---
 name: arming-thought
-description: |
-  触发：在每次新的顶层对话开始时自动调用，用于建立“实事求是”的总原则，并在明确适用时为后续任务选择下游 skill；如果你是被派遣执行单一具体任务的子 agent，则跳过此 skill。
-  English: Trigger at the start of each new top-level conversation to establish the core methodology and select downstream skills only when clearly useful. Skip this skill when you are a delegated sub-agent handling a narrow, concrete task.
----
+description: >
+  触发：在每次新的顶层对话开始时自动调用，用于建立“实事求是”的总原则，并在明确适用时为后续任务选择下游 skill；如果你是被派遣执行单一具体任务的子
+  agent，则跳过此 skill。
 
+  English: Trigger at the start of each new top-level conversation to establish
+  the core methodology and select downstream skills only when clearly useful.
+  Skip this skill when you are a delegated sub-agent handling a narrow, concrete
+  task.
+---
 > **子 agent：直接跳过此 skill。** 本 skill 已在 description 字段中注明了跳过条件；此处仅作可读性提示。
 
 # 武装思想

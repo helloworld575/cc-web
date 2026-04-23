@@ -1,11 +1,12 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import Pagination from '@/components/Pagination';
 import FortuneTool from '@/components/FortuneTool';
 import AIChatTool from '@/components/AIChatTool';
 import SubscriptionBriefsTool from '@/components/SubscriptionBriefsTool';
 import { useLocale } from '@/components/useLocale';
+import { formatSkillPath, groupSkillSummaries, matchSkillSummary, type SkillSummary } from '@/lib/skill-taxonomy';
 
 interface Todo {
   id: number;
@@ -18,6 +19,8 @@ interface DiaryEntry {
   date: string;
   content: string;
 }
+
+type ToolTab = 'todos' | 'diary' | 'bazi' | 'ai-chat' | 'subscriptions' | 'skills';
 
 const PAGE_SIZE = 10;
 
@@ -42,22 +45,30 @@ const TAB_META = {
     eyebrow: 'Digest',
     description: 'Catch up on briefs in one place with the same visual language as the rest of the workspace.',
   },
+  skills: {
+    eyebrow: 'Catalog',
+    description: 'Browse the full Codex skill inventory by hierarchy so you can discover the right workflow without loading every instruction into context.',
+  },
 } as const;
 
 export default function ToolsPage() {
-  const [tab, setTab] = useState<'todos' | 'diary' | 'bazi' | 'ai-chat' | 'subscriptions'>('todos');
+  const [tab, setTab] = useState<ToolTab>('todos');
   const [todos, setTodos] = useState<Todo[]>([]);
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
+  const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [todoSearch, setTodoSearch] = useState('');
   const [diarySearch, setDiarySearch] = useState('');
+  const [skillQuery, setSkillQuery] = useState('');
   const [todoFilter, setTodoFilter] = useState<'all' | 'done' | 'pending'>('all');
   const [todoPage, setTodoPage] = useState(1);
   const [diaryPage, setDiaryPage] = useState(1);
+  const deferredSkillQuery = useDeferredValue(skillQuery);
   const { t } = useLocale();
 
   useEffect(() => {
     fetch('/api/todos').then(res => (res.ok ? res.json() : Promise.reject())).then(setTodos).catch(() => {});
     fetch('/api/diary').then(res => (res.ok ? res.json() : Promise.reject())).then(setEntries).catch(() => {});
+    fetch('/api/skills?catalog=all').then(res => (res.ok ? res.json() : Promise.reject())).then(setSkills).catch(() => {});
   }, []);
 
   const filteredTodos = todos
@@ -69,6 +80,9 @@ export default function ToolsPage() {
     entry.date.includes(diarySearch) || entry.content.toLowerCase().includes(diarySearch.toLowerCase())
   );
   const pagedDiary = filteredDiary.slice((diaryPage - 1) * PAGE_SIZE, diaryPage * PAGE_SIZE);
+  const filteredSkills = skills.filter(skill => matchSkillSummary(skill, deferredSkillQuery));
+  const groupedSkills = groupSkillSummaries(filteredSkills);
+  const invocableSkillCount = skills.filter(skill => skill.invocable).length;
 
   return (
     <main className="relative mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
@@ -102,13 +116,14 @@ export default function ToolsPage() {
         </div>
       </section>
 
-      <div className="mb-6 grid gap-3 md:grid-cols-5">
+      <div className="mb-6 grid gap-3 md:grid-cols-6">
         {([
           ['todos', t('toolsTitle')],
           ['diary', t('diary')],
           ['bazi', t('bazi')],
           ['ai-chat', t('aiChat')],
           ['subscriptions', t('subscriptions')],
+          ['skills', 'Skills'],
         ] as const).map(([id, label], index) => {
           const active = tab === id;
           const meta = TAB_META[id];
@@ -275,6 +290,93 @@ export default function ToolsPage() {
         {tab === 'ai-chat' && <AIChatTool />}
 
         {tab === 'subscriptions' && <SubscriptionBriefsTool />}
+
+        {tab === 'skills' && (
+          <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+            <aside className="rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.88))] p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Catalog</p>
+              <h2 className="mt-2 font-display text-3xl text-slate-900">Codex skills</h2>
+              <p className="mt-3 text-sm leading-7 text-slate-500">
+                Search by name, invoke path, alias, or keyword. App-invocable skills stay available to the web app, while guide skills remain lightweight references for Codex to load only when needed.
+              </p>
+
+              <input
+                data-testid="tools-skills-search"
+                value={skillQuery}
+                onChange={event => setSkillQuery(event.target.value)}
+                placeholder="Find by name, path, or keyword"
+                className="mt-5 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+              />
+
+              <div className="mt-5 grid gap-3">
+                <div className="rounded-[24px] bg-slate-950 px-4 py-4 text-white">
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Catalog</p>
+                  <p className="mt-2 text-4xl font-semibold">{skills.length}</p>
+                  <p className="mt-2 text-sm text-white/70">skills indexed from `.codex/skills`.</p>
+                </div>
+                <div className="rounded-[24px] bg-[#f8f5ef] px-4 py-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-amber-700/50">Invocable</p>
+                  <p className="mt-2 font-display text-4xl text-slate-900">{invocableSkillCount}</p>
+                  <p className="mt-2 text-sm text-slate-500">skills with prompt contracts that the web app can execute directly.</p>
+                </div>
+              </div>
+            </aside>
+
+            <section data-testid="tools-skills-panel" className="rounded-[28px] border border-white/70 bg-white/94 p-5 shadow-sm">
+              <div className="space-y-4">
+                {groupedSkills.map(group => (
+                  <section key={group.key} className="rounded-[24px] border border-slate-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.88))] px-4 py-4">
+                    <div className="flex flex-col gap-1 border-b border-slate-100 pb-3 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{group.label}</p>
+                        <p className="mt-2 text-sm text-slate-500">{group.skills.length} skills in this lane.</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                      {group.skills.map((skill, index) => (
+                        <article
+                          key={skill.id}
+                          className="rounded-[22px] border border-white/80 bg-white px-4 py-4 shadow-sm transition animate-slide-up"
+                          style={{ animationDelay: `${index * 35}ms` }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-slate-900">{skill.name}</p>
+                              <p className="mt-1 text-xs leading-6 text-slate-500">{skill.description}</p>
+                            </div>
+                            <span
+                              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                                skill.invocable
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-slate-200 text-slate-500'
+                              }`}
+                            >
+                              {skill.invocable ? skill.output ?? 'text' : 'guide'}
+                            </span>
+                          </div>
+                          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                            {formatSkillPath(skill)}
+                          </p>
+                          <div className="mt-3 rounded-[18px] bg-slate-50 px-3 py-3">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Invoke path</p>
+                            <p className="mt-1 break-all font-mono text-xs text-slate-600">{skill.lookup.invoke}</p>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+
+                {groupedSkills.length === 0 && (
+                  <div className="flex min-h-[320px] items-center justify-center rounded-[24px] border border-dashed border-slate-300 bg-slate-50/70 px-6 text-center text-sm text-slate-500">
+                    No skills matched the current search.
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+        )}
       </section>
     </main>
   );

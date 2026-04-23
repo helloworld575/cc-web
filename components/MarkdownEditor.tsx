@@ -52,7 +52,7 @@ export default function MarkdownEditor({ value, onChange, rows = 24, textareaTes
             value={value}
             onChange={e => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full h-full resize-none p-3 text-sm font-mono focus:outline-none bg-white dark:bg-gray-950"
+            className="h-full w-full resize-none bg-white p-3 font-mono text-sm text-slate-800 focus:outline-none"
             placeholder={t('markdownPlaceholder')}
             spellCheck={false}
           />
@@ -71,7 +71,7 @@ export default function MarkdownEditor({ value, onChange, rows = 24, textareaTes
           value={value}
           onChange={e => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="w-1/2 h-full resize-none p-3 text-sm font-mono focus:outline-none border-r bg-white dark:bg-gray-950"
+          className="h-full w-1/2 resize-none border-r bg-white p-3 font-mono text-sm text-slate-800 focus:outline-none"
           placeholder="Write markdown here..."
           spellCheck={false}
         />

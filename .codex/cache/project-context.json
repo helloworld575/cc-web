@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-17T08:58:16.083Z",
+  "generatedAt": "2026-04-23T06:25:23.907Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -13,12 +13,17 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:managed": "node scripts/run-managed-command.mjs --label next-dev --clear-port 3000 -- node ./node_modules/next/dist/bin/next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
+    "test:managed": "node scripts/run-managed-command.mjs --label vitest -- node ./node_modules/vitest/vitest.mjs run",
     "test:watch": "vitest",
-    "codex:skills": "node scripts/migrate-claude-skills-to-codex.mjs",
+    "e2e": "node scripts/run-managed-command.mjs --label playwright-e2e --clear-port 3001 -- node ./node_modules/playwright/cli.js test",
+    "e2e:headed": "node scripts/run-managed-command.mjs --label playwright-e2e-headed --clear-port 3001 -- node ./node_modules/playwright/cli.js test --headed",
+    "run:managed": "node scripts/run-managed-command.mjs",
+    "codex:skills": "node scripts/normalize-codex-skills.mjs",
     "codex:cache": "node scripts/refresh-codex-cache.mjs"
   },
   "directories": [
@@ -43,12 +48,8 @@
       "description": "English and Chinese user/development/API documentation."
     },
     {
-      "path": ".claude",
-      "description": "Legacy assistant folder containing runtime AI skills and planning notes."
-    },
-    {
       "path": ".codex",
-      "description": "Codex-native cache, guidance, and generated skill mirrors."
+      "description": "Codex-native cache, guidance, and the runtime AI skill catalog."
     }
   ],
   "keyFiles": [
@@ -82,7 +83,7 @@
     },
     {
       "file": "lib/skills.ts",
-      "description": "Reads and writes runtime AI skills from .claude/skills."
+      "description": "Reads and writes runtime AI skills from .codex/skills."
     },
     {
       "file": "lib/fetchers.ts",
@@ -403,6 +404,7 @@
       "components/Nav.tsx",
       "components/Pagination.tsx",
       "components/SessionProvider.tsx",
+      "components/StreamingMarkdown.tsx",
       "components/SubscriptionBriefsTool.tsx",
       "components/useLocale.ts"
     ],
@@ -414,6 +416,8 @@
       "lib/i18n.ts",
       "lib/markdown.ts",
       "lib/rateLimit.ts",
+      "lib/runtime-paths.ts",
+      "lib/skill-taxonomy.ts",
       "lib/skills.ts",
       "lib/xapi.ts",
       "lib/yijing.ts",
@@ -474,9 +478,29 @@
     ]
   },
   "ai": {
-    "runtimeSkillLoader": "lib/skills.ts reads and writes .claude/skills/*/SKILL.md",
-    "codexSkillMirror": ".codex/skills/* is generated from .claude/skills via npm run codex:skills",
+    "runtimeSkillLoader": "lib/skills.ts reads and writes .codex/skills/*/SKILL.md",
+    "codexSkillsDir": ".codex/skills/* is the single source of truth for runtime and Codex skill discovery",
     "skills": [
+      {
+        "id": "agent-browser",
+        "name": "agent-browser",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "arming-thought",
+        "name": "arming-thought",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
       {
         "id": "article-brief",
         "name": "article-brief",
@@ -568,6 +592,96 @@
         "hasReferences": true
       },
       {
+        "id": "company-values",
+        "name": "company-values",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "concentrate-forces",
+        "name": "concentrate-forces",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "contradiction-analysis",
+        "name": "contradiction-analysis",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "criticism-self-criticism",
+        "name": "criticism-self-criticism",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "find-community",
+        "name": "find-community",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "find-skills",
+        "name": "find-skills",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "first-customers",
+        "name": "first-customers",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "grow-sustainably",
+        "name": "grow-sustainably",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "investigation-first",
+        "name": "investigation-first",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
         "id": "liuyao-fortune",
         "name": "liuyao-fortune",
         "description": "Liu Yao / I Ching divination skill with helper scripts.",
@@ -575,6 +689,26 @@
         "hasPrompt": false,
         "output": null,
         "hasScripts": true,
+        "hasReferences": false
+      },
+      {
+        "id": "marketing-plan",
+        "name": "marketing-plan",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "mass-line",
+        "name": "mass-line",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
         "hasReferences": false
       },
       {
@@ -588,6 +722,116 @@
         "hasReferences": false
       },
       {
+        "id": "memory-systems",
+        "name": "memory-systems",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": true,
+        "hasReferences": true
+      },
+      {
+        "id": "minimalist-review",
+        "name": "minimalist-review",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "mvp",
+        "name": "mvp",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "overall-planning",
+        "name": "overall-planning",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "practice-cognition",
+        "name": "practice-cognition",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "pricing",
+        "name": "pricing",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "processize",
+        "name": "processize",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "protracted-strategy",
+        "name": "protracted-strategy",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "research",
+        "name": "tavily-research",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "skill-creator",
+        "name": "skill-creator",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": true,
+        "hasReferences": true
+      },
+      {
+        "id": "spark-prairie-fire",
+        "name": "spark-prairie-fire",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
         "id": "subscription",
         "name": "subscription",
         "description": "Summarize the latest updates from subscribed sources such as blogs, GitHub, X, RSS, or Reddit.",
@@ -596,6 +840,56 @@
         "output": "content",
         "hasScripts": true,
         "hasReferences": true
+      },
+      {
+        "id": "summarize",
+        "name": "summarize",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "tmux",
+        "name": "tmux",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": true,
+        "hasReferences": false
+      },
+      {
+        "id": "validate-idea",
+        "name": "validate-idea",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "webapp-testing",
+        "name": "webapp-testing",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": true,
+        "hasReferences": false
+      },
+      {
+        "id": "workflows",
+        "name": "workflows",
+        "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
       },
       {
         "id": "ziwei-fortune",
@@ -609,7 +903,6 @@
       }
     ],
     "legacy": {
-      "claudePlanFiles": [],
       "kiroFiles": [],
       "ideaFiles": []
     }
@@ -619,6 +912,7 @@
     "docs/en/development.md",
     "docs/en/how-to-use.md",
     "docs/zh/API文档.md",
+    "docs/zh/tdd-policy.md",
     "docs/zh/使用指南.md",
     "docs/zh/开发指南.md"
   ],
@@ -642,13 +936,16 @@
       "tests/api/skills/id.test.ts",
       "tests/api/skills/route.test.ts",
       "tests/api/subscriptions/briefs.test.ts",
+      "tests/api/subscriptions/fetch.test.ts",
       "tests/api/subscriptions/id.test.ts",
       "tests/api/subscriptions/route.test.ts",
       "tests/api/todos/id.test.ts",
       "tests/api/todos/route.test.ts",
       "tests/api/uploads/route.test.ts",
-      "tests/api/x-post/route.test.ts"
+      "tests/api/x-post/route.test.ts",
+      "tests/lib/auth.test.ts",
+      "tests/lib/runtime-paths.test.ts"
     ],
-    "count": 24
+    "count": 27
   }
 }

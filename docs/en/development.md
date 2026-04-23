@@ -28,11 +28,11 @@ my-site/
 ├── lib/                     # Server-side utilities
 │   ├── db.ts                # SQLite connection + prepared statements
 │   ├── auth.ts              # NextAuth config
-│   ├── skills.ts            # Skill loader from .claude/skills/
+│   ├── skills.ts            # Skill loader from .codex/skills/
 │   ├── fetchers.ts          # Subscription content fetchers
 │   ├── xapi.ts              # X/Twitter OAuth 1.0a + media upload
 │   └── i18n.ts              # EN/ZH translations
-├── .claude/skills/          # AI skills (used by web app + Claude Code)
+├── .codex/skills/           # AI skills (runtime source + Codex catalog)
 ├── content/posts/           # Blog markdown files
 ├── uploads/                 # User-uploaded images
 ├── data/site.db             # SQLite database
@@ -172,7 +172,7 @@ Write the test to fail first, then implement the route, then rerun `npm test`.
 
 ## Adding an AI Skill
 
-1. Create `.claude/skills/<skill-name>/SKILL.md`:
+1. Create `.codex/skills/<skill-name>/SKILL.md`:
 
 ```yaml
 ---
@@ -204,7 +204,7 @@ const skill = getSkill('my-skill');
 // skill.system, skill.prompt, skill.output
 ```
 
-The web app runtime source of truth stays in `.claude/skills/`. The generated `.codex/skills/` copy exists so local Codex can discover the same workflows using Codex skill format.
+The web app runtime source of truth is `.codex/skills/`. Run `npm run codex:skills` after structural edits so frontmatter and prompt contracts stay normalized for both the app and Codex.
 
 ## Testing
 
@@ -275,4 +275,4 @@ It also writes a timestamped deploy log to `log/deploy/`, removes the remote sta
 - `better-sqlite3` is native — can only be used in Node runtime, not Edge middleware
 - `useLocale` hook uses cookies — wrap locale-dependent UI in `suppressHydrationWarning` to avoid SSR mismatches
 - API routes that use streaming (`text/event-stream`) need `runtime = 'nodejs'` and proper ReadableStream handling
-- The `.claude/skills/` directory is used by both the web app (`lib/skills.ts`) and Claude Code — keep skills compatible with both
+- The `.codex/skills/` directory is used by both the web app (`lib/skills.ts`) and Codex skill discovery — keep skills compatible with both

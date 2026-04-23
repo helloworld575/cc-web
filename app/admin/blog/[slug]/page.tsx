@@ -7,7 +7,7 @@ import {
   formatSkillPath,
   groupSkillSummaries,
   matchSkillSummary,
-  type SkillSummary,
+  type InvocableSkillSummary,
 } from '@/lib/skill-taxonomy';
 
 export default function AdminBlogEditor() {
@@ -18,7 +18,7 @@ export default function AdminBlogEditor() {
   const [brief, setBrief] = useState('');
   const [content, setContent] = useState('');
   const [saved, setSaved] = useState(false);
-  const [skills, setSkills] = useState<SkillSummary[]>([]);
+  const [skills, setSkills] = useState<InvocableSkillSummary[]>([]);
   const [skillQuery, setSkillQuery] = useState('');
   const deferredSkillQuery = useDeferredValue(skillQuery);
   const [aiLoading, setAiLoading] = useState<string | null>(null);
@@ -60,7 +60,7 @@ export default function AdminBlogEditor() {
     window.setTimeout(() => setSaved(false), 2000);
   }
 
-  async function runAi(skill: SkillSummary) {
+  async function runAi(skill: InvocableSkillSummary) {
     if (!content.trim()) {
       setAiError(t('writeContentFirst'));
       return;

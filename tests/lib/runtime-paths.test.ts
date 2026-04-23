@@ -14,7 +14,7 @@ describe('lib/runtime-paths', () => {
     expect(paths.dbPath).toBe(path.join('D:/Projects/cc-web', 'data', 'site.db'));
     expect(paths.postsDir).toBe(path.join('D:/Projects/cc-web', 'content', 'posts'));
     expect(paths.uploadsDir).toBe(path.join('D:/Projects/cc-web', 'uploads'));
-    expect(paths.skillsDir).toBe(path.join('D:/Projects/cc-web', '.claude', 'skills'));
+    expect(paths.skillsDir).toBe(path.join('D:/Projects/cc-web', '.codex', 'skills'));
   });
 
   it('prefers explicit env overrides for runtime directories', async () => {

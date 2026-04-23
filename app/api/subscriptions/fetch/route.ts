@@ -5,17 +5,15 @@ import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
 import { getSkill } from '@/lib/skills';
+import { isInvocableSkill, type InvocableSkill } from '@/lib/skill-taxonomy';
 import { fetchByCategory } from '@/lib/fetchers';
 import crypto from 'crypto';
 
 async function generateBriefWithSkill(
+  skill: InvocableSkill,
   source: { name: string; url: string; category: string },
   content: string,
 ): Promise<string> {
-  const skill = getSkill('subscription');
-  if (!skill) {
-    return 'Brief generation failed: subscription skill not found.';
-  }
 
   const provider = db.prepare('SELECT * FROM ai_providers WHERE is_default = 1 LIMIT 1').get() as any;
   if (!provider) {
@@ -89,6 +87,11 @@ export async function POST(req: Request) {
   const rl = rateLimitByIp(req, 'subscriptions-fetch', 5);
   if (rl) return rl;
 
+  const subscriptionSkill = getSkill('subscription');
+  if (!isInvocableSkill(subscriptionSkill)) {
+    return Response.json({ error: 'Subscription skill is not invocable' }, { status: 500 });
+  }
+
   let body: any;
   try { body = await req.json(); } catch { body = {}; }
 
@@ -125,7 +128,7 @@ export async function POST(req: Request) {
       continue;
     }
 
-    const brief = await generateBriefWithSkill(source, fetched.content);
+    const brief = await generateBriefWithSkill(subscriptionSkill, source, fetched.content);
 
     db.prepare(
       'INSERT INTO subscription_briefs (source_id, title, url, brief, content_hash) VALUES (?, ?, ?, ?, ?)'

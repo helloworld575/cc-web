@@ -18,20 +18,32 @@ export interface SkillSummary {
   name_zh?: string;
   description: string;
   description_zh?: string;
-  output: string;
+  invocable: boolean;
+  output?: string;
   hierarchy: SkillHierarchy;
   lookup: SkillLookup;
 }
 
 export interface Skill extends SkillSummary {
   system?: string;
+  prompt?: string;
+}
+
+export interface InvocableSkillSummary extends SkillSummary {
+  invocable: true;
+  output: string;
+}
+
+export interface InvocableSkill extends Skill {
+  invocable: true;
+  output: string;
   prompt: string;
 }
 
-export interface SkillGroup {
+export interface SkillGroup<T extends SkillSummary = SkillSummary> {
   key: string;
   label: string;
-  skills: SkillSummary[];
+  skills: T[];
 }
 
 function normalize(value: string) {
@@ -80,8 +92,8 @@ export function matchSkillSummary(skill: SkillSummary, query: string) {
     .every(token => flattened.includes(token));
 }
 
-export function groupSkillSummaries(skills: SkillSummary[]): SkillGroup[] {
-  const groups = new Map<string, SkillGroup>();
+export function groupSkillSummaries<T extends SkillSummary>(skills: T[]): SkillGroup<T>[] {
+  const groups = new Map<string, SkillGroup<T>>();
 
   for (const skill of skills) {
     const groupKey = `${skill.hierarchy.domain}/${skill.hierarchy.category}`;
@@ -116,4 +128,21 @@ export function groupSkillSummaries(skills: SkillSummary[]): SkillGroup[] {
       }),
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
+}
+
+export function isInvocableSkillSummary(
+  skill: SkillSummary | null | undefined,
+): skill is InvocableSkillSummary {
+  return Boolean(skill?.invocable && typeof skill.output === 'string' && skill.output.length > 0);
+}
+
+export function isInvocableSkill(skill: Skill | SkillSummary | null | undefined): skill is InvocableSkill {
+  return Boolean(
+    skill?.invocable
+    && typeof skill.output === 'string'
+    && skill.output.length > 0
+    && 'prompt' in (skill ?? {})
+    && typeof (skill as Skill).prompt === 'string'
+    && (skill as Skill).prompt!.length > 0,
+  );
 }

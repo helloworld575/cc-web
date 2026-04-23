@@ -193,7 +193,7 @@ Exceeded → `429 Too Many Requests`.
 
 ## Skills System
 
-Skills are markdown files in `.claude/skills/<name>/SKILL.md` with YAML frontmatter:
+Skills are markdown files in `.codex/skills/<name>/SKILL.md` with YAML frontmatter:
 
 ```yaml
 ---

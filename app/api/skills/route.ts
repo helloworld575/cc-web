@@ -5,8 +5,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
 export async function GET(req: Request) {
-  const query = new URL(req.url).searchParams.get('q');
-  return NextResponse.json(query ? findSkills(query) : getSkills());
+  const params = new URL(req.url).searchParams;
+  const includeNonInvocable = params.get('catalog') === 'all';
+  const query = params.get('q');
+  return NextResponse.json(
+    query
+      ? findSkills(query, { includeNonInvocable })
+      : getSkills({ includeNonInvocable }),
+  );
 }
 
 export async function POST(req: Request) {

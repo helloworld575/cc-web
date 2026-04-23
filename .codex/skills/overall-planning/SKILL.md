@@ -1,10 +1,12 @@
 ---
 name: overall-planning
-description: |
+description: >
   触发：当你需要在多个目标、利益方或相互制约的指标之间做动态平衡时调用；常见信号包括 trade-offs、目标冲突、系统性约束、优化一项会伤害另一项。
-  English: Trigger when several important goals must be advanced together and optimizing one dimension can damage another. Use this skill to map the key relationships, avoid one-sided decisions, and balance the system as a whole.
----
 
+  English: Trigger when several important goals must be advanced together and
+  optimizing one dimension can damage another. Use this skill to map the key
+  relationships, avoid one-sided decisions, and balance the system as a whole.
+---
 # 统筹兼顾
 
 > "提出这十个问题，都是围绕着一个基本方针，就是要把国内外一切积极因素调动起来，为社会主义事业服务。"

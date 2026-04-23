@@ -1,25 +1,17 @@
 # Legacy To Codex Mapping
 
-This repository already contained assistant- and IDE-specific folders before Codex adaptation. They are preserved for compatibility, but Codex should treat them through the normalized cache in this directory.
+This repository started with Claude-specific assets, but the skill runtime has now been consolidated into `.codex/skills/`. Treat this file as migration background, not as an active runtime contract.
 
 ## `.claude`
 
-- `.claude/skills/` is still runtime-critical.
-- The web app loads skills directly from `.claude/skills/<skill>/SKILL.md` via `lib/skills.ts`.
-- Codex should not rename or delete this path unless the loader is updated at the same time.
-- `.codex/skills/` now contains Codex-native mirrors generated from `.claude/skills/` with `npm run codex:skills`.
-- The skill inventory is cached into `project-context.json` and summarized in `project-context.md`.
-
-## `.claude/plans`
-
-- Historical implementation notes only.
-- Useful for background context, but not part of active runtime behavior.
-- Codex cache records their existence so they do not need to be rediscovered each turn.
+- As of 2026-04-23, `.claude/skills/` is no longer part of the application runtime.
+- Runtime skills, Codex-discoverable skills, and admin-managed app skills now all live in `.codex/skills/`.
+- `npm run codex:skills` normalizes `.codex/skills/` in place instead of mirroring from another directory.
 
 ## `.kiro`
 
-- `.kiro/steering/ai.md` is a legacy AI feature summary focused on the old Claude-centered workflow.
-- Its value has been folded into the Codex cache as part of the project and skill summaries.
+- `.kiro/steering/ai.md` is a legacy AI feature summary from an earlier workflow.
+- Its useful architectural context should be reflected through `.codex/cache/project-context.*` instead of being treated as live instructions.
 
 ## `.idea`
 

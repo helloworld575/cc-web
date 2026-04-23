@@ -149,7 +149,7 @@ my-site/
 ├── app/              # Next.js App Router (pages + API routes)
 ├── components/       # Shared React components
 ├── lib/              # Server utilities (db, auth, fetchers, x api, skills)
-├── .claude/skills/   # AI skills (used by web app + Claude Code)
+├── .codex/skills/    # AI skills (runtime source + Codex catalog)
 ├── content/posts/    # Blog markdown files
 ├── uploads/          # User-uploaded images
 ├── data/site.db      # SQLite database
@@ -159,8 +159,8 @@ my-site/
 
 ## AI Skills
 
-The app runtime still reads `.claude/skills/<name>/SKILL.md` via `lib/skills.ts`.
-For Codex-native discovery, mirror those skills into `.codex/skills/` with:
+The app runtime reads `.codex/skills/<name>/SKILL.md` via `lib/skills.ts`.
+After changing skill metadata or prompt contracts, normalize the catalog with:
 
 ```bash
 npm run codex:skills

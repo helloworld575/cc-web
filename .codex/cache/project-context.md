@@ -1,13 +1,13 @@
 # Codex Project Context
 
-Generated: 2026-04-17T08:58:16.083Z
+Generated: 2026-04-23T06:25:23.907Z
 
 ## Snapshot
 
 - Name: `my-site`
 - Stack: Next.js 14 App Router, TypeScript, SQLite, Tailwind CSS, Vitest
 - Package manager: `npm`
-- Primary runtime skill source: `.claude/skills`
+- Primary runtime skill source: `.codex/skills`
 - Cache refresh command: `npm run codex:cache`
 
 ## Main Directories
@@ -17,8 +17,7 @@ Generated: 2026-04-17T08:58:16.083Z
 - `lib`: Server-side helpers for auth, SQLite, AI skills, fetchers, i18n, X integration, and fortune logic.
 - `tests`: Vitest coverage, mainly for API routes.
 - `docs`: English and Chinese user/development/API documentation.
-- `.claude`: Legacy assistant folder containing runtime AI skills and planning notes.
-- `.codex`: Codex-native cache, guidance, and generated skill mirrors.
+- `.codex`: Codex-native cache, guidance, and the runtime AI skill catalog.
 
 ## Key Files
 
@@ -29,7 +28,7 @@ Generated: 2026-04-17T08:58:16.083Z
 - `tailwind.config.ts`: Tailwind theme configuration.
 - `lib/db.ts`: SQLite connection, schema bootstrap, light migrations, indexes, and prepared statements.
 - `lib/auth.ts`: NextAuth credentials configuration and session helpers.
-- `lib/skills.ts`: Reads and writes runtime AI skills from .claude/skills.
+- `lib/skills.ts`: Reads and writes runtime AI skills from .codex/skills.
 - `lib/fetchers.ts`: Subscription source fetchers and content normalization helpers.
 - `lib/xapi.ts`: X/Twitter API integration and media upload helpers.
 - `lib/i18n.ts`: Localization strings and locale helpers.
@@ -109,8 +108,10 @@ Generated: 2026-04-17T08:58:16.083Z
 - Simple migrations: `todos.deadline`, `files.album_id`
 - Prepared statements: `countFiles`, `listFiles`, `insertFile`, `listFortune`, `insertFortune`, `getFortune`, `deleteFortune`, `listProviders`, `getProvider`, `insertProvider`, `updateProvider`, `deleteProvider`, `clearDefaultProvider`, `listChats`, `listChatsByProvider`, `getChat`, `insertChat`, `updateChat`, `deleteChat`
 
-## AI Skills (13)
+## AI Skills (42)
 
+- `agent-browser`: >-
+- `arming-thought`: >
 - `article-brief`: Generate a short excerpt or summary teaser for a blog post.
 - `article-faq`: Generate a reader-facing FAQ section for an article.
 - `article-polish`: Rewrite and polish article copy for clarity and engagement.
@@ -120,25 +121,50 @@ Generated: 2026-04-17T08:58:16.083Z
 - `article-translate-en`: Translate Chinese article content into natural English.
 - `bazi-fortune`: BaZi / Four Pillars fortune analysis skill with helper scripts. Includes scripts.
 - `blog-to-x`: Convert long-form blog or diary content into X/Twitter posts or threads. Includes references.
+- `company-values`: >-
+- `concentrate-forces`: >
+- `contradiction-analysis`: >
+- `criticism-self-criticism`: >
+- `find-community`: >-
+- `find-skills`: >-
+- `first-customers`: >-
+- `grow-sustainably`: >-
+- `investigation-first`: >
 - `liuyao-fortune`: Liu Yao / I Ching divination skill with helper scripts. Includes scripts.
+- `marketing-plan`: >-
+- `mass-line`: >
 - `meihua-fortune`: Meihua Yishu numerology divination skill with helper scripts. Includes scripts.
+- `memory-systems`: > Includes scripts. Includes references.
+- `minimalist-review`: >-
+- `mvp`: >-
+- `overall-planning`: >
+- `practice-cognition`: >
+- `pricing`: >-
+- `processize`: >-
+- `protracted-strategy`: >
+- `research`: >
+- `skill-creator`: >- Includes scripts. Includes references.
+- `spark-prairie-fire`: >
 - `subscription`: Summarize the latest updates from subscribed sources such as blogs, GitHub, X, RSS, or Reddit. Includes scripts. Includes references.
+- `summarize`: >-
+- `tmux`: >- Includes scripts.
+- `validate-idea`: >-
+- `webapp-testing`: >- Includes scripts.
+- `workflows`: >
 - `ziwei-fortune`: Zi Wei Dou Shu astrology analysis skill with helper scripts. Includes scripts.
 
 ## Legacy Assistant Assets
 
-- Claude plan files: 0
 - Kiro files: 0
 - IDEA files: 0
 
 ## Tests
 
-- API and helper test files: 24
+- API and helper test files: 27
 - Examples: `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai/route.test.ts`, `tests/api/bazi/route.test.ts`, `tests/api/blog/route.test.ts`, `tests/api/blog/slug.test.ts`
 
 ## Notes
 
-- `.claude/skills/` remains part of the application runtime contract through `lib/skills.ts`.
-- `.codex/skills/` contains generated Codex-native mirrors of the runtime skills.
+- `.codex/skills/` is both the application runtime skill source and the Codex skill catalog.
 - `.idea/` is tracked only as provenance; it is not treated as meaningful architecture memory.
 - Read `.codex/cache/legacy-summary.md` if a task mentions Claude, Kiro, or IDE migration details.

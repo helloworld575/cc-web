@@ -45,6 +45,19 @@ describe('POST /api/ai', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 400 when the resolved skill is not invocable', async () => {
+    mockSession(true);
+    (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
+      id: 'find-skills',
+      name: 'Find Skills',
+      description: 'Guide only',
+      invocable: false,
+    });
+    const { POST } = await import('@/app/api/ai/route');
+    const res = await POST(postReq({ skill: 'find-skills', content: 'c' }));
+    expect(res.status).toBe(400);
+  });
+
   it('resolves skills by lookup reference', async () => {
     mockSession(true);
     (getSkill as ReturnType<typeof vi.fn>).mockReturnValue(null);
@@ -54,6 +67,7 @@ describe('POST /api/ai', () => {
       prompt: '{{content}}',
       output: 'text',
       system: 'sys',
+      invocable: true,
       description: 'd',
       hierarchy: { domain: 'content', category: 'article', subcategory: 'faq', path: ['content', 'article', 'faq'], order: 1 },
       lookup: { invoke: 'content/article/faq', aliases: ['faq'], keywords: ['faq'] },
@@ -70,7 +84,7 @@ describe('POST /api/ai', () => {
   it('returns SSE stream on success', async () => {
     mockSession(true);
     (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
-      id: 'test', name: 'Test', prompt: '{{content}}', output: 'markdown', system: 'sys',
+      id: 'test', name: 'Test', prompt: '{{content}}', output: 'markdown', system: 'sys', invocable: true,
     });
     mockStreamResponse(mockFetch);
     const { POST } = await import('@/app/api/ai/route');

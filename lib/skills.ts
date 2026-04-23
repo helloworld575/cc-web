@@ -1,7 +1,14 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
-import type { Skill, SkillHierarchy, SkillLookup, SkillSummary } from '@/lib/skill-taxonomy';
+import type {
+  InvocableSkill,
+  InvocableSkillSummary,
+  Skill,
+  SkillHierarchy,
+  SkillLookup,
+  SkillSummary,
+} from '@/lib/skill-taxonomy';
 import { getRuntimePaths } from '@/lib/runtime-paths';
 
 const { skillsDir } = getRuntimePaths();
@@ -14,6 +21,8 @@ type SkillFrontmatter = Record<string, unknown> & {
   system?: string;
   prompt?: string;
   output?: string;
+  invocable?: boolean;
+  user_invocable?: boolean;
   hierarchy?: Partial<SkillHierarchy> & { path?: string[] | string };
   lookup?: Partial<SkillLookup>;
   domain?: string;
@@ -27,6 +36,42 @@ type SkillFrontmatter = Record<string, unknown> & {
 };
 
 type SkillDraft = Partial<Skill> & Pick<Skill, 'id' | 'name' | 'description' | 'prompt' | 'output'>;
+type SkillQueryOptions = {
+  includeNonInvocable?: boolean;
+};
+
+const HIERARCHY_OVERRIDES: Record<string, [string, string, string]> = {
+  'agent-browser': ['agent', 'automation', 'browser'],
+  'arming-thought': ['strategy', 'methodology', 'arming-thought'],
+  'company-values': ['business', 'operations', 'values'],
+  'concentrate-forces': ['strategy', 'methodology', 'prioritization'],
+  'contradiction-analysis': ['strategy', 'analysis', 'contradictions'],
+  'criticism-self-criticism': ['strategy', 'review', 'retrospective'],
+  'find-community': ['business', 'discovery', 'community'],
+  'find-skills': ['agent', 'skills', 'discovery'],
+  'first-customers': ['business', 'growth', 'first-customers'],
+  'grow-sustainably': ['business', 'growth', 'sustainability'],
+  'investigation-first': ['strategy', 'analysis', 'investigation'],
+  'marketing-plan': ['business', 'marketing', 'plan'],
+  'mass-line': ['strategy', 'collaboration', 'feedback'],
+  'memory-systems': ['agent', 'memory', 'systems'],
+  'minimalist-review': ['business', 'review', 'decision-making'],
+  mvp: ['business', 'product', 'mvp'],
+  'overall-planning': ['strategy', 'planning', 'balancing'],
+  'practice-cognition': ['strategy', 'execution', 'iteration'],
+  pricing: ['business', 'go-to-market', 'pricing'],
+  processize: ['business', 'operations', 'process'],
+  'protracted-strategy': ['strategy', 'planning', 'long-term'],
+  research: ['knowledge', 'research', 'web'],
+  'skill-creator': ['agent', 'skills', 'authoring'],
+  'spark-prairie-fire': ['strategy', 'execution', 'bootstrap'],
+  summarize: ['knowledge', 'research', 'summaries'],
+  subscription: ['knowledge', 'research', 'subscriptions'],
+  tmux: ['agent', 'automation', 'terminal'],
+  'validate-idea': ['business', 'discovery', 'validation'],
+  'webapp-testing': ['agent', 'automation', 'testing'],
+  workflows: ['strategy', 'workflow', 'orchestration'],
+};
 
 function asString(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
@@ -66,6 +111,10 @@ function normalize(value: string) {
     .trim();
 }
 
+function asBoolean(value: unknown) {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
 function inferHierarchy(id: string, frontmatter: SkillFrontmatter): SkillHierarchy {
   const explicitPath = [
     ...asStringArray(frontmatter.hierarchy?.path),
@@ -74,6 +123,9 @@ function inferHierarchy(id: string, frontmatter: SkillFrontmatter): SkillHierarc
 
   const inferredPath = (() => {
     if (explicitPath.length >= 3) return explicitPath.slice(0, 3);
+
+    const overridden = HIERARCHY_OVERRIDES[id];
+    if (overridden) return overridden;
 
     if (id.startsWith('article-')) {
       return ['content', 'article', id.replace(/^article-/, '')];
@@ -84,11 +136,24 @@ function inferHierarchy(id: string, frontmatter: SkillFrontmatter): SkillHierarc
     }
 
     if (id === 'subscription') {
-      return ['research', 'subscriptions', 'briefing'];
+      return ['knowledge', 'research', 'subscriptions'];
     }
 
     if (id === 'blog-to-x') {
       return ['content', 'distribution', 'social'];
+    }
+
+    if (
+      id.endsWith('-review')
+      || id.endsWith('-plan')
+      || id.endsWith('-customers')
+      || id.endsWith('-community')
+      || id.endsWith('-idea')
+      || id === 'pricing'
+      || id === 'processize'
+      || id === 'mvp'
+    ) {
+      return ['business', 'strategy', id];
     }
 
     return ['general', 'utility', id];
@@ -107,6 +172,22 @@ function inferHierarchy(id: string, frontmatter: SkillFrontmatter): SkillHierarc
     subcategory,
     path: [domain, category, subcategory],
     order: asNumber(frontmatter.hierarchy?.order ?? frontmatter.order),
+  };
+}
+
+function extractLegacyPromptContract(content: string) {
+  const system = content.match(
+    /The web app (?:Claude )?skill defines this system prompt:\s+````text\r?\n([\s\S]*?)\r?\n````/,
+  )?.[1];
+  const prompt = content.match(
+    /The web app (?:Claude )?skill uses this prompt template:\s+````text\r?\n([\s\S]*?)\r?\n````/,
+  )?.[1];
+  const output = content.match(/Expected structured output key:\s*`([^`]+)`/)?.[1];
+
+  return {
+    system: system?.trim(),
+    prompt: prompt?.trim(),
+    output: output?.trim(),
   };
 }
 
@@ -149,10 +230,14 @@ function parseSkillMd(id: string, includeDetail = false): Skill | SkillSummary |
   if (!fs.existsSync(file)) return null;
 
   const raw = fs.readFileSync(file, 'utf8');
-  const { data } = matter(raw);
+  const { data, content } = matter(raw);
   const frontmatter = data as SkillFrontmatter;
-
-  if (!frontmatter.prompt || !frontmatter.output) return null;
+  const legacyPromptContract = extractLegacyPromptContract(content);
+  const prompt = asString(frontmatter.prompt) || legacyPromptContract.prompt || '';
+  const output = asString(frontmatter.output) || legacyPromptContract.output || '';
+  const system = asString(frontmatter.system) || legacyPromptContract.system || undefined;
+  const explicitInvocable = asBoolean(frontmatter.invocable) ?? asBoolean(frontmatter.user_invocable);
+  const invocable = explicitInvocable ?? Boolean(prompt && output);
 
   const hierarchy = inferHierarchy(id, frontmatter);
   const lookup = inferLookup(id, frontmatter, hierarchy);
@@ -163,7 +248,8 @@ function parseSkillMd(id: string, includeDetail = false): Skill | SkillSummary |
     name_zh: asString(frontmatter.name_zh) || undefined,
     description: asString(frontmatter.description),
     description_zh: asString(frontmatter.description_zh) || undefined,
-    output: asString(frontmatter.output),
+    invocable,
+    output: output || undefined,
     hierarchy,
     lookup,
   };
@@ -172,8 +258,8 @@ function parseSkillMd(id: string, includeDetail = false): Skill | SkillSummary |
 
   return {
     ...summary,
-    system: asString(frontmatter.system) || undefined,
-    prompt: asString(frontmatter.prompt),
+    system,
+    prompt: prompt || undefined,
   };
 }
 
@@ -225,7 +311,12 @@ function scoreSkillReference(summary: SkillSummary, reference: string) {
 
 export type { Skill, SkillHierarchy, SkillLookup, SkillSummary } from '@/lib/skill-taxonomy';
 
-export function getSkills(): SkillSummary[] {
+function filterSkills(skills: SkillSummary[], options: SkillQueryOptions = {}) {
+  if (options.includeNonInvocable) return skills;
+  return skills.filter((skill): skill is InvocableSkillSummary => skill.invocable);
+}
+
+export function getSkills(options: SkillQueryOptions = {}): SkillSummary[] {
   if (!fs.existsSync(skillsDir)) return [];
 
   const skills = fs.readdirSync(skillsDir, { withFileTypes: true })
@@ -233,11 +324,11 @@ export function getSkills(): SkillSummary[] {
     .map(entry => parseSkillMd(entry.name, false))
     .filter((skill): skill is SkillSummary => skill !== null);
 
-  return sortSkills(skills);
+  return sortSkills(filterSkills(skills, options));
 }
 
-export function findSkills(query: string) {
-  return getSkills()
+export function findSkills(query: string, options: SkillQueryOptions = {}) {
+  return getSkills(options)
     .map(skill => ({ skill, score: scoreSkillReference(skill, query) }))
     .filter(entry => entry.score > 0)
     .sort((left, right) => right.score - left.score || left.skill.name.localeCompare(right.skill.name))
@@ -249,11 +340,11 @@ export function getSkill(id: string): Skill | null {
   return skill as Skill | null;
 }
 
-export function resolveSkillReference(reference: string): Skill | null {
+export function resolveSkillReference(reference: string, options: SkillQueryOptions = {}): Skill | null {
   const exact = getSkill(reference);
-  if (exact) return exact;
+  if (exact && (options.includeNonInvocable || exact.invocable)) return exact;
 
-  const matches = findSkills(reference);
+  const matches = findSkills(reference, options);
   if (matches.length === 0) return null;
 
   return getSkill(matches[0].id);
@@ -276,7 +367,7 @@ export function saveSkill(skill: SkillDraft) {
   const frontmatter: Record<string, unknown> = {
     name: skill.name,
     description: skill.description,
-    user_invocable: true,
+    invocable: true,
     system: skill.system,
     prompt: skill.prompt,
     output: skill.output,

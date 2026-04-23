@@ -1,10 +1,13 @@
 ---
 name: investigation-first
-description: |
-  触发：当你准备下判断、做决策或提出建议，但事实、上下文或一手信息还不充分时优先调用；常见信号包括 unknowns、信息缺口、证据不足、领域陌生、需要先摸清现状。
-  English: Trigger before making claims or decisions when context is incomplete, evidence is weak, or the domain is unfamiliar. Use this skill to investigate first, gather firsthand facts, and let reality shape the conclusion.
----
+description: >
+  触发：当你准备下判断、做决策或提出建议，但事实、上下文或一手信息还不充分时优先调用；常见信号包括
+  unknowns、信息缺口、证据不足、领域陌生、需要先摸清现状。
 
+  English: Trigger before making claims or decisions when context is incomplete,
+  evidence is weak, or the domain is unfamiliar. Use this skill to investigate
+  first, gather firsthand facts, and let reality shape the conclusion.
+---
 # 调查研究
 
 > "没有调查，没有发言权。"

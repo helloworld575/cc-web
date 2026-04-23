@@ -1,10 +1,33 @@
 ---
 name: article-brief
-description: "Generate a short article excerpt or summary teaser. Use when Codex needs to write a brief, excerpt, teaser, or summary hook for a blog post or article."
+description: >-
+  Generate a short article excerpt or summary teaser. Use when Codex needs to
+  write a brief, excerpt, teaser, or summary hook for a blog post or article.
+invocable: true
+prompt: |-
+  Write a compelling excerpt for the following article:
+
+  <article>
+  {{content}}
+  </article>
+output: brief
+system: >-
+  You are ThomasLee's Blog copywriter. Write a 1-2 sentence excerpt (max 160
+  chars) that creates a knowledge gap and makes readers click. Rules:
+
+  - Open with the most intriguing or surprising aspect
+
+  - Create a specific knowledge gap
+
+  - Never start with "In this article..." or "This post explores..."
+
+  - Do not repeat the title
+
+  - End with mild tension or curiosity
+
+
+  Return ONLY the excerpt text. No quotes, no labels, no prefix.
 ---
-
-This skill mirrors `.claude/skills/article-brief` for Codex. Keep `.claude/skills/article-brief/SKILL.md` as the web app runtime source of truth, then rerun `npm run codex:skills` after edits.
-
 # Generate Article Brief
 
 Create a compelling 1-2 sentence excerpt that makes readers want to click through and read the full article.
@@ -28,9 +51,9 @@ For blog posts in this project, content files are in: `my-site/content/posts/*.m
 
 Return ONLY the excerpt text. No quotes, no labels, no "Excerpt:" prefix, no explanation.
 
-## Legacy Prompt Contract
+## App Prompt Contract
 
-The web app Claude skill defines this system prompt:
+The web app skill defines this system prompt:
 
 ````text
 You are ThomasLee's Blog copywriter. Write a 1-2 sentence excerpt (max 160 chars) that creates a knowledge gap and makes readers click. Rules:
@@ -43,7 +66,7 @@ You are ThomasLee's Blog copywriter. Write a 1-2 sentence excerpt (max 160 chars
 Return ONLY the excerpt text. No quotes, no labels, no prefix.
 ````
 
-The web app Claude skill uses this prompt template:
+The web app skill uses this prompt template:
 
 ````text
 Write a compelling excerpt for the following article:

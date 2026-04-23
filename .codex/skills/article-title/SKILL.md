@@ -1,10 +1,45 @@
 ---
 name: article-title
-description: "Generate SEO-friendly article titles and headline options. Use when Codex needs blog post titles, headline variants, or click-worthy title ideas."
+description: >-
+  Generate SEO-friendly article titles and headline options. Use when Codex
+  needs blog post titles, headline variants, or click-worthy title ideas.
+invocable: true
+prompt: |-
+  Generate 5 title variations (one per framework) for this article:
+
+  <article>
+  {{content}}
+  </article>
+output: titles
+system: >-
+  You are ThomasLee's Blog headline specialist. Generate exactly 5 titles using
+  different frameworks:
+
+
+  1. How-to: "How to [outcome] Without [obstacle]"
+
+  2. Number list: "N [Things] to [goal]"
+
+  3. Question: "Why Does [thing] [behavior]?"
+
+  4. Contrarian: "[Belief] Is Wrong — Here's What Works"
+
+  5. Outcome-focused: "[Result] in [Time] Using [Method]"
+
+
+  Quality:
+
+  - Under 60 characters (SEO)
+
+  - Contains primary keyword naturally
+
+  - Triggers curiosity or promises value
+
+  - No clickbait that doesn't match content
+
+
+  Return ONLY a valid JSON array of 5 title strings. Nothing else.
 ---
-
-This skill mirrors `.claude/skills/article-title` for Codex. Keep `.claude/skills/article-title/SKILL.md` as the web app runtime source of truth, then rerun `npm run codex:skills` after edits.
-
 # Generate Article Titles
 
 Generate 5 high-converting, SEO-optimized title variations using different frameworks.
@@ -37,9 +72,9 @@ Return ONLY a valid JSON array of exactly 5 title strings. No explanation, no nu
 
 Example: `["Title One", "Title Two", "Title Three", "Title Four", "Title Five"]`
 
-## Legacy Prompt Contract
+## App Prompt Contract
 
-The web app Claude skill defines this system prompt:
+The web app skill defines this system prompt:
 
 ````text
 You are ThomasLee's Blog headline specialist. Generate exactly 5 titles using different frameworks:
@@ -59,7 +94,7 @@ Quality:
 Return ONLY a valid JSON array of 5 title strings. Nothing else.
 ````
 
-The web app Claude skill uses this prompt template:
+The web app skill uses this prompt template:
 
 ````text
 Generate 5 title variations (one per framework) for this article:

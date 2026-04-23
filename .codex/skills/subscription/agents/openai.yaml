@@ -1,4 +1,4 @@
 interface:
   display_name: "Subscription"
-  short_description: "Codex mirror for Subscription"
+  short_description: "Codex skill for Subscription"
   default_prompt: "Use $subscription to apply the Subscription workflow to this task."

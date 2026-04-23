@@ -20,10 +20,29 @@ describe('GET /api/skills/[id]', () => {
 
   it('returns 200 with skill', async () => {
     mockSession(true);
-    (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({ id: 'test-skill', name: 'Test' });
+    (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
+      id: 'test-skill',
+      name: 'Test',
+      prompt: 'p',
+      output: 'o',
+      invocable: true,
+    });
     const { GET } = await import('@/app/api/skills/[id]/route');
     const res = await GET(new Request('http://localhost'), params);
     expect(res.status).toBe(200);
+  });
+
+  it('returns 404 for non-invocable catalog skills', async () => {
+    mockSession(true);
+    (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
+      id: 'find-skills',
+      name: 'Find Skills',
+      description: 'Guide only',
+      invocable: false,
+    });
+    const { GET } = await import('@/app/api/skills/[id]/route');
+    const res = await GET(new Request('http://localhost'), { params: { id: 'find-skills' } });
+    expect(res.status).toBe(404);
   });
 });
 

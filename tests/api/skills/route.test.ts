@@ -8,6 +8,7 @@ describe('GET /api/skills', () => {
     const { GET } = await import('@/app/api/skills/route');
     const res = await GET(new Request('http://localhost/api/skills'));
     expect(res.status).toBe(200);
+    expect(getSkills).toHaveBeenCalledWith({ includeNonInvocable: false });
   });
 
   it('filters skills when query is present', async () => {
@@ -15,7 +16,17 @@ describe('GET /api/skills', () => {
     const { GET } = await import('@/app/api/skills/route');
     const res = await GET(new Request('http://localhost/api/skills?q=faq'));
     expect(res.status).toBe(200);
-    expect(findSkills).toHaveBeenCalledWith('faq');
+    expect(findSkills).toHaveBeenCalledWith('faq', { includeNonInvocable: false });
+  });
+
+  it('can return the full codex skill catalog', async () => {
+    (getSkills as ReturnType<typeof vi.fn>).mockReturnValue([
+      { id: 'find-skills', name: 'Find Skills', invocable: false },
+    ]);
+    const { GET } = await import('@/app/api/skills/route');
+    const res = await GET(new Request('http://localhost/api/skills?catalog=all'));
+    expect(res.status).toBe(200);
+    expect(getSkills).toHaveBeenCalledWith({ includeNonInvocable: true });
   });
 });
 

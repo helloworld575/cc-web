@@ -1,4 +1,4 @@
 interface:
   display_name: "Article Brief"
-  short_description: "Codex mirror for Article Brief"
+  short_description: "Codex skill for Article Brief"
   default_prompt: "Use $article-brief to apply the Article Brief workflow to this task."

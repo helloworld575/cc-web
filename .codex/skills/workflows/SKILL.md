@@ -1,10 +1,13 @@
 ---
 name: workflows
-description: |
-  触发：当你面临的任务明显需要多个思想武器协作时调用；常见信号包括：从零启动新项目、攻坚复杂疑难问题、对已有方案进行迭代优化。此 skill 提供标准化的跨 skill 工作流组合，解决"应该先用哪个 skill、怎么衔接"的问题。
-  English: Trigger when a task clearly requires multiple skills in sequence. Use this skill to select a standard workflow that chains skills together, defines data handoff between steps, and specifies termination conditions.
----
+description: >
+  触发：当你面临的任务明显需要多个思想武器协作时调用；常见信号包括：从零启动新项目、攻坚复杂疑难问题、对已有方案进行迭代优化。此 skill 提供标准化的跨
+  skill 工作流组合，解决"应该先用哪个 skill、怎么衔接"的问题。
 
+  English: Trigger when a task clearly requires multiple skills in sequence. Use
+  this skill to select a standard workflow that chains skills together, defines
+  data handoff between steps, and specifies termination conditions.
+---
 # 工作流组合
 
 > "政策和策略是党的生命，各级领导同志务必充分注意，万万不可粗心大意。"

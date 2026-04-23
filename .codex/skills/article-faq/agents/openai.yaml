@@ -1,4 +1,4 @@
 interface:
   display_name: "Article FAQ"
-  short_description: "Codex mirror for Article FAQ"
+  short_description: "Codex skill for Article FAQ"
   default_prompt: "Use $article-faq to apply the Article FAQ workflow to this task."

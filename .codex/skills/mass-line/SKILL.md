@@ -1,10 +1,13 @@
 ---
 name: mass-line
-description: |
-  触发：当你需要收集多方意见、把零散反馈整合成可执行方案，或把方案带回真实使用者/执行者验证时调用；常见信号包括 stakeholder input、user feedback、意见汇总、对齐与验证。
-  English: Trigger when input must be gathered from many people, synthesized into a clearer plan, and returned to the affected users or executors for validation. Use this skill for a collect-synthesize-validate loop.
----
+description: >
+  触发：当你需要收集多方意见、把零散反馈整合成可执行方案，或把方案带回真实使用者/执行者验证时调用；常见信号包括 stakeholder input、user
+  feedback、意见汇总、对齐与验证。
 
+  English: Trigger when input must be gathered from many people, synthesized
+  into a clearer plan, and returned to the affected users or executors for
+  validation. Use this skill for a collect-synthesize-validate loop.
+---
 # 群众路线
 
 > "在我党的一切实际工作中，凡属正确的领导，必须是从群众中来，到群众中去。这就是说，将群众的意见（分散的无系统的意见）集中起来（经过研究，化为集中的系统的意见），又到群众中去作宣传解释，化为群众的意见，使群众坚持下去，见之于行动，并在群众行动中考验这些意见是否正确。如此无限循环，一次比一次地更正确、更生动、更丰富。"

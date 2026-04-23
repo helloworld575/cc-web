@@ -1,4 +1,4 @@
 interface:
   display_name: "Article Structure"
-  short_description: "Codex mirror for Article Structure"
+  short_description: "Codex skill for Article Structure"
   default_prompt: "Use $article-structure to apply the Article Structure workflow to this task."

@@ -149,7 +149,7 @@ REMOTE_STAGE_BASE = os.environ.get("NAS_REMOTE_STAGE_BASE", f"{NAS_PATH}/.codex-
 REMOTE_PACKAGE_NAME = os.environ.get("NAS_PACKAGE_FILE", PACKAGE_FILE)
 
 include_roots = [
-    ".claude",
+    ".codex",
     "app",
     "components",
     "content",

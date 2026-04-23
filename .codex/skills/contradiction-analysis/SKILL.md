@@ -1,10 +1,14 @@
 ---
 name: contradiction-analysis
-description: |
-  触发：当问题复杂、存在多个冲突因素、优先级不清，或你不知道应该先解决什么时调用；常见信号包括 trade-off、瓶颈、根因不明、主次不清、多个问题互相牵制。
-  English: Trigger when a problem contains competing forces, unclear priorities, or no obvious entry point. Use this skill to identify contradictions, isolate the principal contradiction, classify its nature, and choose the right response.
----
+description: >
+  触发：当问题复杂、存在多个冲突因素、优先级不清，或你不知道应该先解决什么时调用；常见信号包括
+  trade-off、瓶颈、根因不明、主次不清、多个问题互相牵制。
 
+  English: Trigger when a problem contains competing forces, unclear priorities,
+  or no obvious entry point. Use this skill to identify contradictions, isolate
+  the principal contradiction, classify its nature, and choose the right
+  response.
+---
 # 矛盾分析法
 
 > "研究任何过程，如果是存在着两个以上矛盾的复杂过程的话，就要用全力找出它的主要矛盾。捉住了这个主要矛盾，一切问题就迎刃而解了。"

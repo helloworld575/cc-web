@@ -1,10 +1,13 @@
 ---
 name: spark-prairie-fire
-description: |
-  触发：当你从零起步、资源极少、需要先找到最小可行切入口并建立稳定根据地时调用；常见信号包括 bootstrap、MVP、pilot、first foothold、小团队起步。
-  English: Trigger when starting from almost nothing and needing a viable foothold before scaling up. Use this skill to build a durable base, start small, and grow from a validated nucleus instead of scattering effort.
----
+description: >
+  触发：当你从零起步、资源极少、需要先找到最小可行切入口并建立稳定根据地时调用；常见信号包括 bootstrap、MVP、pilot、first
+  foothold、小团队起步。
 
+  English: Trigger when starting from almost nothing and needing a viable
+  foothold before scaling up. Use this skill to build a durable base, start
+  small, and grow from a validated nucleus instead of scattering effort.
+---
 # 星火燎原
 
 > "这里用得着中国的一句老话：'星星之火，可以燎原。'这就是说，现在虽只一点小小的力量，但是它的发展会是很快的。它在中国的环境里不仅是具备了发展的可能性，简直是具备了发展的必然性。"

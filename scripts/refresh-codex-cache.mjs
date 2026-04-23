@@ -11,8 +11,7 @@ const DIRECTORY_DESCRIPTIONS = {
   lib: 'Server-side helpers for auth, SQLite, AI skills, fetchers, i18n, X integration, and fortune logic.',
   tests: 'Vitest coverage, mainly for API routes.',
   docs: 'English and Chinese user/development/API documentation.',
-  '.claude': 'Legacy assistant folder containing runtime AI skills and planning notes.',
-  '.codex': 'Codex-native cache, guidance, and generated skill mirrors.',
+  '.codex': 'Codex-native cache, guidance, and the runtime AI skill catalog.',
   '.kiro': 'Legacy Kiro steering notes for AI features.',
   '.idea': 'IDE metadata with low architectural value.',
 };
@@ -25,7 +24,7 @@ const KEY_FILE_DESCRIPTIONS = {
   'tailwind.config.ts': 'Tailwind theme configuration.',
   'lib/db.ts': 'SQLite connection, schema bootstrap, light migrations, indexes, and prepared statements.',
   'lib/auth.ts': 'NextAuth credentials configuration and session helpers.',
-  'lib/skills.ts': 'Reads and writes runtime AI skills from .claude/skills.',
+  'lib/skills.ts': 'Reads and writes runtime AI skills from .codex/skills.',
   'lib/fetchers.ts': 'Subscription source fetchers and content normalization helpers.',
   'lib/xapi.ts': 'X/Twitter API integration and media upload helpers.',
   'lib/i18n.ts': 'Localization strings and locale helpers.',
@@ -197,7 +196,7 @@ function parseDbMetadata() {
 }
 
 function parseSkills() {
-  const base = path.join(root, '.claude', 'skills');
+  const base = path.join(root, '.codex', 'skills');
   if (!fs.existsSync(base)) return [];
   return fs.readdirSync(base, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(base, entry.name, 'SKILL.md')))
@@ -250,7 +249,6 @@ const componentFiles = listFiles('components', (file) => file.endsWith('.ts') ||
 const libFiles = listFiles('lib', (file) => file.endsWith('.ts') || file.endsWith('.tsx'));
 const testFiles = listFiles('tests', (file) => file.endsWith('.test.ts') || file.endsWith('.test.tsx'));
 const docsFiles = listFiles('docs', (file) => file.endsWith('.md'));
-const claudePlanFiles = listFiles('.claude/plans');
 const ideaFiles = listFiles('.idea');
 const kiroFiles = listFiles('.kiro');
 const skills = parseSkills();
@@ -292,7 +290,7 @@ const cache = {
     testing: 'Vitest',
   },
   scripts: pkg.scripts,
-  directories: ['app', 'components', 'lib', 'tests', 'docs', '.claude', '.codex', '.kiro', '.idea']
+  directories: ['app', 'components', 'lib', 'tests', 'docs', '.codex', '.kiro', '.idea']
     .filter((dir) => fs.existsSync(path.join(root, dir)))
     .map((dir) => ({ path: dir, description: describeDirectory(dir) })),
   keyFiles,
@@ -306,11 +304,10 @@ const cache = {
   },
   database: db,
   ai: {
-    runtimeSkillLoader: 'lib/skills.ts reads and writes .claude/skills/*/SKILL.md',
-    codexSkillMirror: '.codex/skills/* is generated from .claude/skills via npm run codex:skills',
+    runtimeSkillLoader: 'lib/skills.ts reads and writes .codex/skills/*/SKILL.md',
+    codexSkillsDir: '.codex/skills/* is the single source of truth for runtime and Codex skill discovery',
     skills,
     legacy: {
-      claudePlanFiles,
       kiroFiles,
       ideaFiles,
     },
@@ -331,7 +328,7 @@ Generated: ${generatedAt}
 - Name: \`${cache.project.name}\`
 - Stack: Next.js 14 App Router, TypeScript, SQLite, Tailwind CSS, Vitest
 - Package manager: \`${cache.project.packageManager}\`
-- Primary runtime skill source: \`.claude/skills\`
+- Primary runtime skill source: \`.codex/skills\`
 - Cache refresh command: \`npm run codex:cache\`
 
 ## Main Directories
@@ -364,7 +361,6 @@ ${skills.map((skill) => `- \`${skill.id}\`: ${skill.description || 'No descripti
 
 ## Legacy Assistant Assets
 
-- Claude plan files: ${claudePlanFiles.length}
 - Kiro files: ${kiroFiles.length}
 - IDEA files: ${ideaFiles.length}
 
@@ -375,8 +371,7 @@ ${skills.map((skill) => `- \`${skill.id}\`: ${skill.description || 'No descripti
 
 ## Notes
 
-- \`.claude/skills/\` remains part of the application runtime contract through \`lib/skills.ts\`.
-- \`.codex/skills/\` contains generated Codex-native mirrors of the runtime skills.
+- \`.codex/skills/\` is both the application runtime skill source and the Codex skill catalog.
 - \`.idea/\` is tracked only as provenance; it is not treated as meaningful architecture memory.
 - Read \`.codex/cache/legacy-summary.md\` if a task mentions Claude, Kiro, or IDE migration details.
 `;

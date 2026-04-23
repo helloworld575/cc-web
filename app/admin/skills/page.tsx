@@ -4,8 +4,8 @@ import {
   formatSkillPath,
   groupSkillSummaries,
   matchSkillSummary,
-  type Skill,
-  type SkillSummary,
+  type InvocableSkill,
+  type InvocableSkillSummary,
 } from '@/lib/skill-taxonomy';
 
 interface SkillEditorState {
@@ -52,7 +52,7 @@ const EMPTY_EDITOR: SkillEditorState = {
   },
 };
 
-function toEditorState(skill: Skill): SkillEditorState {
+function toEditorState(skill: InvocableSkill): SkillEditorState {
   return {
     id: skill.id,
     name: skill.name,
@@ -77,7 +77,7 @@ function toEditorState(skill: Skill): SkillEditorState {
 }
 
 export default function AdminSkillsPage() {
-  const [skills, setSkills] = useState<SkillSummary[]>([]);
+  const [skills, setSkills] = useState<InvocableSkillSummary[]>([]);
   const [editing, setEditing] = useState<SkillEditorState | null>(null);
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
@@ -95,7 +95,7 @@ export default function AdminSkillsPage() {
     loadSkills().catch(() => {});
   }, []);
 
-  async function startEdit(summary: SkillSummary) {
+  async function startEdit(summary: InvocableSkillSummary) {
     setLoadingId(summary.id);
     setError('');
 
@@ -107,7 +107,7 @@ export default function AdminSkillsPage() {
         return;
       }
 
-      const detail = await response.json() as Skill;
+      const detail = await response.json() as InvocableSkill;
       setEditing(toEditorState(detail));
     } finally {
       setLoadingId(null);

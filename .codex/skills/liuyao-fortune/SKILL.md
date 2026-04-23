@@ -1,10 +1,9 @@
 ---
 name: liuyao-fortune
-description: "Analyze Liu Yao or I Ching divination results. Use when Codex needs 六爻, 易经占卜, 卦象 interpretation, or related fortune analysis."
+description: >-
+  Analyze Liu Yao or I Ching divination results. Use when Codex needs 六爻, 易经占卜,
+  卦象 interpretation, or related fortune analysis.
 ---
-
-This skill mirrors `.claude/skills/liuyao-fortune` for Codex. Keep `.claude/skills/liuyao-fortune/SKILL.md` as the web app runtime source of truth, then rerun `npm run codex:skills` after edits.
-
 # 周易六爻占卜
 
 ## 收集信息
@@ -20,9 +19,9 @@ This skill mirrors `.claude/skills/liuyao-fortune` for Codex. Keep `.claude/skil
 
 ```bash
 # 随机
-node /Users/bytedance/claude_place/my-site/.claude/skills/liuyao-fortune/scripts/calc.js random
+node /Users/bytedance/claude_place/my-site/.codex/skills/liuyao-fortune/scripts/calc.js random
 # 时间
-node /Users/bytedance/claude_place/my-site/.claude/skills/liuyao-fortune/scripts/calc.js time <year> <month> <day> <hour>
+node /Users/bytedance/claude_place/my-site/.codex/skills/liuyao-fortune/scripts/calc.js time <year> <month> <day> <hour>
 ```
 
 ## 展示卦象
