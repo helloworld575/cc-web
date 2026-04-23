@@ -26,6 +26,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy standalone output
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/.codex ./.codex
 COPY --from=builder /app/public ./public
 
 # Copy content (blog posts etc.) from build stage
@@ -33,7 +34,7 @@ COPY --from=builder /app/content ./content
 
 # Data & uploads dirs — will be mounted as volumes in production
 RUN mkdir -p data uploads .next/cache .next/server && \
-    chown -R nextjs:nodejs data uploads content .next
+    chown -R nextjs:nodejs data uploads content .next .codex
 
 USER nextjs
 

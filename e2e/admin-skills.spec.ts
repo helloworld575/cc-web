@@ -9,4 +9,8 @@ test('admin skills finder resolves grouped skill metadata', async ({ page }) => 
   await page.getByTestId('admin-skills-search').fill('article faq');
   await expect(page.getByText('article-faq')).toBeVisible();
   await expect(page.getByText('content / article / faq')).toBeVisible();
+
+  await page.getByTestId('admin-skills-search').fill('find skills');
+  await expect(page.getByText('find-skills')).toBeVisible();
+  await expect(page.getByText('agent / skills / discovery')).toBeVisible();
 });

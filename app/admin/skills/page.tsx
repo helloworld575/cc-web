@@ -3,9 +3,10 @@ import { useDeferredValue, useEffect, useState } from 'react';
 import {
   formatSkillPath,
   groupSkillSummaries,
+  isInvocableSkillSummary,
   matchSkillSummary,
   type InvocableSkill,
-  type InvocableSkillSummary,
+  type SkillSummary,
 } from '@/lib/skill-taxonomy';
 
 interface SkillEditorState {
@@ -77,8 +78,9 @@ function toEditorState(skill: InvocableSkill): SkillEditorState {
 }
 
 export default function AdminSkillsPage() {
-  const [skills, setSkills] = useState<InvocableSkillSummary[]>([]);
+  const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [editing, setEditing] = useState<SkillEditorState | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<SkillSummary | null>(null);
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const [error, setError] = useState('');
@@ -86,7 +88,7 @@ export default function AdminSkillsPage() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   async function loadSkills() {
-    const response = await fetch('/api/skills');
+    const response = await fetch('/api/skills?catalog=all');
     if (!response.ok) return;
     setSkills(await response.json());
   }
@@ -95,9 +97,16 @@ export default function AdminSkillsPage() {
     loadSkills().catch(() => {});
   }, []);
 
-  async function startEdit(summary: InvocableSkillSummary) {
+  async function startEdit(summary: SkillSummary) {
+    setSelectedSkill(summary);
     setLoadingId(summary.id);
     setError('');
+
+    if (!isInvocableSkillSummary(summary)) {
+      setEditing(null);
+      setLoadingId(null);
+      return;
+    }
 
     try {
       const response = await fetch(`/api/skills/${summary.id}`);
@@ -116,6 +125,7 @@ export default function AdminSkillsPage() {
 
   function startNew() {
     setEditing({ ...EMPTY_EDITOR });
+    setSelectedSkill(null);
     setError('');
   }
 
@@ -154,6 +164,7 @@ export default function AdminSkillsPage() {
     await loadSkills();
     setSaved(true);
     setEditing(null);
+    setSelectedSkill(null);
     window.setTimeout(() => setSaved(false), 2000);
   }
 
@@ -163,6 +174,7 @@ export default function AdminSkillsPage() {
 
     setSkills(current => current.filter(skill => skill.id !== id));
     if (editing?.id === id) setEditing(null);
+    if (selectedSkill?.id === id) setSelectedSkill(null);
   }
 
   const filteredSkills = skills.filter(skill => matchSkillSummary(skill, deferredQuery));
@@ -228,7 +240,7 @@ export default function AdminSkillsPage() {
                             ? 'bg-white/15 text-white/75'
                             : 'bg-slate-200 text-slate-500'
                         }`}>
-                          {loadingId === skill.id ? 'Loading' : skill.output}
+                          {loadingId === skill.id ? 'Loading' : skill.invocable ? skill.output : 'Guide'}
                         </span>
                       </div>
                     </button>
@@ -457,6 +469,33 @@ export default function AdminSkillsPage() {
                     Save
                   </button>
                 </div>
+              </div>
+            </div>
+          ) : selectedSkill ? (
+            <div className="flex min-h-[720px] items-center justify-center rounded-[28px] border border-white/70 bg-white/90 px-6 py-10">
+              <div className="w-full max-w-2xl">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    {selectedSkill.invocable ? selectedSkill.output : 'Guide'}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    {formatSkillPath(selectedSkill)}
+                  </span>
+                </div>
+                <p className="mt-5 text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">Skill</p>
+                <h2 className="mt-2 font-display text-4xl text-slate-950">{selectedSkill.name}</h2>
+                <p className="mt-4 text-sm leading-7 text-slate-600">{selectedSkill.description}</p>
+
+                <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Invoke path</p>
+                  <p className="mt-2 font-mono text-sm text-slate-700">{selectedSkill.lookup.invoke}</p>
+                </div>
+
+                {!selectedSkill.invocable && (
+                  <div className="mt-6 rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-7 text-amber-800">
+                    This skill is part of the Codex catalog, but it does not expose an app prompt contract. It is visible here for discovery and hierarchy review, while the editor remains limited to invocable web-app skills.
+                  </div>
+                )}
               </div>
             </div>
           ) : (
