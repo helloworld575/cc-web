@@ -40,4 +40,12 @@ test('admin skills finder resolves grouped skill metadata', async ({ page }) => 
   await page.getByRole('button', { name: /find-skills/i }).click();
   await expect(page.getByTestId('admin-skill-id')).toHaveValue('find-skills');
   await expect(page.getByTestId('admin-skill-body')).toBeVisible();
+
+  await page.getByTestId('admin-skills-search').fill('content router');
+  await expect(page.getByText('content-router')).toBeVisible();
+  await page.getByRole('button', { name: /content-router/i }).click();
+  await expect(page.getByTestId('admin-skill-role')).toHaveValue('router');
+  await expect(page.getByTestId('admin-skill-mode')).toHaveValue('route');
+  await expect(page.getByTestId('admin-skill-route-skill-0')).toHaveValue('article-faq');
+  await expect(page.getByTestId('admin-skill-route-when-0')).toHaveValue(/FAQ/i);
 });

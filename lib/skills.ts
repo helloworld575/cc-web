@@ -5,8 +5,12 @@ import type {
   InvocableSkill,
   InvocableSkillSummary,
   Skill,
+  SkillExecutionMode,
   SkillHierarchy,
   SkillLookup,
+  SkillOrchestration,
+  SkillOrchestrationChild,
+  SkillOrchestrationRole,
   SkillSummary,
 } from '@/lib/skill-taxonomy';
 import { getRuntimePaths } from '@/lib/runtime-paths';
@@ -33,6 +37,11 @@ type SkillFrontmatter = Record<string, unknown> & {
   invoke?: string;
   aliases?: string[] | string;
   keywords?: string[] | string;
+  orchestration?: Partial<SkillOrchestration> & {
+    role?: SkillOrchestrationRole | string;
+    mode?: SkillExecutionMode | string;
+    children?: Array<Partial<SkillOrchestrationChild> | string> | string;
+  };
 };
 
 type SkillDraft = Partial<Skill> & Pick<Skill, 'id' | 'name' | 'description'>;
@@ -113,6 +122,48 @@ function normalize(value: string) {
 
 function asBoolean(value: unknown) {
   return typeof value === 'boolean' ? value : undefined;
+}
+
+function asExecutionMode(value: unknown): SkillExecutionMode | undefined {
+  return value === 'direct'
+    || value === 'route'
+    || value === 'hybrid'
+    || value === 'reference'
+    ? value
+    : undefined;
+}
+
+function asOrchestrationRole(value: unknown): SkillOrchestrationRole | undefined {
+  return value === 'root'
+    || value === 'router'
+    || value === 'leaf'
+    ? value
+    : undefined;
+}
+
+function asOrchestrationChildren(value: unknown): SkillOrchestrationChild[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        const skill = entry.trim();
+        if (!skill) return null;
+        return { skill, when: '', mode: 'reference' as SkillExecutionMode };
+      }
+
+      if (!entry || typeof entry !== 'object') return null;
+      const child = entry as Partial<SkillOrchestrationChild>;
+      const skill = asString(child.skill);
+      if (!skill) return null;
+
+      return {
+        skill,
+        when: asString(child.when),
+        mode: asExecutionMode(child.mode) ?? 'reference',
+      };
+    })
+    .filter((entry): entry is SkillOrchestrationChild => entry !== null);
 }
 
 function inferHierarchy(id: string, frontmatter: SkillFrontmatter): SkillHierarchy {
@@ -209,6 +260,22 @@ function inferLookup(id: string, frontmatter: SkillFrontmatter, hierarchy: Skill
   return { invoke, aliases, keywords };
 }
 
+function inferOrchestration(frontmatter: SkillFrontmatter, invocable: boolean): SkillOrchestration {
+  const explicitChildren = asOrchestrationChildren(frontmatter.orchestration?.children);
+  const role = asOrchestrationRole(frontmatter.orchestration?.role)
+    ?? (explicitChildren.length > 0 ? 'router' : 'leaf');
+  const mode = asExecutionMode(frontmatter.orchestration?.mode)
+    ?? (explicitChildren.length > 0
+      ? (invocable ? 'hybrid' : 'route')
+      : (invocable ? 'direct' : 'reference'));
+
+  return {
+    role,
+    mode,
+    children: explicitChildren,
+  };
+}
+
 function sortSkills(skills: SkillSummary[]) {
   return skills.sort((left, right) => {
     if (left.hierarchy.order !== right.hierarchy.order) {
@@ -241,6 +308,7 @@ function parseSkillMd(id: string, includeDetail = false): Skill | SkillSummary |
 
   const hierarchy = inferHierarchy(id, frontmatter);
   const lookup = inferLookup(id, frontmatter, hierarchy);
+  const orchestration = inferOrchestration(frontmatter, invocable);
 
   const summary: SkillSummary = {
     id,
@@ -252,6 +320,7 @@ function parseSkillMd(id: string, includeDetail = false): Skill | SkillSummary |
     output: output || undefined,
     hierarchy,
     lookup,
+    orchestration,
   };
 
   if (!includeDetail) return summary;
@@ -294,6 +363,9 @@ function scoreSkillReference(summary: SkillSummary, reference: string) {
     ...summary.lookup.aliases,
     ...summary.lookup.keywords,
     ...summary.hierarchy.path,
+    summary.orchestration.role,
+    summary.orchestration.mode,
+    ...summary.orchestration.children.flatMap(child => [child.skill, child.when, child.mode]),
   ].filter(Boolean) as string[];
 
   const normalizedCorpus = normalize(corpus.join(' '));
@@ -377,6 +449,21 @@ export function saveSkill(skill: SkillDraft) {
   const invocable = skill.invocable ?? Boolean(skill.prompt && skill.output);
   const hierarchy = inferHierarchy(skill.id, draft);
   const lookup = inferLookup(skill.id, draft, hierarchy);
+  const orchestration = (() => {
+    const role = asOrchestrationRole(skill.orchestration?.role)
+      ?? asOrchestrationRole((existingFrontmatter as SkillFrontmatter).orchestration?.role)
+      ?? 'leaf';
+    const children = asOrchestrationChildren(skill.orchestration?.children ?? (existingFrontmatter as SkillFrontmatter).orchestration?.children);
+    const mode = asExecutionMode(skill.orchestration?.mode)
+      ?? asExecutionMode((existingFrontmatter as SkillFrontmatter).orchestration?.mode)
+      ?? (children.length > 0 ? (invocable ? 'hybrid' : 'route') : (invocable ? 'direct' : 'reference'));
+
+    return {
+      role,
+      mode,
+      children,
+    } satisfies SkillOrchestration;
+  })();
 
   const frontmatter: Record<string, unknown> = {
     ...existingFrontmatter,
@@ -385,6 +472,7 @@ export function saveSkill(skill: SkillDraft) {
     invocable,
     hierarchy,
     lookup,
+    orchestration,
   };
 
   if (skill.name_zh) frontmatter.name_zh = skill.name_zh;

@@ -4,9 +4,17 @@ import {
   formatSkillPath,
   groupSkillSummaries,
   matchSkillSummary,
+  type SkillExecutionMode,
+  type SkillOrchestrationRole,
   type Skill,
   type SkillSummary,
 } from '@/lib/skill-taxonomy';
+
+interface SkillRouteEditorState {
+  skill: string;
+  when: string;
+  mode: SkillExecutionMode;
+}
 
 interface SkillEditorState {
   id: string;
@@ -29,6 +37,11 @@ interface SkillEditorState {
     invoke: string;
     aliases: string;
     keywords: string;
+  };
+  orchestration: {
+    role: SkillOrchestrationRole;
+    mode: SkillExecutionMode;
+    children: SkillRouteEditorState[];
   };
 }
 
@@ -54,7 +67,20 @@ const EMPTY_EDITOR: SkillEditorState = {
     aliases: '',
     keywords: '',
   },
+  orchestration: {
+    role: 'leaf',
+    mode: 'direct',
+    children: [],
+  },
 };
+
+function createEmptyRoute(): SkillRouteEditorState {
+  return {
+    skill: '',
+    when: '',
+    mode: 'reference',
+  };
+}
 
 function toEditorState(skill: Skill): SkillEditorState {
   return {
@@ -78,6 +104,15 @@ function toEditorState(skill: Skill): SkillEditorState {
       invoke: skill.lookup.invoke,
       aliases: skill.lookup.aliases.join(', '),
       keywords: skill.lookup.keywords.join(', '),
+    },
+    orchestration: {
+      role: skill.orchestration.role,
+      mode: skill.orchestration.mode,
+      children: skill.orchestration.children.map(child => ({
+        skill: child.skill,
+        when: child.when,
+        mode: child.mode,
+      })),
     },
   };
 }
@@ -153,6 +188,17 @@ export default function AdminSkillsPage() {
           aliases: editing.lookup.aliases,
           keywords: editing.lookup.keywords,
         },
+        orchestration: {
+          role: editing.orchestration.role,
+          mode: editing.orchestration.mode,
+          children: editing.orchestration.children
+            .map(child => ({
+              skill: child.skill.trim(),
+              when: child.when.trim(),
+              mode: child.mode,
+            }))
+            .filter(child => child.skill.length > 0),
+        },
       }),
     });
 
@@ -180,6 +226,7 @@ export default function AdminSkillsPage() {
   const filteredSkills = skills.filter(skill => matchSkillSummary(skill, deferredQuery));
   const groups = groupSkillSummaries(filteredSkills);
   const editingExistingSkill = editing ? skills.some(skill => skill.id === editing.id) : false;
+  const skillIds = skills.map(skill => skill.id);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
@@ -232,7 +279,7 @@ export default function AdminSkillsPage() {
                           ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                           : 'border-slate-200 bg-slate-50 text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-sm'
                       }`}
-                    >
+                      >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold">{skill.name}</p>
@@ -242,6 +289,22 @@ export default function AdminSkillsPage() {
                           <p className={`mt-2 text-[11px] font-medium uppercase tracking-[0.18em] ${activeSkillId === skill.id ? 'text-white/45' : 'text-slate-400'}`}>
                             {formatSkillPath(skill)}
                           </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                              activeSkillId === skill.id
+                                ? 'bg-white/10 text-white/75'
+                                : 'bg-violet-100 text-violet-700'
+                            }`}>
+                              {skill.orchestration.role}
+                            </span>
+                            <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                              activeSkillId === skill.id
+                                ? 'bg-white/10 text-white/75'
+                                : 'bg-slate-200 text-slate-500'
+                            }`}>
+                              {skill.orchestration.mode}
+                            </span>
+                          </div>
                         </div>
                         <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
                           activeSkillId === skill.id
@@ -279,6 +342,12 @@ export default function AdminSkillsPage() {
                 }`}>
                   {editing.invocable ? 'Invocable app skill' : 'Catalog guide'}
                 </span>
+                <span className="rounded-full bg-violet-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                  {editing.orchestration.role}
+                </span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+                  {editing.orchestration.mode}
+                </span>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                   {editing.hierarchy.domain || 'domain'} / {editing.hierarchy.category || 'category'} / {editing.hierarchy.subcategory || 'subcategory'}
                 </span>
@@ -297,9 +366,26 @@ export default function AdminSkillsPage() {
                 </label>
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Type</span>
-                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
-                    {editing.invocable ? 'Invocable skill' : 'Guide skill'}
-                  </div>
+                  <select
+                    value={editing.invocable ? 'invocable' : 'guide'}
+                    onChange={(event) => {
+                      const invocable = event.target.value === 'invocable';
+                      setEditing({
+                        ...editing,
+                        invocable,
+                        orchestration: {
+                          ...editing.orchestration,
+                          mode: editing.orchestration.children.length > 0
+                            ? (invocable ? 'hybrid' : 'route')
+                            : (invocable ? 'direct' : 'reference'),
+                        },
+                      });
+                    }}
+                    className="w-full rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                  >
+                    <option value="invocable">Invocable skill</option>
+                    <option value="guide">Guide / router skill</option>
+                  </select>
                 </label>
               </div>
 
@@ -448,6 +534,192 @@ export default function AdminSkillsPage() {
                       placeholder="article, q&a, blog"
                     />
                   </label>
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-white/70 bg-white/90 px-4 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Orchestration</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      Root and router skills can hand off to more specific skills. Keep leaf skills direct when the web app or agent should execute them immediately.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditing({
+                      ...editing,
+                      orchestration: {
+                        ...editing.orchestration,
+                        role: editing.orchestration.role === 'leaf' ? 'router' : editing.orchestration.role,
+                        mode: editing.invocable ? 'hybrid' : 'route',
+                        children: [...editing.orchestration.children, createEmptyRoute()],
+                      },
+                    })}
+                    className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 transition hover:bg-slate-100"
+                  >
+                    Add route
+                  </button>
+                </div>
+
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-medium text-slate-500">Role</span>
+                    <select
+                      data-testid="admin-skill-role"
+                      value={editing.orchestration.role}
+                      onChange={(event) => {
+                        const role = event.target.value as SkillOrchestrationRole;
+                        setEditing({
+                          ...editing,
+                          orchestration: {
+                            ...editing.orchestration,
+                            role,
+                            mode: role === 'leaf' && editing.orchestration.children.length === 0
+                              ? (editing.invocable ? 'direct' : 'reference')
+                              : editing.orchestration.mode,
+                          },
+                        });
+                      }}
+                      className="w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
+                    >
+                      <option value="root">root</option>
+                      <option value="router">router</option>
+                      <option value="leaf">leaf</option>
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-medium text-slate-500">Mode</span>
+                    <select
+                      data-testid="admin-skill-mode"
+                      value={editing.orchestration.mode}
+                      onChange={(event) => setEditing({
+                        ...editing,
+                        orchestration: {
+                          ...editing.orchestration,
+                          mode: event.target.value as SkillExecutionMode,
+                        },
+                      })}
+                      className="w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
+                    >
+                      <option value="direct">direct</option>
+                      <option value="route">route</option>
+                      <option value="hybrid">hybrid</option>
+                      <option value="reference">reference</option>
+                    </select>
+                  </label>
+                </div>
+
+                <datalist id="admin-skill-route-options">
+                  {skillIds.map(id => (
+                    <option key={id} value={id} />
+                  ))}
+                </datalist>
+
+                <div className="mt-4 space-y-4">
+                  {editing.orchestration.children.length === 0 && (
+                    <div className="rounded-[20px] border border-dashed border-slate-200 bg-slate-50/80 px-4 py-4 text-sm text-slate-500">
+                      No child routes configured yet.
+                    </div>
+                  )}
+
+                  {editing.orchestration.children.map((child, index) => (
+                    <div key={`${index}-${child.skill || 'route'}`} className="rounded-[22px] border border-slate-200 bg-slate-50/90 px-4 py-4">
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,180px)_minmax(0,1fr)_160px_auto]">
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-medium text-slate-500">Skill</span>
+                          <input
+                            list="admin-skill-route-options"
+                            data-testid={`admin-skill-route-skill-${index}`}
+                            value={child.skill}
+                            onChange={(event) => setEditing({
+                              ...editing,
+                              orchestration: {
+                                ...editing.orchestration,
+                                children: editing.orchestration.children.map((entry, entryIndex) => (
+                                  entryIndex === index
+                                    ? { ...entry, skill: event.target.value }
+                                    : entry
+                                )),
+                              },
+                            })}
+                            className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-mono text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                            placeholder="article-faq"
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-medium text-slate-500">When to use it</span>
+                          <input
+                            data-testid={`admin-skill-route-when-${index}`}
+                            value={child.when}
+                            onChange={(event) => setEditing({
+                              ...editing,
+                              orchestration: {
+                                ...editing.orchestration,
+                                children: editing.orchestration.children.map((entry, entryIndex) => (
+                                  entryIndex === index
+                                    ? { ...entry, when: event.target.value }
+                                    : entry
+                                )),
+                              },
+                            })}
+                            className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                            placeholder="Use when the user needs an FAQ section for an article."
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="mb-2 block text-xs font-medium text-slate-500">Child mode</span>
+                          <select
+                            data-testid={`admin-skill-route-mode-${index}`}
+                            value={child.mode}
+                            onChange={(event) => setEditing({
+                              ...editing,
+                              orchestration: {
+                                ...editing.orchestration,
+                                children: editing.orchestration.children.map((entry, entryIndex) => (
+                                  entryIndex === index
+                                    ? { ...entry, mode: event.target.value as SkillExecutionMode }
+                                    : entry
+                                )),
+                              },
+                            })}
+                            className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+                          >
+                            <option value="direct">direct</option>
+                            <option value="route">route</option>
+                            <option value="hybrid">hybrid</option>
+                            <option value="reference">reference</option>
+                          </select>
+                        </label>
+
+                        <div className="flex items-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const children = editing.orchestration.children.filter((_, entryIndex) => entryIndex !== index);
+                              setEditing({
+                                ...editing,
+                                orchestration: {
+                                  ...editing.orchestration,
+                                  children,
+                                  role: children.length === 0 && editing.orchestration.role !== 'root' ? 'leaf' : editing.orchestration.role,
+                                  mode: children.length === 0
+                                    ? (editing.invocable ? 'direct' : 'reference')
+                                    : editing.orchestration.mode,
+                                },
+                              });
+                            }}
+                            className="w-full rounded-full border border-red-200 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-red-600 transition hover:bg-red-50"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

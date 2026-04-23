@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-04-23T06:25:23.907Z
+Generated: 2026-04-23T18:36:43.296Z
 
 ## Snapshot
 
@@ -108,9 +108,10 @@ Generated: 2026-04-23T06:25:23.907Z
 - Simple migrations: `todos.deadline`, `files.album_id`
 - Prepared statements: `countFiles`, `listFiles`, `insertFile`, `listFortune`, `insertFortune`, `getFortune`, `deleteFortune`, `listProviders`, `getProvider`, `insertProvider`, `updateProvider`, `deleteProvider`, `clearDefaultProvider`, `listChats`, `listChatsByProvider`, `getChat`, `insertChat`, `updateChat`, `deleteChat`
 
-## AI Skills (42)
+## AI Skills (49)
 
 - `agent-browser`: >-
+- `agent-router`: >-
 - `arming-thought`: >
 - `article-brief`: Generate a short excerpt or summary teaser for a blog post.
 - `article-faq`: Generate a reader-facing FAQ section for an article.
@@ -121,15 +122,19 @@ Generated: 2026-04-23T06:25:23.907Z
 - `article-translate-en`: Translate Chinese article content into natural English.
 - `bazi-fortune`: BaZi / Four Pillars fortune analysis skill with helper scripts. Includes scripts.
 - `blog-to-x`: Convert long-form blog or diary content into X/Twitter posts or threads. Includes references.
+- `business-router`: >-
 - `company-values`: >-
 - `concentrate-forces`: >
+- `content-router`: >-
 - `contradiction-analysis`: >
 - `criticism-self-criticism`: >
 - `find-community`: >-
 - `find-skills`: >-
 - `first-customers`: >-
+- `fortune-router`: >-
 - `grow-sustainably`: >-
 - `investigation-first`: >
+- `knowledge-router`: >-
 - `liuyao-fortune`: Liu Yao / I Ching divination skill with helper scripts. Includes scripts.
 - `marketing-plan`: >-
 - `mass-line`: >
@@ -144,7 +149,9 @@ Generated: 2026-04-23T06:25:23.907Z
 - `protracted-strategy`: >
 - `research`: >
 - `skill-creator`: >- Includes scripts. Includes references.
+- `skill-tree-root`: >-
 - `spark-prairie-fire`: >
+- `strategy-router`: >-
 - `subscription`: Summarize the latest updates from subscribed sources such as blogs, GitHub, X, RSS, or Reddit. Includes scripts. Includes references.
 - `summarize`: >-
 - `tmux`: >- Includes scripts.
@@ -160,7 +167,7 @@ Generated: 2026-04-23T06:25:23.907Z
 
 ## Tests
 
-- API and helper test files: 27
+- API and helper test files: 29
 - Examples: `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai/route.test.ts`, `tests/api/bazi/route.test.ts`, `tests/api/blog/route.test.ts`, `tests/api/blog/slug.test.ts`
 
 ## Notes

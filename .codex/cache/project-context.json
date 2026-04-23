@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-23T06:25:23.907Z",
+  "generatedAt": "2026-04-23T18:36:43.296Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -492,6 +492,16 @@
         "hasReferences": false
       },
       {
+        "id": "agent-router",
+        "name": "agent-router",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
         "id": "arming-thought",
         "name": "arming-thought",
         "description": ">",
@@ -592,6 +602,16 @@
         "hasReferences": true
       },
       {
+        "id": "business-router",
+        "name": "business-router",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
         "id": "company-values",
         "name": "company-values",
         "description": ">-",
@@ -605,6 +625,16 @@
         "id": "concentrate-forces",
         "name": "concentrate-forces",
         "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "content-router",
+        "name": "content-router",
+        "description": ">-",
         "hasSystem": false,
         "hasPrompt": false,
         "output": null,
@@ -662,6 +692,16 @@
         "hasReferences": false
       },
       {
+        "id": "fortune-router",
+        "name": "fortune-router",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
         "id": "grow-sustainably",
         "name": "grow-sustainably",
         "description": ">-",
@@ -675,6 +715,16 @@
         "id": "investigation-first",
         "name": "investigation-first",
         "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "knowledge-router",
+        "name": "knowledge-router",
+        "description": ">-",
         "hasSystem": false,
         "hasPrompt": false,
         "output": null,
@@ -822,9 +872,29 @@
         "hasReferences": true
       },
       {
+        "id": "skill-tree-root",
+        "name": "skill-tree-root",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
         "id": "spark-prairie-fire",
         "name": "spark-prairie-fire",
         "description": ">",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "strategy-router",
+        "name": "strategy-router",
+        "description": ">-",
         "hasSystem": false,
         "hasPrompt": false,
         "output": null,
@@ -943,9 +1013,11 @@
       "tests/api/todos/route.test.ts",
       "tests/api/uploads/route.test.ts",
       "tests/api/x-post/route.test.ts",
+      "tests/config/dockerfile.test.ts",
       "tests/lib/auth.test.ts",
-      "tests/lib/runtime-paths.test.ts"
+      "tests/lib/runtime-paths.test.ts",
+      "tests/lib/skill-taxonomy.test.ts"
     ],
-    "count": 27
+    "count": 29
   }
 }

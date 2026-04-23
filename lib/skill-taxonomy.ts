@@ -6,6 +6,21 @@ export interface SkillHierarchy {
   order: number;
 }
 
+export type SkillOrchestrationRole = 'root' | 'router' | 'leaf';
+export type SkillExecutionMode = 'direct' | 'route' | 'hybrid' | 'reference';
+
+export interface SkillOrchestrationChild {
+  skill: string;
+  when: string;
+  mode: SkillExecutionMode;
+}
+
+export interface SkillOrchestration {
+  role: SkillOrchestrationRole;
+  mode: SkillExecutionMode;
+  children: SkillOrchestrationChild[];
+}
+
 export interface SkillLookup {
   invoke: string;
   aliases: string[];
@@ -22,6 +37,7 @@ export interface SkillSummary {
   output?: string;
   hierarchy: SkillHierarchy;
   lookup: SkillLookup;
+  orchestration: SkillOrchestration;
 }
 
 export interface Skill extends SkillSummary {
@@ -45,6 +61,17 @@ export interface SkillGroup<T extends SkillSummary = SkillSummary> {
   key: string;
   label: string;
   skills: T[];
+}
+
+export interface SkillTreeChild<T extends SkillSummary = SkillSummary> {
+  skill: T;
+  route: SkillOrchestrationChild;
+  children: SkillTreeChild<T>[];
+}
+
+export interface SkillTreeNode<T extends SkillSummary = SkillSummary> {
+  skill: T;
+  children: SkillTreeChild<T>[];
 }
 
 function normalize(value: string) {
@@ -82,6 +109,9 @@ export function matchSkillSummary(skill: SkillSummary, query: string) {
     ...skill.lookup.aliases,
     ...skill.lookup.keywords,
     ...skill.hierarchy.path,
+    skill.orchestration.role,
+    skill.orchestration.mode,
+    ...skill.orchestration.children.flatMap(child => [child.skill, child.when, child.mode]),
   ].filter(Boolean) as string[];
 
   const flattened = normalize(haystacks.join(' '));
@@ -117,6 +147,11 @@ export function groupSkillSummaries<T extends SkillSummary>(skills: T[]): SkillG
     .map(group => ({
       ...group,
       skills: group.skills.sort((left, right) => {
+        const roleRank = roleSortOrder(left.orchestration.role) - roleSortOrder(right.orchestration.role);
+        if (roleRank !== 0) {
+          return roleRank;
+        }
+
         if (left.hierarchy.order !== right.hierarchy.order) {
           return left.hierarchy.order - right.hierarchy.order;
         }
@@ -146,4 +181,67 @@ export function isInvocableSkill(skill: Skill | SkillSummary | null | undefined)
     && typeof (skill as Skill).prompt === 'string'
     && (skill as Skill).prompt!.length > 0,
   );
+}
+
+function roleSortOrder(role: SkillOrchestrationRole) {
+  switch (role) {
+    case 'root':
+      return 0;
+    case 'router':
+      return 1;
+    default:
+      return 2;
+  }
+}
+
+function compareSkillSummary(left: SkillSummary, right: SkillSummary) {
+  const roleRank = roleSortOrder(left.orchestration.role) - roleSortOrder(right.orchestration.role);
+  if (roleRank !== 0) return roleRank;
+  return left.name.localeCompare(right.name);
+}
+
+export function buildSkillOrchestrationForest<T extends SkillSummary>(skills: T[]): SkillTreeNode<T>[] {
+  const skillById = new Map(skills.map(skill => [skill.id, skill] as const));
+  const referenced = new Set<string>();
+
+  for (const skill of skills) {
+    for (const child of skill.orchestration.children) {
+      if (skillById.has(child.skill)) {
+        referenced.add(child.skill);
+      }
+    }
+  }
+
+  const explicitRoots = skills
+    .filter(skill => skill.orchestration.role === 'root')
+    .sort(compareSkillSummary);
+  const implicitRoots = skills
+    .filter(skill => skill.orchestration.role !== 'root' && !referenced.has(skill.id))
+    .sort(compareSkillSummary);
+
+  const rootSkills = [...explicitRoots, ...implicitRoots];
+
+  const buildChildren = (parent: T, ancestry: Set<string>): SkillTreeChild<T>[] => {
+    return parent.orchestration.children
+      .map((route) => {
+        const childSkill = skillById.get(route.skill);
+        if (!childSkill) return null;
+        if (ancestry.has(childSkill.id)) return null;
+
+        const childAncestry = new Set(ancestry);
+        childAncestry.add(childSkill.id);
+
+        return {
+          skill: childSkill,
+          route,
+          children: buildChildren(childSkill, childAncestry),
+        };
+      })
+      .filter((entry): entry is SkillTreeChild<T> => entry !== null);
+  };
+
+  return rootSkills.map(skill => ({
+    skill,
+    children: buildChildren(skill, new Set([skill.id])),
+  }));
 }
