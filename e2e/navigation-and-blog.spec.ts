@@ -3,7 +3,15 @@ import { login } from './helpers';
 
 test('public navigation and blog publishing flow work end to end', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'ThomasLee' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^ThomasLee's Blog$/ })).toBeVisible();
+  await expect(page.getByText('ID · thomaslee')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'zhichenli6@gmail.com' })).toHaveAttribute('href', 'mailto:zhichenli6@gmail.com');
+  await expect(page.getByRole('link', { name: 'thomaslee.site' })).toHaveAttribute('href', 'https://thomaslee.site');
+  await expect(page.getByRole('link', { name: 'helloworld575' })).toHaveAttribute('href', 'https://github.com/helloworld575');
+  await expect(page.getByText(/^Copyright © \d{4} ThomasLee$/)).toBeVisible();
+  await expect(
+    page.getByText('For copyright, attribution, privacy, or content removal requests, email the public contact address listed on this page.')
+  ).toBeVisible();
   await page.getByRole('main').getByRole('link', { name: 'Blog' }).click();
   await expect(page).toHaveURL(/\/blog/);
   await expect(page.getByText('Seeded Hello')).toBeVisible();
