@@ -24,30 +24,146 @@ type ToolTab = 'todos' | 'diary' | 'bazi' | 'ai-chat' | 'subscriptions' | 'skill
 
 const PAGE_SIZE = 10;
 
-const TAB_META = {
-  todos: {
-    eyebrow: 'Workflow',
-    description: 'Search, filter, and skim your task queue without losing the quiet rhythm of the page.',
+const TOOLS_COPY = {
+  en: {
+    workspace: 'Workspace',
+    workspaceDesc: 'A calmer command deck for daily work, diary review, divination flows, and AI collaboration.',
+    cards: [
+      ['Live', 'Streaming markdown'],
+      ['Elegant', 'More motion, less abruptness'],
+      ['Scoped', 'Skills grouped by hierarchy'],
+    ],
+    tabLabels: {
+      skills: 'Skills',
+    },
+    tabMeta: {
+      todos: {
+        eyebrow: 'Workflow',
+        description: 'Search, filter, and skim your task queue without losing the quiet rhythm of the page.',
+      },
+      diary: {
+        eyebrow: 'Archive',
+        description: 'Read back through entries in a cleaner reading surface with better spacing and calmer typography.',
+      },
+      bazi: {
+        eyebrow: 'Fortune',
+        description: 'Run divination workflows with visible generation states instead of a hard cut from empty to final text.',
+      },
+      'ai-chat': {
+        eyebrow: 'Conversation',
+        description: 'A dedicated streaming chat studio that renders markdown live while the response is still arriving.',
+      },
+      subscriptions: {
+        eyebrow: 'Digest',
+        description: 'Catch up on briefs in one place with the same visual language as the rest of the workspace.',
+      },
+      skills: {
+        eyebrow: 'Catalog',
+        description: 'Browse the full Codex skill inventory by hierarchy so you can discover the right workflow without loading every instruction into context.',
+      },
+    },
+    todos: {
+      filter: 'Filter',
+      intro: 'Narrow down your queue and scan the essentials without a cluttered table layout.',
+      visible: 'Visible',
+      visibleDesc: 'tasks after search and status filters.',
+      empty: 'Try changing the filters or add a new task from the admin panel.',
+    },
+    diary: {
+      search: 'Search',
+      intro: 'A softer reading mode for notes, sketches, and older entries that should breathe a little more.',
+      pages: 'Pages',
+      pagesDesc: 'entries match the current date or content search.',
+      empty: 'Try a broader keyword or scroll another page of entries.',
+    },
+    skills: {
+      catalog: 'Catalog',
+      heading: 'Codex skills',
+      intro: 'Search by name, invoke path, alias, or keyword. App-invocable skills stay available to the web app, while guide skills remain lightweight references for Codex to load only when needed.',
+      placeholder: 'Find by name, path, or keyword',
+      catalogDesc: 'skills indexed from `.codex/skills`.',
+      invocable: 'Invocable',
+      invocableDesc: 'skills with prompt contracts that the web app can execute directly.',
+      routers: 'Routers',
+      routersDesc: 'root or router skills that narrow the tree before loading a leaf skill.',
+      routingTree: 'Routing Tree',
+      routingTreeDesc: 'Main skills route to more specific child skills so the agent can load less context.',
+      laneSuffix: 'skills in this lane.',
+      noMatches: 'No skills matched the current search.',
+      invokePath: 'Invoke path',
+      routesTo: 'Routes To',
+      routes: 'routes',
+    },
   },
-  diary: {
-    eyebrow: 'Archive',
-    description: 'Read back through entries in a cleaner reading surface with better spacing and calmer typography.',
-  },
-  bazi: {
-    eyebrow: 'Fortune',
-    description: 'Run divination workflows with visible generation states instead of a hard cut from empty to final text.',
-  },
-  'ai-chat': {
-    eyebrow: 'Conversation',
-    description: 'A dedicated streaming chat studio that renders markdown live while the response is still arriving.',
-  },
-  subscriptions: {
-    eyebrow: 'Digest',
-    description: 'Catch up on briefs in one place with the same visual language as the rest of the workspace.',
-  },
-  skills: {
-    eyebrow: 'Catalog',
-    description: 'Browse the full Codex skill inventory by hierarchy so you can discover the right workflow without loading every instruction into context.',
+  zh: {
+    workspace: '工作台',
+    workspaceDesc: '更安静的工作台，用来处理日常任务、日记回顾、命理流程与 AI 协作。',
+    cards: [
+      ['流式', 'Markdown 实时呈现'],
+      ['顺滑', '更克制的动效与切换'],
+      ['分层', '按层级整理 skills'],
+    ],
+    tabLabels: {
+      skills: '技能',
+    },
+    tabMeta: {
+      todos: {
+        eyebrow: '流程',
+        description: '搜索、筛选并快速浏览待办，不打断页面的整体节奏。',
+      },
+      diary: {
+        eyebrow: '归档',
+        description: '用更干净的阅读面板回看日记，留出更舒服的留白与层次。',
+      },
+      bazi: {
+        eyebrow: '命理',
+        description: '命理分析过程以可见状态逐步展开，而不是从空白直接跳到结果。',
+      },
+      'ai-chat': {
+        eyebrow: '对话',
+        description: '独立的流式聊天工作区，支持 Markdown 实时渲染。',
+      },
+      subscriptions: {
+        eyebrow: '订阅',
+        description: '在统一的视觉语言下集中查看订阅摘要与更新。',
+      },
+      skills: {
+        eyebrow: '目录',
+        description: '按层级浏览完整的 Codex skill 目录，在真正需要时再加载对应上下文。',
+      },
+    },
+    todos: {
+      filter: '筛选',
+      intro: '先缩小范围，再浏览关键任务，不再被传统列表布局打断。',
+      visible: '结果',
+      visibleDesc: '条任务符合当前搜索与状态筛选。',
+      empty: '试试调整筛选条件，或者先去管理后台新增任务。',
+    },
+    diary: {
+      search: '搜索',
+      intro: '给日记和笔记一个更柔和的阅读模式，让内容本身更舒展。',
+      pages: '条目',
+      pagesDesc: '篇内容匹配当前日期或关键词搜索。',
+      empty: '试试更宽泛的关键词，或者翻到其他页查看。',
+    },
+    skills: {
+      catalog: '目录',
+      heading: 'Codex 技能',
+      intro: '可按名称、调用路径、别名或关键词检索。可执行 skill 继续服务于 Web 应用，而 guide skill 则保持轻量，只在需要时加载。',
+      placeholder: '按名称、路径或关键词查找',
+      catalogDesc: '个 skill 已从 `.codex/skills` 建立索引。',
+      invocable: '可执行',
+      invocableDesc: '个 skill 带有 prompt contract，可直接被 Web 应用调用。',
+      routers: '路由层',
+      routersDesc: '个 root 或 router skill 用来先缩小分支，再进入具体 leaf skill。',
+      routingTree: '路由树',
+      routingTreeDesc: '主 skill 会继续路由到更具体的子 skill，从而减少上下文占用。',
+      laneSuffix: '个 skill 位于这一分组。',
+      noMatches: '当前搜索没有匹配到任何 skill。',
+      invokePath: '调用路径',
+      routesTo: '路由到',
+      routes: '条路由',
+    },
   },
 } as const;
 
@@ -63,7 +179,8 @@ export default function ToolsPage() {
   const [todoPage, setTodoPage] = useState(1);
   const [diaryPage, setDiaryPage] = useState(1);
   const deferredSkillQuery = useDeferredValue(skillQuery);
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
+  const copy = TOOLS_COPY[locale];
 
   useEffect(() => {
     fetch('/api/todos').then(res => (res.ok ? res.json() : Promise.reject())).then(setTodos).catch(() => {});
@@ -86,26 +203,23 @@ export default function ToolsPage() {
   const rootSkillCount = skills.filter(skill => skill.orchestration.role === 'root').length;
   const routerSkillCount = skills.filter(skill => skill.orchestration.role === 'router').length;
   const routedSkills = filteredSkills.filter(skill => skill.orchestration.children.length > 0);
+  const tabMeta = copy.tabMeta;
 
   return (
-    <main className="relative mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
+    <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.16),transparent_40%),radial-gradient(circle_at_top_right,rgba(249,115,22,0.16),transparent_34%),radial-gradient(circle_at_center,rgba(15,23,42,0.08),transparent_62%)] blur-3xl" />
 
       <section className="glass-panel mb-8 rounded-[34px] px-6 py-7 sm:px-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Workspace</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">{copy.workspace}</p>
         <div className="mt-4 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <h1 className="font-display text-4xl text-slate-950 sm:text-5xl">{t('tools')}</h1>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-              A calmer command deck for daily work, diary review, divination flows, and AI collaboration.
+              {copy.workspaceDesc}
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              ['Live', 'Streaming markdown'],
-              ['Elegant', 'More motion, less abruptness'],
-              ['Scoped', 'Skills grouped by hierarchy'],
-            ].map(([title, subtitle], index) => (
+            {copy.cards.map(([title, subtitle], index) => (
               <div
                 key={title}
                 className="rounded-[22px] border border-white/70 bg-white/90 px-4 py-4 shadow-sm animate-slide-up"
@@ -119,24 +233,25 @@ export default function ToolsPage() {
         </div>
       </section>
 
-      <div className="mb-6 grid gap-3 md:grid-cols-6">
+      <div className="relative z-10 mb-6 grid gap-3 md:grid-cols-6">
         {([
           ['todos', t('toolsTitle')],
           ['diary', t('diary')],
           ['bazi', t('bazi')],
           ['ai-chat', t('aiChat')],
           ['subscriptions', t('subscriptions')],
-          ['skills', 'Skills'],
+          ['skills', copy.tabLabels.skills],
         ] as const).map(([id, label], index) => {
           const active = tab === id;
-          const meta = TAB_META[id];
+          const meta = tabMeta[id];
 
           return (
             <button
+              type="button"
               key={id}
               data-testid={`tools-tab-${id}`}
               onClick={() => setTab(id)}
-              className={`rounded-[26px] border px-4 py-4 text-left transition duration-300 animate-slide-up ${
+              className={`relative z-10 rounded-[26px] border px-4 py-4 text-left transition duration-300 animate-slide-up ${
                 active
                   ? 'border-slate-900 bg-slate-900 text-white shadow-xl'
                   : 'border-white/70 bg-white/82 text-slate-700 shadow-sm hover:-translate-y-1 hover:border-slate-200 hover:shadow-lg'
@@ -155,14 +270,14 @@ export default function ToolsPage() {
         })}
       </div>
 
-      <section className="glass-panel rounded-[34px] px-4 py-4 sm:px-6 sm:py-6">
+      <section className="relative z-10 glass-panel rounded-[34px] px-4 py-4 sm:px-6 sm:py-6">
         {tab === 'todos' && (
           <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
             <div className="rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.88))] p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Filter</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{copy.todos.filter}</p>
               <h2 className="mt-2 font-display text-3xl text-slate-900">{t('toolsTitle')}</h2>
               <p className="mt-3 text-sm leading-7 text-slate-500">
-                Narrow down your queue and scan the essentials without a cluttered table layout.
+                {copy.todos.intro}
               </p>
 
               <div className="mt-5 space-y-4">
@@ -188,9 +303,9 @@ export default function ToolsPage() {
                   <option value="done">{t('done')}</option>
                 </select>
                 <div className="rounded-[24px] bg-slate-950 px-4 py-4 text-white">
-                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Visible</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">{copy.todos.visible}</p>
                   <p className="mt-2 text-4xl font-semibold">{filteredTodos.length}</p>
-                  <p className="mt-2 text-sm text-white/70">tasks after search and status filters.</p>
+                  <p className="mt-2 text-sm text-white/70">{copy.todos.visibleDesc}</p>
                 </div>
               </div>
             </div>
@@ -200,7 +315,7 @@ export default function ToolsPage() {
                 <div className="flex min-h-[360px] items-center justify-center text-center text-slate-500">
                   <div>
                     <p className="font-display text-3xl text-slate-900">{t('noTodos')}</p>
-                    <p className="mt-3 text-sm text-slate-500">Try changing the filters or add a new task from the admin panel.</p>
+                    <p className="mt-3 text-sm text-slate-500">{copy.todos.empty}</p>
                   </div>
                 </div>
               ) : (
@@ -234,10 +349,10 @@ export default function ToolsPage() {
         {tab === 'diary' && (
           <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
             <div className="rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.88))] p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Search</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{copy.diary.search}</p>
               <h2 className="mt-2 font-display text-3xl text-slate-900">{t('diary')}</h2>
               <p className="mt-3 text-sm leading-7 text-slate-500">
-                A softer reading mode for notes, sketches, and older entries that should breathe a little more.
+                {copy.diary.intro}
               </p>
 
               <div className="mt-5 space-y-4">
@@ -251,9 +366,9 @@ export default function ToolsPage() {
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
                 />
                 <div className="rounded-[24px] bg-[#f8f5ef] px-4 py-4">
-                  <p className="text-xs uppercase tracking-[0.22em] text-amber-700/50">Pages</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-amber-700/50">{copy.diary.pages}</p>
                   <p className="mt-2 font-display text-4xl text-slate-900">{filteredDiary.length}</p>
-                  <p className="mt-2 text-sm text-slate-500">entries match the current date or content search.</p>
+                  <p className="mt-2 text-sm text-slate-500">{copy.diary.pagesDesc}</p>
                 </div>
               </div>
             </div>
@@ -263,7 +378,7 @@ export default function ToolsPage() {
                 <div className="flex min-h-[360px] items-center justify-center text-center text-slate-500">
                   <div>
                     <p className="font-display text-3xl text-slate-900">{t('noPosts')}</p>
-                    <p className="mt-3 text-sm text-slate-500">Try a broader keyword or scroll another page of entries.</p>
+                    <p className="mt-3 text-sm text-slate-500">{copy.diary.empty}</p>
                   </div>
                 </div>
               ) : (
@@ -297,35 +412,35 @@ export default function ToolsPage() {
         {tab === 'skills' && (
           <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
             <aside className="rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.88))] p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Catalog</p>
-              <h2 className="mt-2 font-display text-3xl text-slate-900">Codex skills</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{copy.skills.catalog}</p>
+              <h2 className="mt-2 font-display text-3xl text-slate-900">{copy.skills.heading}</h2>
               <p className="mt-3 text-sm leading-7 text-slate-500">
-                Search by name, invoke path, alias, or keyword. App-invocable skills stay available to the web app, while guide skills remain lightweight references for Codex to load only when needed.
+                {copy.skills.intro}
               </p>
 
               <input
                 data-testid="tools-skills-search"
                 value={skillQuery}
                 onChange={event => setSkillQuery(event.target.value)}
-                placeholder="Find by name, path, or keyword"
+                placeholder={copy.skills.placeholder}
                 className="mt-5 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
               />
 
               <div className="mt-5 grid gap-3">
                 <div className="rounded-[24px] bg-slate-950 px-4 py-4 text-white">
-                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">Catalog</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/45">{copy.skills.catalog}</p>
                   <p className="mt-2 text-4xl font-semibold">{skills.length}</p>
-                  <p className="mt-2 text-sm text-white/70">skills indexed from `.codex/skills`.</p>
+                  <p className="mt-2 text-sm text-white/70">{copy.skills.catalogDesc}</p>
                 </div>
                 <div className="rounded-[24px] bg-[#f8f5ef] px-4 py-4">
-                  <p className="text-xs uppercase tracking-[0.22em] text-amber-700/50">Invocable</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-amber-700/50">{copy.skills.invocable}</p>
                   <p className="mt-2 font-display text-4xl text-slate-900">{invocableSkillCount}</p>
-                  <p className="mt-2 text-sm text-slate-500">skills with prompt contracts that the web app can execute directly.</p>
+                  <p className="mt-2 text-sm text-slate-500">{copy.skills.invocableDesc}</p>
                 </div>
                 <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-4">
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Routers</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{copy.skills.routers}</p>
                   <p className="mt-2 font-display text-4xl text-slate-900">{rootSkillCount + routerSkillCount}</p>
-                  <p className="mt-2 text-sm text-slate-500">root or router skills that narrow the tree before loading a leaf skill.</p>
+                  <p className="mt-2 text-sm text-slate-500">{copy.skills.routersDesc}</p>
                 </div>
               </div>
             </aside>
@@ -336,8 +451,8 @@ export default function ToolsPage() {
                   <section className="rounded-[24px] border border-slate-100 bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(241,245,249,0.88))] px-4 py-4">
                     <div className="flex flex-col gap-1 border-b border-slate-100 pb-3 sm:flex-row sm:items-end sm:justify-between">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Routing Tree</p>
-                        <p className="mt-2 text-sm text-slate-500">Main skills route to more specific child skills so the agent can load less context.</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{copy.skills.routingTree}</p>
+                        <p className="mt-2 text-sm text-slate-500">{copy.skills.routingTreeDesc}</p>
                       </div>
                     </div>
 
@@ -359,7 +474,7 @@ export default function ToolsPage() {
                               {skill.orchestration.mode}
                             </span>
                             <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                              {skill.orchestration.children.length} routes
+                              {skill.orchestration.children.length} {copy.skills.routes}
                             </span>
                           </div>
 
@@ -382,7 +497,7 @@ export default function ToolsPage() {
                     <div className="flex flex-col gap-1 border-b border-slate-100 pb-3 sm:flex-row sm:items-end sm:justify-between">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{group.label}</p>
-                        <p className="mt-2 text-sm text-slate-500">{group.skills.length} skills in this lane.</p>
+                        <p className="mt-2 text-sm text-slate-500">{group.skills.length} {copy.skills.laneSuffix}</p>
                       </div>
                     </div>
 
@@ -417,12 +532,12 @@ export default function ToolsPage() {
                             {formatSkillPath(skill)}
                           </p>
                           <div className="mt-3 rounded-[18px] bg-slate-50 px-3 py-3">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Invoke path</p>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{copy.skills.invokePath}</p>
                             <p className="mt-1 break-all font-mono text-xs text-slate-600">{skill.lookup.invoke}</p>
                           </div>
                           {skill.orchestration.children.length > 0 && (
                             <div className="mt-3 rounded-[18px] bg-slate-50 px-3 py-3">
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Routes To</p>
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{copy.skills.routesTo}</p>
                               <p className="mt-1 text-xs leading-6 text-slate-600">
                                 {skill.orchestration.children.map(child => child.skill).join(', ')}
                               </p>
@@ -436,7 +551,7 @@ export default function ToolsPage() {
 
                 {groupedSkills.length === 0 && (
                   <div className="flex min-h-[320px] items-center justify-center rounded-[24px] border border-dashed border-slate-300 bg-slate-50/70 px-6 text-center text-sm text-slate-500">
-                    No skills matched the current search.
+                    {copy.skills.noMatches}
                   </div>
                 )}
               </div>

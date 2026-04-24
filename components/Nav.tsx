@@ -5,7 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useLocale } from '@/components/useLocale';
 
 export default function Nav() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const { locale, toggle, t } = useLocale();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -13,6 +13,8 @@ export default function Nav() {
   useEffect(() => { setMounted(true); }, []);
 
   const close = () => setOpen(false);
+  const isAuthenticated = mounted && status === 'authenticated' && Boolean(session);
+  const isLoadingSession = mounted && status === 'loading';
 
   return (
     <nav className="border-b px-4 py-3" suppressHydrationWarning>
@@ -34,14 +36,25 @@ export default function Nav() {
 
         <div className="ml-auto flex gap-3 items-center" suppressHydrationWarning>
           <div className="hidden sm:flex gap-4 items-center" suppressHydrationWarning>
-            {mounted && session ? (
+            {isAuthenticated ? (
               <>
-                <Link href="/admin/blog" suppressHydrationWarning>{t('admin')}</Link>
+                <Link
+                  href="/admin/blog"
+                  className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-400 hover:bg-slate-100"
+                  suppressHydrationWarning
+                >
+                  {t('admin')}
+                </Link>
                 <button onClick={() => signOut({ callbackUrl: '/' })} className="text-gray-500 hover:text-black" suppressHydrationWarning>{t('logout')}</button>
               </>
             ) : mounted ? (
               <Link href="/login" suppressHydrationWarning>{t('login')}</Link>
             ) : null}
+            {isLoadingSession && (
+              <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                …
+              </span>
+            )}
           </div>
           <button onClick={toggle} className="border rounded px-2 py-0.5 text-xs hover:bg-gray-100 transition-colors" suppressHydrationWarning>
             {locale === 'en' ? '中文' : 'EN'}
@@ -62,7 +75,7 @@ export default function Nav() {
           <Link href="/blog" onClick={close}>{t('blog')}</Link>
           <Link href="/tools" onClick={close}>{t('tools')}</Link>
           <Link href="/files" onClick={close}>{t('files')}</Link>
-          {session ? (
+          {isAuthenticated ? (
             <>
               <Link href="/admin/blog" onClick={close}>{t('admin')}</Link>
               <button onClick={() => { signOut({ callbackUrl: '/' }); close(); }} className="text-left text-gray-500">{t('logout')}</button>

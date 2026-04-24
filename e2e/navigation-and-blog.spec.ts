@@ -3,6 +3,16 @@ import { login } from './helpers';
 
 test('public navigation and blog publishing flow work end to end', async ({ page }) => {
   await page.goto('/');
+  const bodyLayout = await page.locator('body').evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    return {
+      display: style.display,
+      flexDirection: style.flexDirection,
+      minHeight: style.minHeight,
+    };
+  });
+  expect(bodyLayout.display).toBe('flex');
+  expect(bodyLayout.flexDirection).toBe('column');
   await expect(page.getByRole('heading', { name: /^ThomasLee's Blog$/ })).toBeVisible();
   await expect(page.getByText('ID · thomaslee')).toBeVisible();
   await expect(page.getByRole('link', { name: 'zhichenli6@gmail.com' })).toHaveAttribute('href', 'mailto:zhichenli6@gmail.com');
@@ -30,6 +40,9 @@ test('public navigation and blog publishing flow work end to end', async ({ page
   await page.getByTestId('admin-blog-editor-content').last().fill('# E2E Content\n\nThis markdown was saved during the browser flow.');
   await page.getByTestId('admin-blog-save').click();
   await expect(page.getByTestId('admin-blog-saved')).toBeVisible();
+
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: 'Admin' })).toBeVisible();
 
   await page.goto('/blog');
   await expect(page.getByText(title)).toBeVisible();

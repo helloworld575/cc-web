@@ -3,10 +3,17 @@ import { login } from './helpers';
 
 test('tools workspace covers seeded data and streaming mock flows', async ({ page }) => {
   await login(page);
-  await page.goto('/tools');
+  await page.goto('/blog');
+  await page.getByRole('link', { name: 'Tools' }).click();
+  await expect(page).toHaveURL(/\/tools/);
 
   await page.getByTestId('tools-tab-todos').click();
   await expect(page.getByText('Seeded todo from e2e runtime')).toBeVisible();
+
+  await page.getByRole('button', { name: '中文' }).click();
+  await expect(page.getByRole('heading', { name: '工具' })).toBeVisible();
+  await expect(page.getByText('更安静的工作台')).toBeVisible();
+  await expect(page.getByTestId('tools-tab-skills')).toContainText('技能');
 
   await page.getByTestId('tools-tab-diary').click();
   await expect(page.getByText('E2E diary note')).toBeVisible();

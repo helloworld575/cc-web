@@ -43,11 +43,13 @@ export const viewport: Viewport = { width: 'device-width', initialScale: 1 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className="min-h-screen flex flex-col antialiased">
         <SessionProvider>
           <Nav />
           <DeadlineAlert />
-          {children}
+          <div className="flex-1">
+            {children}
+          </div>
           <SiteFooter />
         </SessionProvider>
       </body>
