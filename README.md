@@ -199,4 +199,6 @@ See [docs/en/development.md](./docs/en/development.md#adding-an-ai-skill) for ho
 
 ## License
 
+This project is licensed under the MIT License. See [LICENSE](./LICENSE).
+
 Personal project — feel free to fork for your own use.

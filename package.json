@@ -2,6 +2,7 @@
   "name": "my-site",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "dev:managed": "node scripts/run-managed-command.mjs --label next-dev --clear-port 3000 -- node ./node_modules/next/dist/bin/next dev",
