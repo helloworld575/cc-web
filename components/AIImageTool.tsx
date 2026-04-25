@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useLocale } from '@/components/useLocale';
 
 export default function AIImageTool() {
   const [prompt, setPrompt] = useState('');
@@ -7,6 +8,7 @@ export default function AIImageTool() {
   const [revisedPrompt, setRevisedPrompt] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { t } = useLocale();
 
   async function generate() {
     if (!prompt.trim() || loading) return;
@@ -31,7 +33,7 @@ export default function AIImageTool() {
       setRevisedPrompt(data.revised_prompt || '');
     } catch (caught: unknown) {
       const errorLike = caught as { message?: string };
-      setError(errorLike.message || 'Failed to generate image.');
+      setError(errorLike.message || t('imageFailed'));
     } finally {
       setLoading(false);
     }
@@ -40,20 +42,20 @@ export default function AIImageTool() {
   return (
     <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
       <aside className="rounded-[28px] border border-white/70 bg-white/95 p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Image Lab</p>
-        <h2 className="mt-2 font-display text-3xl text-slate-900">GPT Image</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{t('imageLab')}</p>
+        <h2 className="mt-2 font-display text-3xl text-slate-900">{t('imageTitle')}</h2>
         <p className="mt-3 text-sm leading-7 text-slate-500">
-          Generate a quick visual using the configured gpt-image-2 endpoint.
+          {t('imageDesc')}
         </p>
 
         <label className="mt-5 block">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Prompt</span>
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{t('imagePrompt')}</span>
           <textarea
             data-testid="ai-image-prompt"
             value={prompt}
             onChange={event => setPrompt(event.target.value)}
             rows={6}
-            placeholder="Describe the image you want"
+            placeholder={t('imagePromptPlaceholder')}
             className="w-full resize-none rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-700 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
           />
         </label>
@@ -65,7 +67,7 @@ export default function AIImageTool() {
           disabled={!prompt.trim() || loading}
           className="mt-4 w-full rounded-[22px] bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
         >
-          {loading ? 'Generating' : 'Generate'}
+          {loading ? t('imageGenerating') : t('imageGenerate')}
         </button>
 
         {error && (
@@ -91,8 +93,8 @@ export default function AIImageTool() {
           />
         ) : (
           <div className="max-w-sm text-center text-white/70">
-            <p className="font-display text-3xl text-white">Ready for a prompt</p>
-            <p className="mt-3 text-sm leading-7">The generated image will appear here.</p>
+            <p className="font-display text-3xl text-white">{t('imageReady')}</p>
+            <p className="mt-3 text-sm leading-7">{t('imageReadyDesc')}</p>
           </div>
         )}
       </section>

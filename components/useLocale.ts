@@ -14,6 +14,11 @@ function setCookie(locale: Locale) {
   document.cookie = `${COOKIE}=${locale};path=/;max-age=31536000`;
 }
 
+function setDocumentLanguage(locale: Locale) {
+  if (typeof document === 'undefined') return;
+  document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
+}
+
 // Global state so all components re-render together
 type Listener = (l: Locale) => void;
 const listeners = new Set<Listener>();
@@ -22,6 +27,7 @@ let current: Locale = 'en';
 export function setLocale(locale: Locale) {
   current = locale;
   setCookie(locale);
+  setDocumentLanguage(locale);
   listeners.forEach(l => l(locale));
 }
 
@@ -31,6 +37,7 @@ export function useLocale() {
   useEffect(() => {
     const initial = getCookie();
     current = initial;
+    setDocumentLanguage(initial);
     setLocaleState(initial);
     listeners.add(setLocaleState);
     return () => { listeners.delete(setLocaleState); };

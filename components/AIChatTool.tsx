@@ -280,15 +280,15 @@ export default function AIChatTool() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Session</p>
             <h3 className="mt-1 text-lg font-semibold text-slate-900">
-              {messages.length === 0 ? t('aiChatWelcome') : `${messages.length} messages`}
+              {messages.length === 0 ? t('aiChatWelcome') : `${messages.length} ${t('aiChatMessages')}`}
             </h3>
             <p className="mt-1 text-sm text-slate-500">
-              {messages.length === 0 ? t('aiChatWelcomeDesc') : 'Assistant bubbles render markdown as tokens arrive.'}
+              {messages.length === 0 ? t('aiChatWelcomeDesc') : t('aiChatStreamingDesc')}
             </p>
           </div>
           <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
             <span className="status-dot" />
-            {streaming ? 'Live response' : 'Idle'}
+            {streaming ? t('aiChatLiveResponse') : t('aiChatIdle')}
           </div>
         </div>
 
@@ -328,7 +328,7 @@ export default function AIChatTool() {
                       <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${
                         isAssistant ? 'bg-sky-100 text-sky-700' : 'bg-white/15 text-white'
                       }`}>
-                        {isAssistant ? 'AI' : 'You'}
+                        {isAssistant ? t('aiChatAssistant') : t('aiChatUser')}
                       </span>
                       <span className={isAssistant ? 'text-slate-400' : 'text-white/65'}>
                         {isAssistant && isStreamingMessage ? stageLabel : message.role}
@@ -396,7 +396,7 @@ export default function AIChatTool() {
             )}
           </div>
           <div className="mt-3 flex items-center justify-between gap-3 px-1 text-xs text-slate-400">
-            <span>{streaming ? 'Markdown is rendering token by token.' : 'Supports markdown streaming, code blocks, and lists.'}</span>
+            <span>{streaming ? t('aiChatMarkdownRendering') : t('aiChatMarkdownSupport')}</span>
             <span>{input.length} chars</span>
           </div>
         </div>

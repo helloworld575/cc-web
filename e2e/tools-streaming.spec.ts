@@ -11,6 +11,7 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   await expect(page.getByText('Seeded todo from e2e runtime')).toBeVisible();
 
   await page.getByRole('button', { name: '中文' }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
   await expect(page.getByRole('heading', { name: '工具' })).toBeVisible();
   await expect(page.getByText('更安静的工作台')).toBeVisible();
   await expect(page.getByTestId('tools-tab-skills')).toContainText('技能');
@@ -28,6 +29,8 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   await expect(page.getByTestId('tools-skills-panel')).toContainText('Agent / Skills');
 
   await page.getByTestId('tools-tab-image').click();
+  await expect(page.getByRole('heading', { name: 'GPT 图像' })).toBeVisible();
+  await expect(page.getByText('通过已配置的 gpt-image-2 端点快速生成图片。')).toBeVisible();
   await page.getByTestId('ai-image-prompt').fill('A playful paper-cut moon over Shanghai');
   await page.getByTestId('ai-image-generate').click();
   await expect(page.getByTestId('ai-image-result')).toBeVisible();
