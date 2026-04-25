@@ -6,10 +6,9 @@ import { rateLimitByIp } from '@/lib/rateLimit';
 const MOCK_IMAGE_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zx7cAAAAASUVORK5CYII=';
 
-const ALLOWED_SIZES = new Set(['1024x1024', '1024x1536', '1536x1024']);
-
-function getImageApiUrl() {
-  return (process.env.GPT_IMAGE_API_URL || 'https://right.codes/gpt').replace(/\/$/, '');
+function getImageApiBaseUrl() {
+  const configured = (process.env.GPT_IMAGE_API_URL || 'https://right.codes').replace(/\/$/, '');
+  return configured.endsWith('/gpt') ? configured : `${configured}/gpt`;
 }
 
 export async function POST(req: Request) {
@@ -27,21 +26,19 @@ export async function POST(req: Request) {
   const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
   if (!prompt) return Response.json({ error: 'Prompt is required' }, { status: 400 });
 
-  const size = ALLOWED_SIZES.has(body.size) ? body.size : '1024x1024';
-
   if (process.env.E2E_MOCK_STREAMS === '1') {
     return Response.json({
       image: `data:image/png;base64,${MOCK_IMAGE_BASE64}`,
       model: 'gpt-image-2',
       prompt,
-      size,
+      revised_prompt: prompt,
     });
   }
 
   const apiKey = process.env.GPT_IMAGE_API_KEY;
   if (!apiKey) return Response.json({ error: 'GPT_IMAGE_API_KEY is not configured' }, { status: 500 });
 
-  const upstream = await fetch(`${getImageApiUrl()}/v1/images/generations`, {
+  const upstream = await fetch(`${getImageApiBaseUrl()}/v1/images/generations`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -50,7 +47,6 @@ export async function POST(req: Request) {
     body: JSON.stringify({
       model: 'gpt-image-2',
       prompt,
-      size,
     }),
   });
 
@@ -67,8 +63,15 @@ export async function POST(req: Request) {
   const image = data.data?.[0]?.b64_json
     ? `data:image/png;base64,${data.data[0].b64_json}`
     : data.data?.[0]?.url;
+  const revisedPrompt = data.data?.[0]?.revised_prompt;
 
   if (!image) return Response.json({ error: 'Image API returned no image' }, { status: 502 });
 
-  return Response.json({ image, model: 'gpt-image-2', prompt, size });
+  return Response.json({
+    image,
+    model: 'gpt-image-2',
+    prompt,
+    revised_prompt: revisedPrompt ?? prompt,
+    created: data.created,
+  });
 }

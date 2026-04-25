@@ -68,7 +68,7 @@ CLAUDE_API_HOST=https://api.anthropic.com
 
 # Optional AI image tool
 GPT_IMAGE_API_KEY=
-GPT_IMAGE_API_URL=https://right.codes/gpt
+GPT_IMAGE_API_URL=https://right.codes
 
 # Synology NAS deploy (used by ./deploy-to-nas.sh)
 NAS_HOST=

@@ -1,16 +1,10 @@
 'use client';
 import { useState } from 'react';
 
-const SIZES = [
-  { value: '1024x1024', label: 'Square' },
-  { value: '1536x1024', label: 'Wide' },
-  { value: '1024x1536', label: 'Tall' },
-];
-
 export default function AIImageTool() {
   const [prompt, setPrompt] = useState('');
-  const [size, setSize] = useState('1024x1024');
   const [image, setImage] = useState('');
+  const [revisedPrompt, setRevisedPrompt] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,12 +14,13 @@ export default function AIImageTool() {
     setLoading(true);
     setError('');
     setImage('');
+    setRevisedPrompt('');
 
     try {
       const response = await fetch('/api/ai-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, size }),
+        body: JSON.stringify({ prompt }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -33,6 +28,7 @@ export default function AIImageTool() {
         return;
       }
       setImage(data.image);
+      setRevisedPrompt(data.revised_prompt || '');
     } catch (caught: unknown) {
       const errorLike = caught as { message?: string };
       setError(errorLike.message || 'Failed to generate image.');
@@ -62,23 +58,6 @@ export default function AIImageTool() {
           />
         </label>
 
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {SIZES.map(option => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setSize(option.value)}
-              className={`rounded-2xl border px-3 py-3 text-xs font-semibold transition ${
-                size === option.value
-                  ? 'border-slate-900 bg-slate-900 text-white'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-
         <button
           data-testid="ai-image-generate"
           type="button"
@@ -92,6 +71,12 @@ export default function AIImageTool() {
         {error && (
           <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
             {error}
+          </div>
+        )}
+
+        {revisedPrompt && (
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-6 text-slate-500">
+            {revisedPrompt}
           </div>
         )}
       </aside>

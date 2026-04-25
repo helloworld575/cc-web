@@ -65,7 +65,7 @@ CLAUDE_API_HOST=https://api.anthropic.com
 
 # AI Image tool (optional)
 GPT_IMAGE_API_KEY=
-GPT_IMAGE_API_URL=https://right.codes/gpt
+GPT_IMAGE_API_URL=https://right.codes
 
 # Cloudflare Tunnel（部署用）
 CLOUDFLARE_TUNNEL_TOKEN=
