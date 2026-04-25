@@ -61,6 +61,15 @@ X_ACCESS_TOKEN_SECRET=
 # Cloudflare Tunnel (for deploy)
 CLOUDFLARE_TUNNEL_TOKEN=
 
+# Optional fallback AI chat provider
+CLAUDE_API_KEY=
+CLAUDE_MODEL=claude-sonnet-4-6
+CLAUDE_API_HOST=https://api.anthropic.com
+
+# Optional AI image tool
+GPT_IMAGE_API_KEY=
+GPT_IMAGE_API_URL=https://right.codes/gpt
+
 # Synology NAS deploy (used by ./deploy-to-nas.sh)
 NAS_HOST=
 NAS_USER=
@@ -68,7 +77,7 @@ NAS_PATH=/volume1/docker/my-site
 NAS_PASSWORD=
 ```
 
-AI providers are configured through the admin UI at `/admin/ai-config` — no env var needed.
+AI providers are configured through the admin UI at `/admin/ai-config`. If no provider is stored in SQLite, AI chat exposes the `CLAUDE_*` environment configuration as the default provider. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`.
 
 ## Production
 

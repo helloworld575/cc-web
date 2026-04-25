@@ -22,9 +22,15 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   await expect(page.getByText('E2E Brief')).toBeVisible();
 
   await page.getByTestId('tools-tab-skills').click();
+  await expect(page.getByTestId('tools-skills-compact-list')).toBeVisible();
   await page.getByTestId('tools-skills-search').fill('find skills');
   await expect(page.getByTestId('tools-skills-panel')).toContainText('find-skills');
   await expect(page.getByTestId('tools-skills-panel')).toContainText('Agent / Skills');
+
+  await page.getByTestId('tools-tab-image').click();
+  await page.getByTestId('ai-image-prompt').fill('A playful paper-cut moon over Shanghai');
+  await page.getByTestId('ai-image-generate').click();
+  await expect(page.getByTestId('ai-image-result')).toBeVisible();
 
   await page.getByTestId('tools-tab-ai-chat').click();
   await page.getByTestId('ai-chat-input').fill('Render markdown for e2e');

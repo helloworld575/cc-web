@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-23T18:36:43.296Z",
+  "generatedAt": "2026-04-25T05:33:41.376Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -252,6 +252,11 @@
         "description": "Create and stream AI chat sessions."
       },
       {
+        "route": "/api/ai-image",
+        "file": "app/api/ai-image/route.ts",
+        "description": "API route in the application backend."
+      },
+      {
         "route": "/api/ai-providers/[id]",
         "file": "app/api/ai-providers/[id]/route.ts",
         "description": "Operate on a single AI provider."
@@ -396,6 +401,7 @@
   "modules": {
     "components": [
       "components/AIChatTool.tsx",
+      "components/AIImageTool.tsx",
       "components/BaziTool.tsx",
       "components/DateRangeFilter.tsx",
       "components/DeadlineAlert.tsx",
@@ -404,11 +410,13 @@
       "components/Nav.tsx",
       "components/Pagination.tsx",
       "components/SessionProvider.tsx",
+      "components/SiteFooter.tsx",
       "components/StreamingMarkdown.tsx",
       "components/SubscriptionBriefsTool.tsx",
       "components/useLocale.ts"
     ],
     "lib": [
+      "lib/ai-providers.ts",
       "lib/auth.ts",
       "lib/bazi.ts",
       "lib/db.ts",
@@ -990,6 +998,7 @@
     "files": [
       "tests/api/ai-chat/id.test.ts",
       "tests/api/ai-chat/route.test.ts",
+      "tests/api/ai-image/route.test.ts",
       "tests/api/ai-providers/id.test.ts",
       "tests/api/ai-providers/route.test.ts",
       "tests/api/ai/route.test.ts",
@@ -1018,6 +1027,6 @@
       "tests/lib/runtime-paths.test.ts",
       "tests/lib/skill-taxonomy.test.ts"
     ],
-    "count": 29
+    "count": 30
   }
 }

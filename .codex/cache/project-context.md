@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-04-23T18:36:43.296Z
+Generated: 2026-04-25T05:33:41.376Z
 
 ## Snapshot
 
@@ -67,10 +67,11 @@ Generated: 2026-04-23T18:36:43.296Z
 - `/` -> `app/page.tsx`: Public homepage.
 - `/tools` -> `app/tools/page.tsx`: Main tool hub.
 
-## API Routes (30)
+## API Routes (31)
 
 - `/api/ai-chat/[id]` -> `app/api/ai-chat/[id]/route.ts`: Read, update, or delete stored AI chat sessions.
 - `/api/ai-chat` -> `app/api/ai-chat/route.ts`: Create and stream AI chat sessions.
+- `/api/ai-image` -> `app/api/ai-image/route.ts`: API route in the application backend.
 - `/api/ai-providers/[id]` -> `app/api/ai-providers/[id]/route.ts`: Operate on a single AI provider.
 - `/api/ai-providers` -> `app/api/ai-providers/route.ts`: List and manage configured AI providers.
 - `/api/ai-providers/test` -> `app/api/ai-providers/test/route.ts`: Test an AI provider with a non-streaming call.
@@ -167,8 +168,8 @@ Generated: 2026-04-23T18:36:43.296Z
 
 ## Tests
 
-- API and helper test files: 29
-- Examples: `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai/route.test.ts`, `tests/api/bazi/route.test.ts`, `tests/api/blog/route.test.ts`, `tests/api/blog/slug.test.ts`
+- API and helper test files: 30
+- Examples: `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai/route.test.ts`, `tests/api/bazi/route.test.ts`, `tests/api/blog/route.test.ts`
 
 ## Notes
 

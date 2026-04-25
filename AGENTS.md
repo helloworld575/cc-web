@@ -25,6 +25,12 @@ This repository is a Next.js 14 App Router application backed by SQLite. It mixe
 ## Working Rules
 
 - Prefer the cache files above before re-reading broad parts of the repo.
+- When a user request contains multiple requirements, immediately split it into small concrete requirements before implementation.
+- Classify each requirement before editing:
+  - Large change: user-visible feature, API/interface change, auth/data/streaming behavior, major refactor, deployment or workflow behavior. Run API tests and affected e2e tests before commit or deploy.
+  - Small change: narrow API/server/helper adjustment with limited UI impact. Run relevant API tests before commit or deploy.
+  - Other change: docs, copy, cache, comments, or non-behavioral metadata. No dedicated test run is required unless bundled with a large or small change.
+- Do not commit, push, or deploy until the required tests for the largest included change class have passed.
 - Keep `.codex/skills/` as the single source of truth for both runtime and Codex discovery.
 - When `.codex/skills/` changes structurally, rerun `npm run codex:skills` to normalize metadata and prompt contracts.
 - Routes that touch SQLite, filesystem, or streaming should stay on `runtime = 'nodejs'`.

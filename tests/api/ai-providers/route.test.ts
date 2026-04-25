@@ -26,8 +26,34 @@ describe('GET /api/ai-providers', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data).toHaveLength(1);
-    expect(data[0].api_key).toBe('••••z789'); // masked
+    expect(data[0].api_key).toBe('****z789'); // masked
     expect(data[0].name).toBe('GPT');
+  });
+
+  it('returns an env-backed Claude provider when no providers are configured', async () => {
+    mockSession(true);
+    process.env.CLAUDE_API_KEY = 'test-claude-key';
+    process.env.CLAUDE_MODEL = 'claude-opus-4-6';
+    process.env.CLAUDE_API_HOST = 'https://claude-proxy.example';
+    mockDbStmt({ all: vi.fn(() => []) });
+
+    const { GET } = await import('@/app/api/ai-providers/route');
+    const res = await GET(new Request('http://localhost'));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual([
+      expect.objectContaining({
+        id: -1,
+        name: 'Claude Env Default',
+        api_type: 'anthropic',
+        api_url: 'https://claude-proxy.example',
+        api_key: '****-key',
+        model: 'claude-opus-4-6',
+        is_default: 1,
+        source: 'env',
+      }),
+    ]);
   });
 });
 

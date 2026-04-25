@@ -3,17 +3,16 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
+import { getEnvClaudeProvider, toPublicProvider, type AiProviderConfig } from '@/lib/ai-providers';
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const providers = db.prepare('SELECT * FROM ai_providers ORDER BY is_default DESC, created_at DESC').all() as any[];
-  // Mask API keys for security — only show last 4 chars
-  const masked = providers.map(p => ({
-    ...p,
-    api_key: p.api_key ? '••••' + p.api_key.slice(-4) : '',
-  }));
+  const providers = db.prepare('SELECT * FROM ai_providers ORDER BY is_default DESC, created_at DESC').all() as AiProviderConfig[];
+  const envProvider = getEnvClaudeProvider();
+  const visibleProviders = providers.length > 0 || !envProvider ? providers : [envProvider];
+  const masked = visibleProviders.map(provider => toPublicProvider(provider));
   return Response.json(masked);
 }
 
@@ -38,7 +37,6 @@ export async function POST(req: Request) {
     return Response.json({ error: 'api_type must be "openai" or "anthropic"' }, { status: 400 });
   }
 
-  // If setting as default, clear existing default
   if (is_default) {
     db.prepare('UPDATE ai_providers SET is_default = 0 WHERE is_default = 1').run();
   }

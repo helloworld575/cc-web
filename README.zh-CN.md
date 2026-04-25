@@ -58,6 +58,15 @@ X_CONSUMER_SECRET=
 X_ACCESS_TOKEN=
 X_ACCESS_TOKEN_SECRET=
 
+# Claude default AI chat provider (optional)
+CLAUDE_API_KEY=
+CLAUDE_MODEL=claude-sonnet-4-6
+CLAUDE_API_HOST=https://api.anthropic.com
+
+# AI Image tool (optional)
+GPT_IMAGE_API_KEY=
+GPT_IMAGE_API_URL=https://right.codes/gpt
+
 # Cloudflare Tunnel（部署用）
 CLOUDFLARE_TUNNEL_TOKEN=
 
