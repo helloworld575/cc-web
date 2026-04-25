@@ -46,3 +46,19 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   await page.getByTestId('fortune-tab-history').click();
   await expect(page.getByRole('button', { name: /BaZi/ }).first()).toBeVisible();
 });
+
+test('mobile drawer opens tools and tool tabs stay clickable', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  await page.goto('/');
+
+  await page.getByLabel('Menu').click();
+  await page.getByTestId('nav-mobile-tools').click();
+  await expect(page).toHaveURL(/\/tools/);
+
+  await page.getByTestId('tools-tab-image').click();
+  await expect(page.getByTestId('ai-image-prompt')).toBeVisible();
+
+  await page.getByTestId('tools-tab-skills').click();
+  await expect(page.getByTestId('tools-skills-compact-list')).toBeVisible();
+});

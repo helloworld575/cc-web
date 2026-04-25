@@ -17,7 +17,7 @@ export default function Nav() {
   const isLoadingSession = mounted && status === 'loading';
 
   return (
-    <nav className="border-b px-4 py-3" suppressHydrationWarning>
+    <nav className="relative z-50 border-b bg-white/85 px-4 py-3 backdrop-blur" suppressHydrationWarning>
       <div className="flex items-center gap-5 text-sm" suppressHydrationWarning>
         <Link href="/" className="font-bold flex items-center gap-1.5" onClick={close}>
           <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -30,7 +30,7 @@ export default function Nav() {
         {/* Desktop links */}
         <div className="hidden sm:flex gap-5 items-center" suppressHydrationWarning>
           <Link href="/blog" suppressHydrationWarning>{t('blog')}</Link>
-          <Link href="/tools" suppressHydrationWarning>{t('tools')}</Link>
+          <Link href="/tools" data-testid="nav-desktop-tools" suppressHydrationWarning>{t('tools')}</Link>
           <Link href="/files" suppressHydrationWarning>{t('files')}</Link>
         </div>
 
@@ -56,11 +56,11 @@ export default function Nav() {
               </span>
             )}
           </div>
-          <button onClick={toggle} className="border rounded px-2 py-0.5 text-xs hover:bg-gray-100 transition-colors" suppressHydrationWarning>
+          <button type="button" onClick={toggle} className="border rounded px-2 py-0.5 text-xs hover:bg-gray-100 transition-colors" suppressHydrationWarning>
             {locale === 'en' ? '中文' : 'EN'}
           </button>
           {/* Hamburger */}
-          <button onClick={() => setOpen(o => !o)} className="sm:hidden p-1 -mr-1" aria-label="Menu">
+          <button type="button" onClick={() => setOpen(o => !o)} className="sm:hidden p-1 -mr-1" aria-label="Menu">
             {open
               ? <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
               : <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -71,17 +71,17 @@ export default function Nav() {
 
       {/* Mobile drawer */}
       {open && (
-        <div className="sm:hidden border-t mt-3 pt-3 pb-1 flex flex-col gap-4 text-sm">
-          <Link href="/blog" onClick={close}>{t('blog')}</Link>
-          <Link href="/tools" onClick={close}>{t('tools')}</Link>
-          <Link href="/files" onClick={close}>{t('files')}</Link>
+        <div className="relative z-50 -mx-4 mt-3 flex flex-col gap-1 border-t bg-white/95 px-4 pb-2 pt-3 text-sm shadow-sm sm:hidden">
+          <Link href="/blog" onClick={close} className="block rounded-lg px-2 py-2 hover:bg-slate-100">{t('blog')}</Link>
+          <Link href="/tools" data-testid="nav-mobile-tools" onClick={close} className="block rounded-lg px-2 py-2 hover:bg-slate-100">{t('tools')}</Link>
+          <Link href="/files" onClick={close} className="block rounded-lg px-2 py-2 hover:bg-slate-100">{t('files')}</Link>
           {isAuthenticated ? (
             <>
-              <Link href="/admin/blog" onClick={close}>{t('admin')}</Link>
-              <button onClick={() => { signOut({ callbackUrl: '/' }); close(); }} className="text-left text-gray-500">{t('logout')}</button>
+              <Link href="/admin/blog" onClick={close} className="block rounded-lg px-2 py-2 hover:bg-slate-100">{t('admin')}</Link>
+              <button type="button" onClick={() => { signOut({ callbackUrl: '/' }); close(); }} className="rounded-lg px-2 py-2 text-left text-gray-500 hover:bg-slate-100">{t('logout')}</button>
             </>
           ) : (
-            <Link href="/login" onClick={close}>{t('login')}</Link>
+            <Link href="/login" onClick={close} className="block rounded-lg px-2 py-2 hover:bg-slate-100">{t('login')}</Link>
           )}
         </div>
       )}
