@@ -18,5 +18,6 @@ export async function POST(req: Request) {
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
   const { text, deadline } = body;
   const result = db.prepare('INSERT INTO todos (text, deadline) VALUES (?, ?)').run(text, deadline ?? null);
-  return NextResponse.json({ id: result.lastInsertRowid });
+  const todo = db.prepare('SELECT * FROM todos WHERE id = ?').get(result.lastInsertRowid);
+  return NextResponse.json(todo ?? { id: result.lastInsertRowid, text, done: 0, deadline: deadline ?? null });
 }

@@ -7,6 +7,12 @@ import { useLocale } from '@/components/useLocale';
 interface Todo { id: number; text: string; done: number; created_at: string; deadline?: string; }
 const PAGE_SIZE = 20;
 
+function mergeTodos(serverTodos: Todo[], currentTodos: Todo[]) {
+  const serverIds = new Set(serverTodos.map(todo => todo.id));
+  const currentOnly = currentTodos.filter(todo => !serverIds.has(todo.id));
+  return [...currentOnly, ...serverTodos];
+}
+
 function getUrgency(deadline?: string, done?: number): 'overdue' | 'today' | 'tomorrow' | 'soon' | null {
   if (!deadline || done) return null;
   const today = new Date().toISOString().slice(0, 10);
@@ -48,7 +54,14 @@ export default function AdminToolsPage() {
   const [page, setPage] = useState(1);
   const { t } = useLocale();
 
-  useEffect(() => { fetch('/api/todos').then(r => r.ok ? r.json() : Promise.reject()).then(setTodos).catch(() => {}); }, []);
+  useEffect(() => {
+    fetch('/api/todos')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((serverTodos: Todo[]) => {
+        setTodos(currentTodos => mergeTodos(serverTodos, currentTodos));
+      })
+      .catch(() => {});
+  }, []);
 
   async function addTodo() {
     if (!text.trim()) return;
@@ -57,8 +70,21 @@ export default function AdminToolsPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, deadline: newDeadline || undefined }),
     });
-    const { id } = await res.json();
-    setTodos([{ id, text, done: 0, created_at: new Date().toISOString(), deadline: newDeadline || undefined }, ...todos]);
+    if (!res.ok) return;
+    const created = await res.json();
+    const fallbackTodo = {
+      id: created.id,
+      text,
+      done: 0,
+      created_at: new Date().toISOString(),
+      deadline: newDeadline || undefined,
+    };
+    const nextTodo = {
+      ...fallbackTodo,
+      ...created,
+      deadline: created.deadline ?? undefined,
+    };
+    setTodos(currentTodos => [nextTodo, ...currentTodos.filter(todo => todo.id !== nextTodo.id)]);
     setText('');
     setNewDeadline('');
   }
@@ -66,19 +92,19 @@ export default function AdminToolsPage() {
   async function toggleDone(t: Todo) {
     const res = await fetch(`/api/todos/${t.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ done: !t.done }) });
     if (!res.ok) return;
-    setTodos(todos.map(x => x.id === t.id ? { ...x, done: x.done ? 0 : 1 } : x));
+    setTodos(currentTodos => currentTodos.map(x => x.id === t.id ? { ...x, done: x.done ? 0 : 1 } : x));
   }
 
   async function setDeadline(t: Todo, deadline: string) {
     const res = await fetch(`/api/todos/${t.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deadline }) });
     if (!res.ok) return;
-    setTodos(todos.map(x => x.id === t.id ? { ...x, deadline: deadline || undefined } : x));
+    setTodos(currentTodos => currentTodos.map(x => x.id === t.id ? { ...x, deadline: deadline || undefined } : x));
   }
 
   async function deleteTodo(id: number) {
     const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
     if (!res.ok) return;
-    setTodos(todos.filter(t => t.id !== id));
+    setTodos(currentTodos => currentTodos.filter(t => t.id !== id));
   }
 
   const filtered = todos

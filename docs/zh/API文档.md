@@ -63,6 +63,11 @@
 { "text": "买牛奶", "deadline": "2026-04-20" }
 ```
 
+返回新建的待办行：
+```json
+{ "id": 1, "text": "买牛奶", "done": 0, "deadline": "2026-04-20", "created_at": "2026-04-25 12:00:00" }
+```
+
 ### `PUT /api/todos/[id]` / `DELETE /api/todos/[id]`
 
 ---

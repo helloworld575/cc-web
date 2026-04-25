@@ -6,9 +6,28 @@ import { rateLimitByIp } from '@/lib/rateLimit';
 const MOCK_IMAGE_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zx7cAAAAASUVORK5CYII=';
 
-function getImageApiBaseUrl() {
-  const configured = (process.env.GPT_IMAGE_API_URL || 'https://right.codes').replace(/\/$/, '');
-  return configured.endsWith('/gpt') ? configured : `${configured}/gpt`;
+function getImageGenerationUrl() {
+  const configured = (process.env.GPT_IMAGE_API_URL || 'https://right.codes').replace(/\/+$/, '');
+  if (configured.endsWith('/v1/images/generations')) return configured;
+  if (configured.endsWith('/v1')) return `${configured}/images/generations`;
+  if (configured.endsWith('/gpt')) return `${configured}/v1/images/generations`;
+  return `${configured}/gpt/v1/images/generations`;
+}
+
+async function readUpstreamError(response: Response) {
+  const fallback = `Image API error (${response.status})`;
+  const contentType = response.headers.get('content-type') || '';
+  try {
+    if (contentType.includes('application/json')) {
+      const data = await response.json();
+      const detail = data.error?.message || data.message || data.error || JSON.stringify(data);
+      return { error: detail ? `${fallback}: ${detail}` : fallback, detail };
+    }
+    const detail = await response.text();
+    return { error: fallback, detail: detail.slice(0, 500) };
+  } catch {
+    return { error: fallback, detail: response.statusText };
+  }
 }
 
 export async function POST(req: Request) {
@@ -38,7 +57,7 @@ export async function POST(req: Request) {
   const apiKey = process.env.GPT_IMAGE_API_KEY;
   if (!apiKey) return Response.json({ error: 'GPT_IMAGE_API_KEY is not configured' }, { status: 500 });
 
-  const upstream = await fetch(`${getImageApiBaseUrl()}/v1/images/generations`, {
+  const upstream = await fetch(getImageGenerationUrl(), {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -51,12 +70,8 @@ export async function POST(req: Request) {
   });
 
   if (!upstream.ok) {
-    let message = 'Image API error';
-    try {
-      const data = await upstream.json();
-      message = data.error?.message || data.message || message;
-    } catch {}
-    return Response.json({ error: message }, { status: 502 });
+    const { error, detail } = await readUpstreamError(upstream);
+    return Response.json({ error, detail }, { status: 502 });
   }
 
   const data = await upstream.json();

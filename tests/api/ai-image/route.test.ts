@@ -87,6 +87,35 @@ describe('POST /api/ai-image', () => {
     expect(mockFetch.mock.calls[0][0]).toBe('https://right.codes/gpt/v1/images/generations');
   });
 
+  it('normalizes configured URLs that already include the images API path', async () => {
+    mockSession(true);
+    process.env.GPT_IMAGE_API_URL = 'https://right.codes/gpt/v1/images/generations';
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({
+      data: [{ b64_json: Buffer.from('fake-image').toString('base64') }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    await POST(makePostReq({ prompt: 'a tiny robot' }));
+
+    expect(mockFetch.mock.calls[0][0]).toBe('https://right.codes/gpt/v1/images/generations');
+  });
+
+  it('includes upstream status and body when image generation fails', async () => {
+    mockSession(true);
+    mockFetch.mockResolvedValue(new Response('upstream refused request', {
+      status: 404,
+      headers: { 'Content-Type': 'text/plain' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    const res = await POST(makePostReq({ prompt: 'a tiny robot' }));
+
+    expect(res.status).toBe(502);
+    const data = await res.json();
+    expect(data.error).toContain('Image API error (404)');
+    expect(data.detail).toContain('upstream refused request');
+  });
+
   it('returns deterministic mock image when e2e streams are mocked', async () => {
     process.env.E2E_MOCK_STREAMS = '1';
     mockSession(true);

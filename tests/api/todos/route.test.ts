@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mockSession, mockDbStmt, postReq } from '../../helpers';
 
 describe('GET /api/todos', () => {
@@ -45,5 +45,32 @@ describe('POST /api/todos', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data).toHaveProperty('id');
+  });
+
+  it('returns the created todo so clients do not depend on optimistic placeholders', async () => {
+    mockSession(true);
+    const statements: any[] = [];
+    const insertStmt = { run: () => ({ lastInsertRowid: 42 }) };
+    const getStmt = { get: () => ({ id: 42, text: 'new todo', done: 0, deadline: null, created_at: '2026-04-25 12:00:00' }) };
+    const prepare = vi.fn((sql: string) => {
+      statements.push(sql);
+      return sql.startsWith('INSERT INTO todos') ? insertStmt : getStmt;
+    });
+    const db = (await import('@/lib/db')).default;
+    (db.prepare as ReturnType<typeof vi.fn>).mockImplementation(prepare);
+
+    const { POST } = await import('@/app/api/todos/route');
+    const res = await POST(postReq({ text: 'new todo' }));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({
+      id: 42,
+      text: 'new todo',
+      done: 0,
+      deadline: null,
+      created_at: '2026-04-25 12:00:00',
+    });
+    expect(statements).toContain('SELECT * FROM todos WHERE id = ?');
   });
 });

@@ -63,6 +63,11 @@ List all todos.
 { "text": "buy milk", "deadline": "2026-04-20" }
 ```
 
+Returns the created todo row:
+```json
+{ "id": 1, "text": "buy milk", "done": 0, "deadline": "2026-04-20", "created_at": "2026-04-25 12:00:00" }
+```
+
 ### `PUT /api/todos/[id]` / `DELETE /api/todos/[id]`
 
 ---

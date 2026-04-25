@@ -24,3 +24,45 @@ test('admin todos can be created, filtered, completed, and deleted', async ({ pa
   await todoItem.getByRole('button', { name: /delete/i }).click();
   await expect(page.getByText(todoText)).not.toBeVisible();
 });
+
+test('admin todo submitted during initial load is not overwritten by stale list response', async ({ page }) => {
+  await login(page);
+
+  let releaseInitialList: (() => void) | undefined;
+  const initialListReleased = new Promise<void>(resolve => {
+    releaseInitialList = resolve;
+  });
+
+  await page.route('**/api/todos', async route => {
+    const request = route.request();
+    if (request.method() === 'GET') {
+      await initialListReleased;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{ id: 1, text: 'Existing online todo', done: 0, created_at: '2026-04-25 10:00:00', deadline: null }]),
+      });
+      return;
+    }
+
+    if (request.method() === 'POST') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 2, text: 'Race-safe todo', done: 0, created_at: '2026-04-25 10:01:00', deadline: null }),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+
+  await page.goto('/admin/tools');
+  await page.getByPlaceholder('New todo').fill('Race-safe todo');
+  await page.getByRole('button', { name: 'Add' }).click();
+  await expect(page.getByText('Race-safe todo')).toBeVisible();
+
+  releaseInitialList?.();
+  await expect(page.getByText('Existing online todo')).toBeVisible();
+  await expect(page.getByText('Race-safe todo')).toBeVisible();
+});
