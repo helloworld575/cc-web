@@ -256,6 +256,39 @@ describe('POST /api/ai-chat', () => {
     expect(body.messages[0]).toEqual({ role: 'system', content: 'You are a pirate' });
   });
 
+  it('sends only recent chat context to the upstream provider while preserving the full transcript', async () => {
+    mockSession(true);
+    const run = vi.fn(() => ({ lastInsertRowid: 99, changes: 1 }));
+    mockDbStmt({
+      get: vi.fn(() => ({
+        id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
+        api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
+      })),
+      run,
+    });
+    mockOpenAIStreamResponse();
+    const messages = Array.from({ length: 20 }, (_, index) => ({
+      role: index % 2 === 0 ? 'user' as const : 'assistant' as const,
+      content: `message-${index}`,
+    }));
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({ provider_id: 1, messages }));
+    const reader = res.body!.getReader();
+    while (!(await reader.read()).done) {}
+
+    const [, init] = mockFetch.mock.calls[0];
+    const upstreamBody = JSON.parse(init.body);
+    expect(upstreamBody.messages).toHaveLength(12);
+    expect(upstreamBody.messages[0].content).toBe('message-8');
+    expect(upstreamBody.messages.at(-1).content).toBe('message-19');
+    expect(run).toHaveBeenCalledWith(
+      'message-0',
+      JSON.stringify([...messages, { role: 'assistant', content: 'hello world' }]),
+      99,
+    );
+  });
+
   it('stores a completed chat transcript after streaming OpenAI response', async () => {
     mockSession(true);
     const get = vi.fn(() => ({

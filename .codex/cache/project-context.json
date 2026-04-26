@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-26T09:59:55.697Z",
+  "generatedAt": "2026-04-26T16:38:55.587Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -1008,6 +1008,7 @@
       "tests/api/ai-image/route.test.ts",
       "tests/api/ai-providers/id.test.ts",
       "tests/api/ai-providers/route.test.ts",
+      "tests/api/ai-providers/test.test.ts",
       "tests/api/ai/route.test.ts",
       "tests/api/bazi/route.test.ts",
       "tests/api/blog/route.test.ts",
@@ -1035,6 +1036,6 @@
       "tests/lib/runtime-paths.test.ts",
       "tests/lib/skill-taxonomy.test.ts"
     ],
-    "count": 31
+    "count": 32
   }
 }

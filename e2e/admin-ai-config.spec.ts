@@ -16,12 +16,12 @@ test('admin AI provider form saves an OpenAI-compatible provider', async ({ page
   await editor.locator('input').nth(3).fill('gpt-e2e');
   await editor.locator('input').nth(4).fill('2048');
   await editor.locator('textarea').fill('Respond only with e2e-safe mock content.');
-  await editor.locator('input[type="checkbox"]').check();
   await editor.getByRole('button', { name: 'Save' }).click();
 
   await expect(page.getByText('Saved!')).toBeVisible();
   const providerCard = page.locator('.border.rounded-lg').filter({ hasText: providerName });
   await expect(providerCard).toBeVisible();
-  await expect(providerCard).toContainText('Default');
   await expect(providerCard).toContainText('gpt-e2e');
+  await expect(providerCard).not.toContainText('Default');
+  await expect(page.locator('.border.rounded-lg').filter({ hasText: 'Claude Env Default' })).toContainText('Default');
 });

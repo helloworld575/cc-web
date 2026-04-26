@@ -76,7 +76,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS ai_chat_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    provider_id INTEGER NOT NULL REFERENCES ai_providers(id) ON DELETE CASCADE,
+    provider_id INTEGER NOT NULL,
     title TEXT NOT NULL DEFAULT 'New Chat',
     messages TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -119,6 +119,29 @@ try {
   db.exec("ALTER TABLE files ADD COLUMN album_id INTEGER REFERENCES albums(id)");
 } catch {
   // column already exists, ignore
+}
+
+// Migrate: keep chat history when providers are edited/deleted and allow env-backed providers.
+try {
+  const chatForeignKeys = db.prepare("PRAGMA foreign_key_list('ai_chat_history')").all() as unknown[];
+  if (chatForeignKeys.length > 0) {
+    db.exec(`
+      ALTER TABLE ai_chat_history RENAME TO ai_chat_history_old;
+      CREATE TABLE ai_chat_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider_id INTEGER NOT NULL,
+        title TEXT NOT NULL DEFAULT 'New Chat',
+        messages TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO ai_chat_history (id, provider_id, title, messages, created_at, updated_at)
+      SELECT id, provider_id, title, messages, created_at, updated_at FROM ai_chat_history_old;
+      DROP TABLE ai_chat_history_old;
+    `);
+  }
+} catch {
+  // Best-effort migration; fresh databases already use the current schema.
 }
 
 // Indexes for query performance

@@ -74,7 +74,7 @@ Admin pages:
 5. Click **Test Connection** to verify
 6. Click **Save**
 
-Then go to **Tools → AI Chat** and select your provider from the dropdown. Completed chats are saved automatically, grouped by provider, and can be reopened from the history list.
+Then go to **Tools → AI Chat** and select your provider from the dropdown. If `CLAUDE_API_KEY` is set in `.env.local`, the env-backed Claude provider stays as the default while saved providers remain selectable. Completed chats are saved automatically, grouped by provider, and can be reopened from the history list. Full transcripts stay in history, while only the recent conversation window is sent to the upstream model to reduce context usage.
 
 ---
 

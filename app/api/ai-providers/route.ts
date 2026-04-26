@@ -5,14 +5,22 @@ import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
 import { getEnvClaudeProvider, toPublicProvider, type AiProviderConfig } from '@/lib/ai-providers';
 
+function mergeVisibleProviders(providers: AiProviderConfig[]) {
+  const envProvider = getEnvClaudeProvider();
+  if (!envProvider) return providers;
+
+  return [
+    envProvider,
+    ...providers.map(provider => ({ ...provider, is_default: 0 })),
+  ];
+}
+
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const providers = db.prepare('SELECT * FROM ai_providers ORDER BY is_default DESC, created_at DESC').all() as AiProviderConfig[];
-  const envProvider = getEnvClaudeProvider();
-  const visibleProviders = providers.length > 0 || !envProvider ? providers : [envProvider];
-  const masked = visibleProviders.map(provider => toPublicProvider(provider));
+  const masked = mergeVisibleProviders(providers).map(provider => toPublicProvider(provider));
   return Response.json(masked);
 }
 
@@ -37,12 +45,15 @@ export async function POST(req: Request) {
     return Response.json({ error: 'api_type must be "openai" or "anthropic"' }, { status: 400 });
   }
 
-  if (is_default) {
+  const envProvider = getEnvClaudeProvider();
+  const savedDefault = envProvider ? 0 : is_default ? 1 : 0;
+
+  if (savedDefault) {
     db.prepare('UPDATE ai_providers SET is_default = 0 WHERE is_default = 1').run();
   }
 
   const result = db.prepare(
     'INSERT INTO ai_providers (name, api_type, api_url, api_key, model, system_prompt, max_tokens, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(name, type, api_url.replace(/\/$/, ''), api_key, model, system_prompt || '', max_tokens || 4096, is_default ? 1 : 0);
+  ).run(name, type, api_url.replace(/\/$/, ''), api_key, model, system_prompt || '', max_tokens || 4096, savedDefault);
   return Response.json({ id: result.lastInsertRowid }, { status: 201 });
 }

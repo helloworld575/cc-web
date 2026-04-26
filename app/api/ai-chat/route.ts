@@ -10,12 +10,34 @@ interface ChatMessage {
   content: string;
 }
 
+const MAX_UPSTREAM_CONTEXT_MESSAGES = 12;
+const MAX_UPSTREAM_CONTEXT_CHARS = 16000;
+
 function createTitle(messages: ChatMessage[]) {
   const firstUserMessage = messages.find(message => message.role === 'user')?.content.trim();
   if (!firstUserMessage) return 'New Chat';
   return firstUserMessage.length > 60
     ? `${firstUserMessage.slice(0, 57)}...`
     : firstUserMessage;
+}
+
+function compactMessagesForProvider(messages: ChatMessage[]) {
+  const systemMessages = messages.filter(message => message.role === 'system');
+  const chatMessages = messages.filter(message => message.role !== 'system');
+  const recentChatMessages = chatMessages.slice(-MAX_UPSTREAM_CONTEXT_MESSAGES);
+  const compacted = [...systemMessages, ...recentChatMessages];
+  let totalChars = 0;
+  const withinCharBudget: ChatMessage[] = [];
+
+  for (const message of compacted.reverse()) {
+    totalChars += message.content.length;
+    if (totalChars > MAX_UPSTREAM_CONTEXT_CHARS && withinCharBudget.length > 0) {
+      break;
+    }
+    withinCharBudget.unshift(message);
+  }
+
+  return withinCharBudget;
 }
 
 function saveNewChat(providerId: number, messages: ChatMessage[]) {
@@ -133,7 +155,7 @@ function createAnthropicStream(
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const raw = line.slice(6).trim();
-            if (raw === '[DONE]') { controller.close(); return; }
+            if (raw === '[DONE]') { finish(controller); return; }
             try {
               const parsed = JSON.parse(raw);
               if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
@@ -199,7 +221,7 @@ function createOpenAIStream(
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const raw = line.slice(6).trim();
-            if (raw === '[DONE]') { controller.close(); return; }
+            if (raw === '[DONE]') { finish(controller); return; }
             try {
               const parsed = JSON.parse(raw);
               const delta = parsed.choices?.[0]?.delta?.content;
@@ -316,10 +338,12 @@ export async function POST(req: Request) {
     });
   }
 
+  const upstreamMessages = compactMessagesForProvider(messages);
+
   // Build request based on provider type
   const reqConfig = provider.api_type === 'anthropic'
-    ? buildAnthropicRequest(provider, messages)
-    : buildOpenAIRequest(provider, messages);
+    ? buildAnthropicRequest(provider, upstreamMessages)
+    : buildOpenAIRequest(provider, upstreamMessages);
 
   let upstream: Response;
   try {

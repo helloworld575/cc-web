@@ -77,7 +77,7 @@ NAS_PATH=/volume1/docker/my-site
 NAS_PASSWORD=
 ```
 
-AI 服务商通过管理后台 `/admin/ai-config` 配置，无需环境变量。
+AI 服务商通过管理后台 `/admin/ai-config` 配置。当 `.env.local` 设置了 `CLAUDE_API_KEY` 时，env Claude provider 会始终作为默认服务商；新增保存的 provider 仍可选择，但不会替换 env 默认。AI 对话会保存完整历史，但只把最近的对话窗口发送给上游模型，以降低上下文占用。
 
 ## 质量门禁
 

@@ -92,7 +92,7 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 ## AI 服务商
 
 ### `GET /api/ai-providers`
-列出配置的服务商（API key 会打码）。
+列出配置的服务商（API key 会打码）。如果 `.env.local` 配置了 `CLAUDE_API_KEY`，env provider 会排在第一位并保持默认。
 
 ### `POST /api/ai-providers`
 ```json
@@ -110,8 +110,10 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 
 ### `PUT /api/ai-providers/[id]` / `DELETE /api/ai-providers/[id]`
 
+当 env Claude provider 存在时，新保存或更新的数据库 provider 即使提交了 `is_default`，也会以非默认状态保存。
+
 ### `POST /api/ai-providers/test`
-轻量连接测试。Body：`{"provider_id": 1}`。返回 `{"ok": true, "text": "...", "model": "..."}`。
+轻量连接测试。Body：`{"provider_id": 1}`。使用 `{"provider_id": -1}` 可测试 env Claude provider。返回 `{"ok": true, "text": "...", "model": "..."}`。
 
 ---
 
@@ -127,7 +129,7 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 ```
 
 ### `POST /api/ai-chat`
-流式聊天端点，返回 SSE（`text/event-stream`），并将完整转录保存到 `ai_chat_history`。
+流式聊天端点，返回 SSE（`text/event-stream`），并将完整转录保存到 `ai_chat_history`。历史记录保留完整转录，但发给上游模型的请求会压缩为最近的对话窗口。
 
 ```json
 {

@@ -11,6 +11,7 @@ interface Provider {
   system_prompt: string;
   max_tokens: number;
   is_default: number;
+  source?: 'env' | 'db';
 }
 
 const EMPTY: Provider = {
@@ -34,7 +35,12 @@ export default function AdminAIConfigPage() {
   useEffect(() => { loadProviders(); }, []);
 
   function startNew() { setEditing({ ...EMPTY }); setError(''); setTestResult(null); }
-  function startEdit(p: Provider) { setEditing({ ...p }); setError(''); setTestResult(null); }
+  function startEdit(p: Provider) {
+    if (p.source === 'env') return;
+    setEditing({ ...p });
+    setError('');
+    setTestResult(null);
+  }
 
   async function save() {
     if (!editing) return;
@@ -54,6 +60,7 @@ export default function AdminAIConfigPage() {
   }
 
   async function del(id: number) {
+    if (id < 0) return;
     if (!confirm('Delete this AI provider?')) return;
     await fetch(`/api/ai-providers/${id}`, { method: 'DELETE' });
     setProviders(providers.filter(p => p.id !== id));
@@ -88,6 +95,8 @@ export default function AdminAIConfigPage() {
     setTesting(false);
   }
 
+  const hasEnvDefaultProvider = providers.some(provider => provider.source === 'env');
+
   return (
     <main className="max-w-4xl mx-auto px-6 py-12">
       <div className="flex items-center justify-between mb-6">
@@ -109,9 +118,14 @@ export default function AdminAIConfigPage() {
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm">{p.name}</span>
                   {p.is_default ? <span className="bg-green-100 text-green-700 text-xs px-1.5 py-0.5 rounded">Default</span> : null}
+                  {p.source === 'env' ? <span className="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded">env.local</span> : null}
                 </div>
-                <button onClick={e => { e.stopPropagation(); del(p.id!); }}
-                  className="text-red-400 hover:text-red-600 text-xs">Delete</button>
+                {p.source === 'env' ? (
+                  <span className="text-xs text-gray-400">Read-only</span>
+                ) : (
+                  <button onClick={e => { e.stopPropagation(); del(p.id!); }}
+                    className="text-red-400 hover:text-red-600 text-xs">Delete</button>
+                )}
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
                 <span className="bg-gray-100 px-1 rounded font-mono">{p.api_type}</span>{' '}
@@ -176,8 +190,14 @@ export default function AdminAIConfigPage() {
             <div className="flex items-center gap-2">
               <label className="text-xs text-gray-500">Set as default</label>
               <input type="checkbox" checked={!!editing.is_default}
+                disabled={hasEnvDefaultProvider}
                 onChange={e => setEditing({ ...editing, is_default: e.target.checked ? 1 : 0 })} />
             </div>
+            {hasEnvDefaultProvider && (
+              <p className="text-xs text-gray-400">
+                The env.local Claude provider is the default. Saved providers remain available, but cannot override it while CLAUDE_API_KEY is set.
+              </p>
+            )}
 
             {/* Test result */}
             {testResult && (

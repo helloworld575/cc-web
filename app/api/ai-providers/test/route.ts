@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
+import { ENV_CLAUDE_PROVIDER_ID, getEnvClaudeProvider } from '@/lib/ai-providers';
 
 /**
  * Lightweight connection test for AI providers.
@@ -22,7 +23,9 @@ export async function POST(req: Request) {
   const { provider_id } = body;
   if (!provider_id) return Response.json({ error: 'Missing provider_id' }, { status: 400 });
 
-  const provider = db.prepare('SELECT * FROM ai_providers WHERE id = ?').get(provider_id) as any;
+  const provider = Number(provider_id) === ENV_CLAUDE_PROVIDER_ID
+    ? getEnvClaudeProvider()
+    : db.prepare('SELECT * FROM ai_providers WHERE id = ?').get(provider_id) as any;
   if (!provider) return Response.json({ error: 'Provider not found' }, { status: 404 });
 
   try {

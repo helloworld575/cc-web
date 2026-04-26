@@ -77,7 +77,7 @@ NAS_PATH=/volume1/docker/my-site
 NAS_PASSWORD=
 ```
 
-AI providers are configured through the admin UI at `/admin/ai-config`. If no provider is stored in SQLite, AI chat exposes the `CLAUDE_*` environment configuration as the default provider. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`.
+AI providers are configured through the admin UI at `/admin/ai-config`. When `CLAUDE_API_KEY` is set in `.env.local`, that env-backed Claude provider is always shown as the default provider; additional saved providers remain available without replacing it. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`.
 
 ## Quality Gates
 

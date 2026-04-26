@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
+import { getEnvClaudeProvider } from '@/lib/ai-providers';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -45,8 +46,11 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   // If api_key looks masked, keep the existing one
   const resolvedKey = (!api_key || api_key.startsWith('••••')) ? existing.api_key : api_key;
 
+  const envProvider = getEnvClaudeProvider();
+  const savedDefault = envProvider ? 0 : is_default ? 1 : 0;
+
   // If setting as default, clear existing default
-  if (is_default) {
+  if (savedDefault) {
     db.prepare('UPDATE ai_providers SET is_default = 0 WHERE is_default = 1').run();
   }
 
@@ -54,7 +58,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     "UPDATE ai_providers SET name=?, api_type=?, api_url=?, api_key=?, model=?, system_prompt=?, max_tokens=?, is_default=?, updated_at=datetime('now') WHERE id=?"
   ).run(name, type, api_url.replace(/\/$/, ''), resolvedKey, model,
     system_prompt ?? existing.system_prompt, max_tokens ?? existing.max_tokens,
-    is_default ? 1 : 0, params.id);
+    savedDefault, params.id);
   return Response.json({ ok: true });
 }
 

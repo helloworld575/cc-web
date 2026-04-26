@@ -92,7 +92,7 @@ Public endpoint — serves the uploaded file with long-term caching.
 ## AI Providers
 
 ### `GET /api/ai-providers`
-List configured providers (API keys are masked).
+List configured providers (API keys are masked). If `CLAUDE_API_KEY` is set in `.env.local`, the env-backed provider is included first and remains the default.
 
 ### `POST /api/ai-providers`
 ```json
@@ -110,8 +110,10 @@ List configured providers (API keys are masked).
 
 ### `PUT /api/ai-providers/[id]` / `DELETE /api/ai-providers/[id]`
 
+When the env-backed Claude provider is present, newly saved or updated database providers are stored as non-default even if `is_default` is submitted.
+
 ### `POST /api/ai-providers/test`
-Lightweight connection test. Body: `{"provider_id": 1}`. Returns `{"ok": true, "text": "...", "model": "..."}`.
+Lightweight connection test. Body: `{"provider_id": 1}`. Use `{"provider_id": -1}` to test the env-backed Claude provider. Returns `{"ok": true, "text": "...", "model": "..."}`.
 
 ---
 
@@ -127,7 +129,7 @@ List saved chat summaries, newest first. Optional query param: `provider_id`.
 ```
 
 ### `POST /api/ai-chat`
-Streaming chat endpoint. Returns SSE (`text/event-stream`) and saves the completed transcript to `ai_chat_history`.
+Streaming chat endpoint. Returns SSE (`text/event-stream`) and saves the completed transcript to `ai_chat_history`. The stored transcript remains complete, but the upstream model request is compacted to the recent conversation window.
 
 ```json
 {

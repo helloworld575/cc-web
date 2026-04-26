@@ -25,9 +25,9 @@ describe('GET /api/ai-providers', () => {
     const res = await GET(new Request('http://localhost'));
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data).toHaveLength(1);
-    expect(data[0].api_key).toBe('****z789'); // masked
-    expect(data[0].name).toBe('GPT');
+    const storedProvider = data.find((provider: { id: number }) => provider.id === 1);
+    expect(storedProvider.api_key).toBe('****z789'); // masked
+    expect(storedProvider.name).toBe('GPT');
   });
 
   it('returns an env-backed Claude provider when no providers are configured', async () => {
@@ -53,6 +53,36 @@ describe('GET /api/ai-providers', () => {
         is_default: 1,
         source: 'env',
       }),
+    ]);
+  });
+
+  it('keeps the env-backed Claude provider as default when database providers exist', async () => {
+    mockSession(true);
+    process.env.CLAUDE_API_KEY = 'test-claude-key';
+    process.env.CLAUDE_MODEL = 'claude-opus-4-6';
+    process.env.CLAUDE_API_HOST = 'https://claude-proxy.example';
+    mockDbStmt({
+      all: vi.fn(() => [
+        {
+          id: 1,
+          name: 'Stored GPT',
+          api_type: 'openai',
+          api_url: 'https://api.openai.com',
+          api_key: 'sk-stored-key',
+          model: 'gpt-4o',
+          is_default: 1,
+        },
+      ]),
+    });
+
+    const { GET } = await import('@/app/api/ai-providers/route');
+    const res = await GET(new Request('http://localhost'));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual([
+      expect.objectContaining({ id: -1, source: 'env', is_default: 1 }),
+      expect.objectContaining({ id: 1, name: 'Stored GPT', is_default: 0 }),
     ]);
   });
 });
@@ -128,6 +158,27 @@ describe('POST /api/ai-providers', () => {
     expect(res.status).toBe(201);
     const data = await res.json();
     expect(data.id).toBe(42);
+  });
+
+  it('does not let a new database provider override the env-backed default provider', async () => {
+    mockSession(true);
+    process.env.CLAUDE_API_KEY = 'test-claude-key';
+    const stmt = mockDbStmt({ run: vi.fn(() => ({ lastInsertRowid: 42, changes: 1 })) });
+    const { POST } = await import('@/app/api/ai-providers/route');
+    const res = await POST(new Request('http://localhost', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'My GPT',
+        api_url: 'https://api.openai.com/',
+        api_key: 'sk-123',
+        model: 'gpt-4o',
+        is_default: 1,
+      }),
+    }));
+
+    expect(res.status).toBe(201);
+    expect(stmt.run).toHaveBeenCalledTimes(1);
+    expect(stmt.run.mock.calls[0][7]).toBe(0);
   });
 
   it('returns 400 on bad JSON', async () => {
