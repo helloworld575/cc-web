@@ -192,6 +192,48 @@ describe('POST /api/ai-chat', () => {
     expect(data.error).toContain('Invalid API key');
   });
 
+  it('returns 502 with provider network error details', async () => {
+    mockSession(true);
+    mockDbStmt({
+      get: vi.fn(() => ({
+        id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
+        api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
+      })),
+    });
+    mockFetch.mockRejectedValue(new Error('connect ECONNREFUSED'));
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: 1,
+      messages: [{ role: 'user', content: 'hi' }],
+    }));
+    expect(res.status).toBe(502);
+    const data = await res.json();
+    expect(data.error).toContain('connect ECONNREFUSED');
+  });
+
+  it('does not save chat history when upstream API fails before streaming', async () => {
+    mockSession(true);
+    const run = vi.fn(() => ({ lastInsertRowid: 1, changes: 1 }));
+    mockDbStmt({
+      get: vi.fn(() => ({
+        id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
+        api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
+      })),
+      run,
+    });
+    mockFetch.mockResolvedValue(new Response(
+      JSON.stringify({ error: { message: 'Invalid API key' } }),
+      { status: 401 },
+    ));
+    const { POST } = await import('@/app/api/ai-chat/route');
+    await POST(makePostReq({
+      provider_id: 1,
+      messages: [{ role: 'user', content: 'hi' }],
+    }));
+
+    expect(run).not.toHaveBeenCalled();
+  });
+
   it('sends system prompt with OpenAI request', async () => {
     mockSession(true);
     mockDbStmt({
@@ -212,6 +254,75 @@ describe('POST /api/ai-chat', () => {
     const fetchCall = mockFetch.mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
     expect(body.messages[0]).toEqual({ role: 'system', content: 'You are a pirate' });
+  });
+
+  it('stores a completed chat transcript after streaming OpenAI response', async () => {
+    mockSession(true);
+    const get = vi.fn(() => ({
+      id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
+      api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
+    }));
+    const run = vi.fn(() => ({ lastInsertRowid: 42, changes: 1 }));
+    mockDbStmt({ get, run });
+    mockOpenAIStreamResponse();
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: 1,
+      messages: [{ role: 'user', content: 'hi there' }],
+    }));
+
+    const reader = res.body!.getReader();
+    while (!(await reader.read()).done) {}
+
+    expect(run).toHaveBeenCalledWith(
+      1,
+      'hi there',
+      JSON.stringify([{ role: 'user', content: 'hi there' }]),
+    );
+    expect(run).toHaveBeenCalledWith(
+      'hi there',
+      JSON.stringify([
+        { role: 'user', content: 'hi there' },
+        { role: 'assistant', content: 'hello world' },
+      ]),
+      42,
+    );
+  });
+
+  it('updates an existing chat transcript after streaming response', async () => {
+    mockSession(true);
+    const get = vi.fn()
+      .mockReturnValueOnce({
+        id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
+        api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
+      })
+      .mockReturnValueOnce({
+        id: 9,
+        provider_id: 1,
+        title: 'Previous title',
+        messages: '[]',
+      });
+    const run = vi.fn(() => ({ lastInsertRowid: 9, changes: 1 }));
+    mockDbStmt({ get, run });
+    mockOpenAIStreamResponse();
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      chat_id: 9,
+      provider_id: 1,
+      messages: [{ role: 'user', content: 'continue' }],
+    }));
+
+    const reader = res.body!.getReader();
+    while (!(await reader.read()).done) {}
+
+    expect(run).toHaveBeenCalledWith(
+      'Previous title',
+      JSON.stringify([
+        { role: 'user', content: 'continue' },
+        { role: 'assistant', content: 'hello world' },
+      ]),
+      9,
+    );
   });
 
   it('streams deterministic markdown without upstream calls when E2E_MOCK_STREAMS is enabled', async () => {
@@ -245,5 +356,35 @@ describe('POST /api/ai-chat', () => {
     expect(text).toContain('## Mock response');
     expect(text).toContain('- streamed item');
     delete process.env.E2E_MOCK_STREAMS;
+  });
+});
+
+describe('GET /api/ai-chat', () => {
+  beforeEach(() => {
+    vi.mocked(rateLimitByIp).mockReturnValue(null);
+  });
+
+  it('returns 401 without session', async () => {
+    mockSession(false);
+    const { GET } = await import('@/app/api/ai-chat/route');
+    const res = await GET(new Request('http://localhost/api/ai-chat'));
+    expect(res.status).toBe(401);
+  });
+
+  it('lists chat history summaries', async () => {
+    mockSession(true);
+    mockDbStmt({
+      all: vi.fn(() => [
+        { id: 2, provider_id: 1, title: 'Second', created_at: '2026-01-02', updated_at: '2026-01-02' },
+        { id: 1, provider_id: 1, title: 'First', created_at: '2026-01-01', updated_at: '2026-01-01' },
+      ]),
+    });
+    const { GET } = await import('@/app/api/ai-chat/route');
+    const res = await GET(new Request('http://localhost/api/ai-chat'));
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual([
+      { id: 2, provider_id: 1, title: 'Second', created_at: '2026-01-02', updated_at: '2026-01-02' },
+      { id: 1, provider_id: 1, title: 'First', created_at: '2026-01-01', updated_at: '2026-01-01' },
+    ]);
   });
 });

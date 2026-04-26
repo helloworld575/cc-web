@@ -16,13 +16,28 @@ interface ChatMessage {
   content: string;
 }
 
+interface ChatSummary {
+  id: number;
+  provider_id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ChatDetail extends ChatSummary {
+  messages: ChatMessage[];
+}
+
 export default function AIChatTool() {
   const { t } = useLocale();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<number | null>(null);
+  const [currentChatId, setCurrentChatId] = useState<number | null>(null);
+  const [history, setHistory] = useState<ChatSummary[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [error, setError] = useState('');
   const [streamStage, setStreamStage] = useState<'ready' | 'dispatch' | 'thinking' | 'rendering'>('ready');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -48,6 +63,11 @@ export default function AIChatTool() {
   }, []);
 
   useEffect(() => {
+    if (!selectedProvider) return;
+    refreshHistory(selectedProvider);
+  }, [selectedProvider]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streaming]);
 
@@ -57,7 +77,55 @@ export default function AIChatTool() {
     }
   }
 
+  async function readErrorResponse(response: Response) {
+    try {
+      const data = await response.clone().json();
+      if (typeof data?.error === 'string' && data.error.trim()) {
+        return data.error;
+      }
+    } catch {
+      const text = await response.text().catch(() => '');
+      if (text.trim()) return text.trim();
+    }
+    return `Request failed with HTTP ${response.status}`;
+  }
+
+  async function refreshHistory(providerId = selectedProvider) {
+    if (!providerId) return;
+
+    try {
+      const response = await fetch(`/api/ai-chat?provider_id=${providerId}`);
+      if (!response.ok) throw new Error(await readErrorResponse(response));
+      setHistory(await response.json());
+    } catch (caught: unknown) {
+      const errorLike = caught as { message?: string };
+      setError(errorLike?.message || 'Failed to load chat history.');
+    }
+  }
+
+  async function loadChat(chatId: number) {
+    if (streaming) return;
+
+    setLoadingHistory(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/ai-chat/${chatId}`);
+      if (!response.ok) throw new Error(await readErrorResponse(response));
+      const chat = await response.json() as ChatDetail;
+      setCurrentChatId(chat.id);
+      setSelectedProvider(chat.provider_id);
+      setMessages(chat.messages);
+      resetComposerHeight();
+    } catch (caught: unknown) {
+      const errorLike = caught as { message?: string };
+      setError(errorLike?.message || 'Failed to load chat.');
+    } finally {
+      setLoadingHistory(false);
+    }
+  }
+
   function newChat() {
+    setCurrentChatId(null);
     setMessages([]);
     setInput('');
     setError('');
@@ -87,6 +155,7 @@ export default function AIChatTool() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          chat_id: currentChatId,
           provider_id: selectedProvider,
           messages: outboundMessages,
         }),
@@ -94,8 +163,7 @@ export default function AIChatTool() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        setError(data.error || `HTTP ${response.status}`);
+        setError(await readErrorResponse(response));
         setMessages(outboundMessages);
         setStreamStage('ready');
         setStreaming(false);
@@ -130,6 +198,9 @@ export default function AIChatTool() {
 
           try {
             const parsed = JSON.parse(line.slice(6));
+            if (typeof parsed.chat_id === 'number') {
+              setCurrentChatId(parsed.chat_id);
+            }
             if (!parsed.text) continue;
 
             fullText += parsed.text;
@@ -150,6 +221,7 @@ export default function AIChatTool() {
         ...outboundMessages,
         { role: 'assistant', content: fullText },
       ]);
+      refreshHistory(selectedProvider);
     } catch (caught: unknown) {
       const errorLike = caught as { name?: string; message?: string };
       if (errorLike?.name !== 'AbortError') {
@@ -272,6 +344,51 @@ export default function AIChatTool() {
           >
             {t('aiChatNew')}
           </button>
+
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                {t('aiChatHistory')}
+              </p>
+              <button
+                type="button"
+                onClick={() => refreshHistory()}
+                disabled={streaming || loadingHistory}
+                className="text-xs font-medium text-sky-700 disabled:text-slate-300"
+              >
+                {t('aiChatRefresh')}
+              </button>
+            </div>
+
+            {history.length === 0 ? (
+              <p className="rounded-xl bg-slate-50 px-3 py-3 text-xs leading-5 text-slate-500">
+                {t('aiChatNoHistory')}
+              </p>
+            ) : (
+              <div data-testid="ai-chat-history" className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                {history.map(chat => (
+                  <button
+                    key={chat.id}
+                    type="button"
+                    onClick={() => loadChat(chat.id)}
+                    disabled={streaming}
+                    className={`w-full rounded-xl px-3 py-3 text-left transition ${
+                      currentChatId === chat.id
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    <span className="block truncate text-sm font-medium">{chat.title}</span>
+                    <span className={`mt-1 block text-xs ${
+                      currentChatId === chat.id ? 'text-white/55' : 'text-slate-400'
+                    }`}>
+                      {new Date(chat.updated_at).toLocaleString()}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </aside>
 

@@ -10,7 +10,7 @@ Personal blog & toolbox built with **Next.js 14** and **SQLite**.
 - 📒 **Diary** — Private date-based journal with markdown
 - ✅ **Todos** — Task list with deadlines
 - 🖼️ **Files** — Image uploads organized into albums
-- 🤖 **AI Chat** — Multi-provider chat (OpenAI + Anthropic) with streaming
+- 🤖 **AI Chat** — Multi-provider chat (OpenAI + Anthropic) with streaming history
 - 📰 **Subscriptions** — AI-generated briefs from blogs, GitHub, X/Twitter, RSS, Reddit
 - 🐦 **Post to X** — Turn blog posts or diary entries into tweets/threads, attach site images
 - 🔮 **Fortune** — Chinese divination (BaZi, ZiWei, I Ching, Plum Blossom)

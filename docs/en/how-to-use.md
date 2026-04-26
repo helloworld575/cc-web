@@ -36,7 +36,7 @@ Five tabs available to all logged-in users:
 - **Todos** — Quick task list with done/pending filters
 - **Diary** — Date-based diary entries with markdown support
 - **Fortune** — Chinese divination tools (Bazi, Ziwei, I Ching, Plum Blossom)
-- **AI Chat** — Chat with configured AI providers
+- **AI Chat** — Chat with configured AI providers and reopen saved conversation history
 - **Subscriptions** — AI-generated briefs of subscribed content
 
 ---
@@ -74,7 +74,7 @@ Admin pages:
 5. Click **Test Connection** to verify
 6. Click **Save**
 
-Then go to **Tools → AI Chat** and select your provider from the dropdown.
+Then go to **Tools → AI Chat** and select your provider from the dropdown. Completed chats are saved automatically, grouped by provider, and can be reopened from the history list.
 
 ---
 

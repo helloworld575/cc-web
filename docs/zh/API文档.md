@@ -117,11 +117,21 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 
 ## AI 对话
 
+### `GET /api/ai-chat`
+列出已保存的对话摘要，按更新时间倒序。可选 query 参数：`provider_id`。
+
+```json
+[
+  { "id": 1, "provider_id": 1, "title": "你好", "created_at": "...", "updated_at": "..." }
+]
+```
+
 ### `POST /api/ai-chat`
-流式聊天端点，返回 SSE（`text/event-stream`）。
+流式聊天端点，返回 SSE（`text/event-stream`），并将完整转录保存到 `ai_chat_history`。
 
 ```json
 {
+  "chat_id": 1,
   "provider_id": 1,
   "messages": [
     { "role": "user", "content": "你好" }
@@ -129,7 +139,13 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 }
 ```
 
-每个 SSE 事件：`data: {"text": "片段"}\n\n`
+首个 SSE 事件可能包含 `data: {"chat_id": 1}\n\n`；内容事件使用 `data: {"text": "片段"}\n\n`。
+
+### `GET /api/ai-chat/[id]`
+返回已保存的对话，其中 `messages` 已解析为数组。
+
+### `PUT /api/ai-chat/[id]` / `DELETE /api/ai-chat/[id]`
+更新或删除已保存的对话。
 
 ---
 

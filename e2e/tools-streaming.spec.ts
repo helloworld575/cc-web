@@ -45,6 +45,9 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   await page.getByTestId('ai-chat-send').click();
   await expect(page.getByTestId('ai-chat-messages')).toContainText('Mock response');
   await expect(page.getByTestId('ai-chat-messages')).toContainText('streamed item');
+  await expect(page.getByTestId('ai-chat-history')).toContainText('Render markdown for e2e');
+  await page.getByRole('button', { name: /Render markdown for e2e/ }).click();
+  await expect(page.getByTestId('ai-chat-messages')).toContainText('Mock response');
 
   await page.getByTestId('tools-tab-bazi').click();
   await page.getByTestId('fortune-start').click();

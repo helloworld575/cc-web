@@ -117,11 +117,21 @@ Lightweight connection test. Body: `{"provider_id": 1}`. Returns `{"ok": true, "
 
 ## AI Chat
 
+### `GET /api/ai-chat`
+List saved chat summaries, newest first. Optional query param: `provider_id`.
+
+```json
+[
+  { "id": 1, "provider_id": 1, "title": "Hello", "created_at": "...", "updated_at": "..." }
+]
+```
+
 ### `POST /api/ai-chat`
-Streaming chat endpoint. Returns SSE (`text/event-stream`).
+Streaming chat endpoint. Returns SSE (`text/event-stream`) and saves the completed transcript to `ai_chat_history`.
 
 ```json
 {
+  "chat_id": 1,
   "provider_id": 1,
   "messages": [
     { "role": "user", "content": "Hello" }
@@ -129,7 +139,13 @@ Streaming chat endpoint. Returns SSE (`text/event-stream`).
 }
 ```
 
-Each SSE event: `data: {"text": "chunk"}\n\n`
+The first SSE event can include `data: {"chat_id": 1}\n\n`; content events use `data: {"text": "chunk"}\n\n`.
+
+### `GET /api/ai-chat/[id]`
+Return a saved chat with parsed `messages`.
+
+### `PUT /api/ai-chat/[id]` / `DELETE /api/ai-chat/[id]`
+Update or delete a saved chat.
 
 ---
 

@@ -10,17 +10,33 @@ interface ChatMessage {
   content: string;
 }
 
-function createMockStream(chunks: string[]) {
-  const encoder = new TextEncoder();
+function createTitle(messages: ChatMessage[]) {
+  const firstUserMessage = messages.find(message => message.role === 'user')?.content.trim();
+  if (!firstUserMessage) return 'New Chat';
+  return firstUserMessage.length > 60
+    ? `${firstUserMessage.slice(0, 57)}...`
+    : firstUserMessage;
+}
 
-  return new ReadableStream({
-    start(controller) {
-      for (const chunk of chunks) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
-      }
-      controller.close();
-    },
-  });
+function saveNewChat(providerId: number, messages: ChatMessage[]) {
+  const title = createTitle(messages);
+  const result = db
+    .prepare('INSERT INTO ai_chat_history (provider_id, title, messages) VALUES (?, ?, ?)')
+    .run(providerId, title, JSON.stringify(messages));
+  return { id: Number(result.lastInsertRowid), title };
+}
+
+function updateChat(chatId: number, title: string, messages: ChatMessage[]) {
+  db.prepare("UPDATE ai_chat_history SET title=?, messages=?, updated_at=datetime('now') WHERE id=?")
+    .run(title, JSON.stringify(messages), chatId);
+}
+
+function enqueueEvent(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  event: Record<string, unknown>,
+) {
+  const encoder = new TextEncoder();
+  controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
 }
 
 function buildAnthropicRequest(provider: AiProviderConfig, messages: ChatMessage[]) {
@@ -78,12 +94,31 @@ function buildOpenAIRequest(provider: AiProviderConfig, messages: ChatMessage[])
   };
 }
 
-function createAnthropicStream(upstreamBody: ReadableStream<Uint8Array>) {
+function createAnthropicStream(
+  upstreamBody: ReadableStream<Uint8Array>,
+  options: {
+    chatId?: number;
+    onText?: (text: string) => void;
+    onDone?: () => void;
+  } = {},
+) {
   const encoder = new TextEncoder();
   let upstreamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let donePersisted = false;
+
+  function finish(controller: ReadableStreamDefaultController<Uint8Array>) {
+    if (!donePersisted) {
+      options.onDone?.();
+      donePersisted = true;
+    }
+    controller.close();
+  }
 
   return new ReadableStream({
     async start(controller) {
+      if (options.chatId) {
+        enqueueEvent(controller, { chat_id: options.chatId });
+      }
       upstreamReader = upstreamBody.getReader();
       const decoder = new TextDecoder();
       let buf = '';
@@ -102,28 +137,54 @@ function createAnthropicStream(upstreamBody: ReadableStream<Uint8Array>) {
             try {
               const parsed = JSON.parse(raw);
               if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
+                options.onText?.(parsed.delta.text);
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: parsed.delta.text })}\n\n`));
               }
               if (parsed.type === 'message_stop') {
-                controller.close();
+                finish(controller);
                 return;
               }
             } catch { /* skip malformed */ }
           }
         }
       }
-      controller.close();
+      finish(controller);
     },
-    cancel() { upstreamReader?.cancel(); },
+    cancel() {
+      if (!donePersisted) {
+        options.onDone?.();
+        donePersisted = true;
+      }
+      upstreamReader?.cancel();
+    },
   });
 }
 
-function createOpenAIStream(upstreamBody: ReadableStream<Uint8Array>) {
+function createOpenAIStream(
+  upstreamBody: ReadableStream<Uint8Array>,
+  options: {
+    chatId?: number;
+    onText?: (text: string) => void;
+    onDone?: () => void;
+  } = {},
+) {
   const encoder = new TextEncoder();
   let upstreamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let donePersisted = false;
+
+  function finish(controller: ReadableStreamDefaultController<Uint8Array>) {
+    if (!donePersisted) {
+      options.onDone?.();
+      donePersisted = true;
+    }
+    controller.close();
+  }
 
   return new ReadableStream({
     async start(controller) {
+      if (options.chatId) {
+        enqueueEvent(controller, { chat_id: options.chatId });
+      }
       upstreamReader = upstreamBody.getReader();
       const decoder = new TextDecoder();
       let buf = '';
@@ -143,20 +204,40 @@ function createOpenAIStream(upstreamBody: ReadableStream<Uint8Array>) {
               const parsed = JSON.parse(raw);
               const delta = parsed.choices?.[0]?.delta?.content;
               if (delta) {
+                options.onText?.(delta);
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
               }
               if (parsed.choices?.[0]?.finish_reason) {
-                controller.close();
+                finish(controller);
                 return;
               }
             } catch { /* skip malformed */ }
           }
         }
       }
-      controller.close();
+      finish(controller);
     },
-    cancel() { upstreamReader?.cancel(); },
+    cancel() {
+      if (!donePersisted) {
+        options.onDone?.();
+        donePersisted = true;
+      }
+      upstreamReader?.cancel();
+    },
   });
+}
+
+export async function GET(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const providerId = searchParams.get('provider_id');
+  const chats = providerId
+    ? db.prepare('SELECT id, provider_id, title, created_at, updated_at FROM ai_chat_history WHERE provider_id = ? ORDER BY updated_at DESC LIMIT 50').all(providerId)
+    : db.prepare('SELECT id, provider_id, title, created_at, updated_at FROM ai_chat_history ORDER BY updated_at DESC LIMIT 50').all();
+
+  return Response.json(chats);
 }
 
 export async function POST(req: Request) {
@@ -170,7 +251,7 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { provider_id, messages } = body;
+  const { chat_id, provider_id, messages } = body;
   if (!provider_id || !messages || !Array.isArray(messages) || messages.length === 0) {
     return Response.json({ error: 'Missing provider_id or messages' }, { status: 400 });
   }
@@ -182,17 +263,49 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Provider not found' }, { status: 404 });
   }
 
+  const providerId = Number(provider_id);
+  let chatId: number | undefined;
+  let chatTitle = createTitle(messages);
+
+  if (chat_id) {
+    const existing = db.prepare('SELECT * FROM ai_chat_history WHERE id = ?').get(chat_id) as any;
+    if (!existing) {
+      return Response.json({ error: 'Chat not found' }, { status: 404 });
+    }
+    chatId = Number(existing.id);
+    chatTitle = existing.title || chatTitle;
+  }
+
   if (process.env.E2E_MOCK_STREAMS === '1') {
+    if (!chatId) {
+      const saved = saveNewChat(providerId, messages);
+      chatId = saved.id;
+      chatTitle = saved.title;
+    }
+
     const latestUserMessage = [...messages].reverse().find(
       (message: ChatMessage) => message.role === 'user'
     )?.content ?? 'mock prompt';
-    const stream = createMockStream([
+    let assistantText = '';
+    const chunks = [
       '## Mock response\n\n',
       `Echo: ${latestUserMessage}\n\n`,
       '- streamed item\n',
       '- second item\n\n',
       '```md\nflow-ready\n```',
-    ]);
+    ];
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        enqueueEvent(controller, { chat_id: chatId });
+        for (const chunk of chunks) {
+          assistantText += chunk;
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
+        }
+        updateChat(chatId!, chatTitle, [...messages, { role: 'assistant', content: assistantText }]);
+        controller.close();
+      },
+    });
 
     return new Response(stream, {
       headers: {
@@ -208,21 +321,46 @@ export async function POST(req: Request) {
     ? buildAnthropicRequest(provider, messages)
     : buildOpenAIRequest(provider, messages);
 
-  const upstream = await fetch(reqConfig.url, {
-    method: 'POST',
-    headers: reqConfig.headers,
-    body: reqConfig.body,
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetch(reqConfig.url, {
+      method: 'POST',
+      headers: reqConfig.headers,
+      body: reqConfig.body,
+    });
+  } catch (caught: unknown) {
+    const errorLike = caught as { message?: string };
+    return Response.json({ error: errorLike?.message || 'Failed to reach AI provider' }, { status: 502 });
+  }
 
   if (!upstream.ok) {
     let msg = 'AI API error';
     try { const err = await upstream.json(); msg = err.error?.message ?? JSON.stringify(err.error) ?? msg; } catch {}
     return Response.json({ error: msg }, { status: 502 });
   }
+  if (!upstream.body) {
+    return Response.json({ error: 'AI provider returned an empty stream' }, { status: 502 });
+  }
 
+  if (!chatId) {
+    const saved = saveNewChat(providerId, messages);
+    chatId = saved.id;
+    chatTitle = saved.title;
+  }
+
+  let assistantText = '';
+  const streamOptions = {
+    chatId,
+    onText(text: string) {
+      assistantText += text;
+    },
+    onDone() {
+      updateChat(chatId!, chatTitle, [...messages, { role: 'assistant', content: assistantText }]);
+    },
+  };
   const stream = provider.api_type === 'anthropic'
-    ? createAnthropicStream(upstream.body!)
-    : createOpenAIStream(upstream.body!);
+    ? createAnthropicStream(upstream.body!, streamOptions)
+    : createOpenAIStream(upstream.body!, streamOptions);
 
   return new Response(stream, {
     headers: {
