@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-25T05:33:41.376Z",
+  "generatedAt": "2026-04-26T09:59:55.697Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -16,15 +16,22 @@
     "dev:managed": "node scripts/run-managed-command.mjs --label next-dev --clear-port 3000 -- node ./node_modules/next/dist/bin/next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "npm run lint:format && npm run lint:architecture && npm run typecheck",
+    "lint:architecture": "node scripts/check-architecture.mjs",
+    "lint:format": "node scripts/check-format.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "test": "vitest run",
+    "test:api": "vitest run tests/api",
+    "test:lib": "vitest run tests/lib tests/config",
     "test:managed": "node scripts/run-managed-command.mjs --label vitest -- node ./node_modules/vitest/vitest.mjs run",
     "test:watch": "vitest",
     "e2e": "node scripts/run-managed-command.mjs --label playwright-e2e --clear-port 3001 -- node ./node_modules/playwright/cli.js test",
     "e2e:headed": "node scripts/run-managed-command.mjs --label playwright-e2e-headed --clear-port 3001 -- node ./node_modules/playwright/cli.js test --headed",
     "run:managed": "node scripts/run-managed-command.mjs",
     "codex:skills": "node scripts/normalize-codex-skills.mjs",
-    "codex:cache": "node scripts/refresh-codex-cache.mjs"
+    "codex:cache": "node scripts/refresh-codex-cache.mjs",
+    "verify": "npm run lint && npm test && npm run build",
+    "verify:large": "npm run verify && npm run e2e"
   },
   "directories": [
     {
@@ -1024,9 +1031,10 @@
       "tests/api/x-post/route.test.ts",
       "tests/config/dockerfile.test.ts",
       "tests/lib/auth.test.ts",
+      "tests/lib/i18n.test.ts",
       "tests/lib/runtime-paths.test.ts",
       "tests/lib/skill-taxonomy.test.ts"
     ],
-    "count": 30
+    "count": 31
   }
 }

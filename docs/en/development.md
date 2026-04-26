@@ -96,6 +96,14 @@ Rules:
 
 - If a change affects behavior, operations, testing, or deployment, update the relevant README/docs in the same change set.
 - Completed change sets should be committed and pushed to Git instead of being left only in the local worktree.
+- Run the quality gates that match the size of the change:
+  ```bash
+  npm run lint          # format, architecture, and TypeScript checks
+  npm run verify        # lint + Vitest + production build
+  npm run verify:large  # verify + full Playwright e2e suite
+  ```
+- `npm run lint:architecture` enforces executable project boundaries, including Node runtime declarations for SQLite/filesystem/streaming routes, Edge-safe middleware, Tailwind-first styling, and `.codex/skills/` as the skill source of truth.
+- Use `.codex/agents/architecture-reviewer.md` for dedicated architecture/style audits and context cleanup.
 - Reserve `./deploy-to-nas.sh` for large or release-worthy changes. Small changes usually stop after Git push.
 - Long-running local test and smoke flows should use the managed runner so logs are captured and cleanup is enforced:
   ```bash

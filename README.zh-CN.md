@@ -79,6 +79,18 @@ NAS_PASSWORD=
 
 AI 服务商通过管理后台 `/admin/ai-config` 配置，无需环境变量。
 
+## 质量门禁
+
+使用以下检查保持代码风格和架构一致：
+
+```bash
+npm run lint          # 格式、架构和 TypeScript 检查
+npm run verify        # lint + API/单元测试 + 生产构建
+npm run verify:large  # verify + 完整 Playwright e2e
+```
+
+架构审查 agent 的说明位于 `.codex/agents/architecture-reviewer.md`。
+
 ## 生产部署
 
 ```bash

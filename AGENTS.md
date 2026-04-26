@@ -25,6 +25,9 @@ This repository is a Next.js 14 App Router application backed by SQLite. It mixe
 ## Working Rules
 
 - Prefer the cache files above before re-reading broad parts of the repo.
+- Run `npm run lint` before completing architecture, style, workflow, or broad UI changes; it combines format, architecture, and TypeScript checks.
+- Run `npm run verify` for non-e2e release gates, and `npm run verify:large` for large changes that require the full e2e suite.
+- Use `.codex/agents/architecture-reviewer.md` when the user asks for an architecture/style review agent, context cleanup, or codebase consistency audit.
 - When a user request contains multiple requirements, immediately split it into small concrete requirements before implementation.
 - Classify each requirement before editing:
   - Large change: user-visible feature, API/interface change, auth/data/streaming behavior, major refactor, deployment or workflow behavior. Run API tests and affected e2e tests before commit or deploy.
@@ -35,6 +38,7 @@ This repository is a Next.js 14 App Router application backed by SQLite. It mixe
 - When `.codex/skills/` changes structurally, rerun `npm run codex:skills` to normalize metadata and prompt contracts.
 - Routes that touch SQLite, filesystem, or streaming should stay on `runtime = 'nodejs'`.
 - Styling is Tailwind-first; do not introduce CSS modules unless the repo direction changes.
+- Keep architecture checks executable in `scripts/check-architecture.mjs`; do not rely only on prose rules when a boundary can be checked in code.
 - New or changed API routes should be covered by Vitest tests in `tests/api/`.
 - TDD is the default delivery mode in this repo: use `red -> green -> refactor`, not "implement first, patch tests later".
 - Any API or interface change must begin with a failing test before implementation work starts.

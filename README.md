@@ -79,6 +79,18 @@ NAS_PASSWORD=
 
 AI providers are configured through the admin UI at `/admin/ai-config`. If no provider is stored in SQLite, AI chat exposes the `CLAUDE_*` environment configuration as the default provider. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`.
 
+## Quality Gates
+
+Use these checks to keep code style and architecture consistent:
+
+```bash
+npm run lint          # format, architecture, and TypeScript checks
+npm run verify        # lint + API/unit tests + production build
+npm run verify:large  # verify + full Playwright e2e suite
+```
+
+The architecture reviewer instructions live at `.codex/agents/architecture-reviewer.md`.
+
 ## Production
 
 ```bash
