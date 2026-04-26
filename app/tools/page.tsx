@@ -454,7 +454,7 @@ export default function ToolsPage() {
             </aside>
 
             <section data-testid="tools-skills-panel" className="rounded-[28px] border border-white/70 bg-white/94 p-5 shadow-sm">
-              <div data-testid="tools-skills-compact-list" className="max-h-[680px] space-y-4 overflow-y-auto pr-2">
+              <div data-testid="tools-skills-compact-list" className="max-h-[calc(100vh-220px)] min-h-[320px] space-y-4 overflow-y-auto pr-2">
                 {routedSkills.length > 0 && (
                   <section className="rounded-[24px] border border-slate-100 bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(241,245,249,0.88))] px-4 py-4">
                     <div className="flex flex-col gap-1 border-b border-slate-100 pb-3 sm:flex-row sm:items-end sm:justify-between">

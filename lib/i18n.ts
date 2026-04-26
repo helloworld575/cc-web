@@ -92,6 +92,13 @@ export const translations = {
 
     adminTodos: 'Admin - Todos',
     newTodo: 'New todo',
+    markdownEditor: 'Markdown Editor',
+    editTodo: 'Edit todo',
+    todoMarkdownHelp: 'Write rich todo notes with Markdown, then preview before saving.',
+    cancelEdit: 'Cancel edit',
+    saveChanges: 'Save changes',
+    previewOn: 'Preview on',
+    previewOff: 'Preview off',
 
     write: 'Write',
     preview: 'Preview',
@@ -234,6 +241,13 @@ export const translations = {
 
     adminTodos: '管理 - 待办事项',
     newTodo: '新建待办',
+    markdownEditor: 'Markdown 编辑器',
+    editTodo: '编辑待办',
+    todoMarkdownHelp: '使用 Markdown 编写更完整的待办内容，保存前可先预览。',
+    cancelEdit: '取消编辑',
+    saveChanges: '保存更改',
+    previewOn: '预览开启',
+    previewOff: '预览关闭',
 
     write: '编写',
     preview: '预览',

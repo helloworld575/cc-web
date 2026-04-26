@@ -24,6 +24,11 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
 
   await page.getByTestId('tools-tab-skills').click();
   await expect(page.getByTestId('tools-skills-compact-list')).toBeVisible();
+  const skillsListMaxHeight = await page.getByTestId('tools-skills-compact-list').evaluate(element => {
+    return Number.parseFloat(window.getComputedStyle(element).maxHeight);
+  });
+  const viewportHeight = page.viewportSize()?.height ?? 720;
+  expect(skillsListMaxHeight).toBeLessThanOrEqual(viewportHeight - 180);
   await page.getByTestId('tools-skills-search').fill('find skills');
   await expect(page.getByTestId('tools-skills-panel')).toContainText('find-skills');
   await expect(page.getByTestId('tools-skills-panel')).toContainText('Agent / Skills');
