@@ -49,3 +49,33 @@ test('public navigation and blog publishing flow work end to end', async ({ page
   await page.getByText(title).click();
   await expect(page.getByText('This markdown was saved during the browser flow.')).toBeVisible();
 });
+
+test('admin blog editor has a large markdown toolbar, preview toggle, and height-aware skills', async ({ page }) => {
+  await login(page);
+
+  const title = `E2E Markdown Blog ${Date.now()}`;
+  await page.getByTestId('admin-blog-new-title').fill(title);
+  await page.getByTestId('admin-blog-create').click();
+  await expect(page).toHaveURL(/\/admin\/blog\/.+/);
+  await page.waitForLoadState('networkidle');
+
+  const editor = page.getByTestId('admin-blog-editor-content');
+  await expect(editor).toBeVisible();
+  await expect(editor).toHaveCSS('min-height', '640px');
+
+  await editor.fill('Blog markdown body');
+  await page.getByTestId('markdown-toolbar-heading').click();
+  await expect(editor).toHaveValue('### Blog markdown body');
+
+  await expect(page.getByTestId('admin-blog-editor-preview')).toContainText('Blog markdown body');
+  await page.getByTestId('admin-blog-preview-toggle').click();
+  await expect(page.getByTestId('admin-blog-editor-preview')).toBeHidden();
+  await page.getByTestId('admin-blog-preview-toggle').click();
+  await expect(page.getByTestId('admin-blog-editor-preview')).toBeVisible();
+
+  const skillsListMaxHeight = await page.getByTestId('admin-blog-skill-list').evaluate(element => {
+    return Number.parseFloat(window.getComputedStyle(element).maxHeight);
+  });
+  const viewportHeight = page.viewportSize()?.height ?? 720;
+  expect(skillsListMaxHeight).toBeLessThanOrEqual(viewportHeight - 180);
+});

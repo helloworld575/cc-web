@@ -66,8 +66,12 @@ export default function MarkdownEditor({ value, onChange, rows = 24, textareaTes
   function prefixLines(prefix: string) {
     const el = getActiveTextarea();
     if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
+    let start = el.selectionStart;
+    let end = el.selectionEnd;
+    if (start === end && value.trim()) {
+      start = 0;
+      end = value.length;
+    }
     const selected = value.slice(start, end) || 'item';
     const inserted = selected.split('\n').map(line => `${prefix}${line}`).join('\n');
     replaceSelection(value.slice(0, start) + inserted + value.slice(end), start + prefix.length, start + inserted.length);

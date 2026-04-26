@@ -6,7 +6,7 @@ Personal blog & toolbox built with **Next.js 14** and **SQLite**.
 
 ## Features
 
-- 📝 **Blog** — Markdown posts with AI-assisted editing (brief, tags, title, translate, polish)
+- 📝 **Blog** — Large Markdown editor with toolbar, optional preview, and AI-assisted editing
 - 📒 **Diary** — Private date-based journal with markdown
 - ✅ **Todos** — Task list with deadlines
 - 🖼️ **Files** — Image uploads organized into albums

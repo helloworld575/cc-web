@@ -158,7 +158,7 @@ export default function AdminBlogEditor() {
   const skillGroups = groupSkillSummaries(filteredSkills);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
       <section className="glass-panel rounded-[32px] px-6 py-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
@@ -203,7 +203,7 @@ export default function AdminBlogEditor() {
         />
       </section>
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <section className="mt-6 grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
         <aside className="glass-panel rounded-[32px] px-5 py-5">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{t('aiTools')}</p>
           <h2 className="mt-2 font-display text-3xl text-slate-950">Skill finder</h2>
@@ -219,7 +219,7 @@ export default function AdminBlogEditor() {
             className="mt-5 w-full rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
           />
 
-          <div className="mt-5 space-y-4">
+          <div data-testid="admin-blog-skill-list" className="mt-5 max-h-[calc(100vh-260px)] min-h-[320px] space-y-4 overflow-y-auto pr-2">
             {skillGroups.map(group => (
               <section key={group.key} className="rounded-[24px] border border-white/70 bg-white/90 px-4 py-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{group.label}</p>
@@ -323,9 +323,11 @@ export default function AdminBlogEditor() {
           <MarkdownEditor
             value={content}
             onChange={setContent}
-            rows={28}
+            rows={32}
+            minHeight={640}
             textareaTestId="admin-blog-editor-content"
             previewTestId="admin-blog-editor-preview"
+            previewToggleTestId="admin-blog-preview-toggle"
           />
         </section>
       </section>
