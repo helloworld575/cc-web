@@ -117,6 +117,15 @@ Lightweight connection test. Body: `{"provider_id": 1}`. Use `{"provider_id": -1
 
 ---
 
+## AI Image
+
+### `POST /api/ai-image`
+Generate an image with the configured `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY`.
+
+If the upstream image service returns HTML or invalid JSON, the route returns `502` JSON with `error` and `detail` instead of throwing a server-side parse exception.
+
+---
+
 ## AI Chat
 
 ### `GET /api/ai-chat`

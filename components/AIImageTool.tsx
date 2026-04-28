@@ -10,6 +10,22 @@ export default function AIImageTool() {
   const [loading, setLoading] = useState(false);
   const { t } = useLocale();
 
+  async function readErrorResponse(response: Response) {
+    try {
+      const data = await response.clone().json();
+      const detail = typeof data?.detail === 'string' && data.detail.trim()
+        ? ` ${data.detail.trim()}`
+        : '';
+      if (typeof data?.error === 'string' && data.error.trim()) {
+        return `${data.error}${detail}`;
+      }
+    } catch {
+      const text = await response.text().catch(() => '');
+      if (text.trim()) return text.trim();
+    }
+    return `HTTP ${response.status}`;
+  }
+
   async function generate() {
     if (!prompt.trim() || loading) return;
 
@@ -24,11 +40,11 @@ export default function AIImageTool() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
       });
-      const data = await response.json();
       if (!response.ok) {
-        setError(data.error || `HTTP ${response.status}`);
+        setError(await readErrorResponse(response));
         return;
       }
+      const data = await response.json();
       setImage(data.image);
       setRevisedPrompt(data.revised_prompt || '');
     } catch (caught: unknown) {

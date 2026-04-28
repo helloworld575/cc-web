@@ -116,6 +116,37 @@ describe('POST /api/ai-image', () => {
     expect(data.detail).toContain('upstream refused request');
   });
 
+  it('returns a JSON error when the image API returns HTML with a successful status', async () => {
+    mockSession(true);
+    mockFetch.mockResolvedValue(new Response('<!doctype html><html><body>proxy login</body></html>', {
+      status: 200,
+      headers: { 'Content-Type': 'text/html' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    const res = await POST(makePostReq({ prompt: 'a tiny robot' }));
+
+    expect(res.status).toBe(502);
+    const data = await res.json();
+    expect(data.error).toBe('Image API returned a non-JSON response');
+    expect(data.detail).toContain('proxy login');
+  });
+
+  it('returns a JSON error when the image API JSON cannot be parsed', async () => {
+    mockSession(true);
+    mockFetch.mockResolvedValue(new Response('{not json', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    const res = await POST(makePostReq({ prompt: 'a tiny robot' }));
+
+    expect(res.status).toBe(502);
+    const data = await res.json();
+    expect(data.error).toBe('Image API returned invalid JSON');
+  });
+
   it('returns deterministic mock image when e2e streams are mocked', async () => {
     process.env.E2E_MOCK_STREAMS = '1';
     mockSession(true);

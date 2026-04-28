@@ -117,6 +117,15 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 
 ---
 
+## AI 图像
+
+### `POST /api/ai-image`
+使用已配置的 `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY` 生成图像。
+
+如果上游图像服务返回 HTML 或无法解析的 JSON，接口会返回 `502` JSON，并包含 `error` 与 `detail`，不会再抛出服务端 JSON 解析异常。
+
+---
+
 ## AI 对话
 
 ### `GET /api/ai-chat`

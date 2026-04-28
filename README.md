@@ -209,6 +209,7 @@ See [docs/en/development.md](./docs/en/development.md#adding-an-ai-skill) for ho
 | `better-sqlite3` build error | `npm rebuild better-sqlite3` |
 | Hydration mismatch in Nav | Make sure locale cookie matches or clear cookies |
 | AI proxy rejects streaming test | Use `/api/ai-providers/test` endpoint (non-streaming) |
+| AI image returns HTML instead of JSON | Check `GPT_IMAGE_API_URL`; `/api/ai-image` returns a 502 JSON error with the first part of the upstream HTML response |
 | X post fails with empty `{}` | Check app has Read+Write permissions, regenerate access tokens |
 | Fortune streaming stops early | Increase `max_tokens` in `app/api/fortune/route.ts` |
 

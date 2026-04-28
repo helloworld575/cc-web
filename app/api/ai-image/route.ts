@@ -30,6 +30,33 @@ async function readUpstreamError(response: Response) {
   }
 }
 
+async function readUpstreamJson(response: Response) {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const detail = await response.text().catch(() => response.statusText);
+    return {
+      data: null,
+      error: 'Image API returned a non-JSON response',
+      detail: detail.slice(0, 500),
+    };
+  }
+
+  try {
+    return {
+      data: await response.json(),
+      error: null,
+      detail: null,
+    };
+  } catch (caught: unknown) {
+    const errorLike = caught as { message?: string };
+    return {
+      data: null,
+      error: 'Image API returned invalid JSON',
+      detail: errorLike?.message || response.statusText,
+    };
+  }
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -74,7 +101,11 @@ export async function POST(req: Request) {
     return Response.json({ error, detail }, { status: 502 });
   }
 
-  const data = await upstream.json();
+  const { data, error: parseError, detail: parseDetail } = await readUpstreamJson(upstream);
+  if (parseError) {
+    return Response.json({ error: parseError, detail: parseDetail }, { status: 502 });
+  }
+
   const image = data.data?.[0]?.b64_json
     ? `data:image/png;base64,${data.data[0].b64_json}`
     : data.data?.[0]?.url;

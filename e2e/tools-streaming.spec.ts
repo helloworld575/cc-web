@@ -8,7 +8,7 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   await expect(page).toHaveURL(/\/tools/);
 
   await page.getByTestId('tools-tab-todos').click();
-  await expect(page.getByText('Seeded todo from e2e runtime')).toBeVisible();
+  await expect(page.getByRole('main').getByText('Seeded todo from e2e runtime')).toBeVisible();
 
   await page.getByRole('button', { name: '中文' }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
