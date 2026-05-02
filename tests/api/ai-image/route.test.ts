@@ -14,7 +14,10 @@ function makePostReq(body: unknown) {
 }
 
 describe('POST /api/ai-image', () => {
+  let consoleWarn: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
+    consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     vi.mocked(rateLimitByIp).mockReturnValue(null);
     mockFetch.mockReset();
     process.env.GPT_IMAGE_API_KEY = 'test-image-key';
@@ -24,6 +27,7 @@ describe('POST /api/ai-image', () => {
   });
 
   afterEach(() => {
+    consoleWarn.mockRestore();
     delete process.env.E2E_MOCK_STREAMS;
   });
 
@@ -74,8 +78,9 @@ describe('POST /api/ai-image', () => {
     expect(data.model).toBe('gpt-image-2-pro');
 
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://right.codes/gpt/v1/chat/completions');
+    expect(url).toBe('https://right.codes/v1/chat/completions');
     expect(init.headers.Authorization).toBe('Bearer test-image-key');
+    expect(init.headers['New-Api-Group']).toBe('vip_2_image');
     expect(JSON.parse(init.body)).toEqual({
       model: 'gpt-image-2-pro',
       group: 'vip_2_image',
@@ -103,6 +108,19 @@ describe('POST /api/ai-image', () => {
     await POST(makePostReq({ prompt: 'a tiny robot' }));
 
     expect(mockFetch.mock.calls[0][0]).toBe('https://right.codes/gpt/v1/chat/completions');
+  });
+
+  it('normalizes root provider URLs to the standard v1 chat completions path', async () => {
+    mockSession(true);
+    process.env.GPT_IMAGE_API_URL = 'https://www.openclaudecode.cn';
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: 'https://cdn.example.com/root.png' } }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    await POST(makePostReq({ prompt: 'a tiny robot' }));
+
+    expect(mockFetch.mock.calls[0][0]).toBe('https://www.openclaudecode.cn/v1/chat/completions');
   });
 
   it('normalizes configured URLs that already include the chat completions API path', async () => {
@@ -134,6 +152,7 @@ describe('POST /api/ai-image', () => {
     const upstreamBody = JSON.parse(init.body);
     expect(upstreamBody.model).toBe('custom-image-model');
     expect(upstreamBody.group).toBe('custom-image-group');
+    expect(init.headers['New-Api-Group']).toBe('custom-image-group');
   });
 
   it('includes upstream status and body when image generation fails', async () => {

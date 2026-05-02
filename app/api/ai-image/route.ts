@@ -12,7 +12,7 @@ function getImageGenerationUrl() {
   if (configured.endsWith('/chat/completions')) return configured;
   if (configured.endsWith('/v1')) return `${configured}/chat/completions`;
   if (configured.endsWith('/gpt')) return `${configured}/v1/chat/completions`;
-  return `${configured}/gpt/v1/chat/completions`;
+  return `${configured}/v1/chat/completions`;
 }
 
 function getImageModel() {
@@ -21,6 +21,10 @@ function getImageModel() {
 
 function getImageGroup() {
   return process.env.GPT_IMAGE_GROUP || 'vip_2_image';
+}
+
+function logImageFailure(reason: string, detail: Record<string, unknown>) {
+  console.warn('[ai-image]', reason, detail);
 }
 
 async function readUpstreamError(response: Response) {
@@ -195,12 +199,14 @@ export async function POST(req: Request) {
   if (!apiKey) return Response.json({ error: 'GPT_IMAGE_API_KEY is not configured' }, { status: 500 });
 
   let upstream: Response;
+  const imageGroup = getImageGroup();
   try {
     upstream = await fetch(getImageGenerationUrl(), {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'New-Api-Group': imageGroup,
       },
       body: JSON.stringify(buildImageRequestBody(prompt)),
     });
@@ -211,6 +217,11 @@ export async function POST(req: Request) {
 
   if (!upstream.ok) {
     const { error, detail } = await readUpstreamError(upstream);
+    logImageFailure('upstream-error', {
+      status: upstream.status,
+      contentType: upstream.headers.get('content-type') || '',
+      detail,
+    });
     return Response.json({ error, detail }, { status: 502 });
   }
 
@@ -222,6 +233,7 @@ export async function POST(req: Request) {
   if (contentType.includes('text/event-stream')) {
     const { text, error, detail } = await readUpstreamStream(upstream);
     if (error) {
+      logImageFailure('stream-error', { error, detail });
       return Response.json({ error, detail }, { status: 502 });
     }
     image = extractImageFromText(text);
@@ -229,6 +241,11 @@ export async function POST(req: Request) {
   } else {
     const { data, error: parseError, detail: parseDetail } = await readUpstreamJson(upstream);
     if (parseError) {
+      logImageFailure('parse-error', {
+        error: parseError,
+        detail: parseDetail,
+        contentType,
+      });
       return Response.json({ error: parseError, detail: parseDetail }, { status: 502 });
     }
 
@@ -238,7 +255,10 @@ export async function POST(req: Request) {
     created = normalized.created;
   }
 
-  if (!image) return Response.json({ error: 'Image API returned no image' }, { status: 502 });
+  if (!image) {
+    logImageFailure('no-image', { contentType });
+    return Response.json({ error: 'Image API returned no image' }, { status: 502 });
+  }
 
   return Response.json({
     image,

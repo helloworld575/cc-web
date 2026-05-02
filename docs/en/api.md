@@ -120,7 +120,7 @@ Lightweight connection test. Body: `{"provider_id": 1}`. Use `{"provider_id": -1
 ## AI Image
 
 ### `POST /api/ai-image`
-Generate an image with the configured `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY`. The backend sends a chat-completions style streaming request and waits for the upstream image result before returning JSON to the browser.
+Generate an image with the configured `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY`. The backend sends a chat-completions style streaming request and waits for the upstream image result before returning JSON to the browser. Root provider URLs are normalized to `/v1/chat/completions`; set a full URL or a `/gpt` URL only if the provider explicitly requires that prefix.
 
 Upstream request shape:
 
@@ -142,6 +142,8 @@ Upstream request shape:
 ```
 
 Override the defaults with `GPT_IMAGE_MODEL` and `GPT_IMAGE_GROUP`.
+
+The selected group is sent both as the `group` request field and the `New-Api-Group` header for New API compatible gateways.
 
 If the upstream image service returns HTML or invalid JSON, the route returns `502` JSON with `error` and `detail` instead of throwing a server-side parse exception.
 
