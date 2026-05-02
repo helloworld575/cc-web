@@ -117,6 +117,21 @@ Lightweight connection test. Body: `{"provider_id": 1}`. Use `{"provider_id": -1
 
 ---
 
+## Claude Code
+
+### `POST /api/claude-code`
+Admin-only streaming proxy to the internal Claude Code worker. The browser calls the site; the site forwards the request to `CLAUDE_CODE_WORKER_URL`.
+
+Request body:
+
+```json
+{ "prompt": "Summarize this workspace", "cwd": "default" }
+```
+
+Responses use `application/x-ndjson` and stream Claude Code JSON events. Docker Compose sets the worker URL to `http://claude-worker:8787`.
+
+---
+
 ## AI Image
 
 ### `POST /api/ai-image`

@@ -4,6 +4,8 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    environment:
+      CLAUDE_CODE_WORKER_URL: http://claude-worker:8787
     volumes:
       - app-data:/app/data
       - app-uploads:/app/uploads
@@ -11,6 +13,29 @@ services:
       # - ./content:/app/content
     env_file:
       - .env.local
+    depends_on:
+      - claude-worker
+
+  claude-worker:
+    image: ${NAS_CLAUDE_WORKER_IMAGE_NAME:-my-site-claude-worker:latest}
+    restart: unless-stopped
+    environment:
+      CLAUDE_WORKER_PORT: 8787
+      CLAUDE_WORKSPACE_ROOT: /workspaces
+      CLAUDE_MAX_PROMPT_CHARS: 20000
+      CLAUDE_PERMISSION_MODE: ${CLAUDE_PERMISSION_MODE:-dontAsk}
+      CLAUDE_ALLOWED_TOOLS: ${CLAUDE_ALLOWED_TOOLS:-Read,Glob,Grep}
+      CLAUDE_DISALLOWED_TOOLS: ${CLAUDE_DISALLOWED_TOOLS:-Bash,Edit,Write,NotebookEdit}
+      CLAUDE_MAX_BUDGET_USD: ${CLAUDE_MAX_BUDGET_USD:-}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:?CLAUDE_API_KEY is required}
+      CLAUDE_API_HOST: ${CLAUDE_API_HOST:-https://api.anthropic.com}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-6}
+      ANTHROPIC_API_KEY: ${CLAUDE_API_KEY:?CLAUDE_API_KEY is required}
+      ANTHROPIC_BASE_URL: ${CLAUDE_API_HOST:-https://api.anthropic.com}
+      ANTHROPIC_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-6}
+      USE_BUILTIN_RIPGREP: 0
+    volumes:
+      - claude-workspaces:/workspaces
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -22,3 +47,4 @@ services:
 volumes:
   app-data:
   app-uploads:
+  claude-workspaces:

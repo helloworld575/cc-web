@@ -144,6 +144,7 @@ NAS_USER = os.environ["NAS_USER"]
 NAS_PATH = os.environ["NAS_PATH"]
 NAS_PASSWORD = os.environ["NAS_PASSWORD"]
 NAS_IMAGE_NAME = os.environ.get("NAS_IMAGE_NAME", "my-site:latest")
+NAS_CLAUDE_WORKER_IMAGE_NAME = os.environ.get("NAS_CLAUDE_WORKER_IMAGE_NAME", "my-site-claude-worker:latest")
 NAS_ENV_FILE = os.environ.get("NAS_ENV_FILE", ".env.local")
 REMOTE_STAGE_BASE = os.environ.get("NAS_REMOTE_STAGE_BASE", f"{NAS_PATH}/.codex-deploy-stage")
 REMOTE_PACKAGE_NAME = os.environ.get("NAS_PACKAGE_FILE", PACKAGE_FILE)
@@ -162,6 +163,7 @@ include_files = [
     ".gitignore",
     "AGENTS.md",
     "Dockerfile",
+    "Dockerfile.claude-worker",
     "README.md",
     "README.zh-CN.md",
     "deploy-to-nas.sh",
@@ -173,6 +175,7 @@ include_files = [
     "package.json",
     "postcss.config.mjs",
     "setup.sh",
+    "scripts/claude-worker.mjs",
     "tailwind.config.ts",
     "tsconfig.json",
 ]
@@ -392,6 +395,7 @@ def main() -> int:
                 ("Create extract directory", f"mkdir -p {shlex.quote(extract_dir)}", 120),
                 ("Extract deployment package", f"tar -xzf {shlex.quote(remote_package)} -C {shlex.quote(extract_dir)}", 600),
                 ("Build Docker image", f"cd {shlex.quote(extract_dir)} && docker build -t {shlex.quote(NAS_IMAGE_NAME)} .", 1800),
+                ("Build Claude worker image", f"cd {shlex.quote(extract_dir)} && docker build -f Dockerfile.claude-worker -t {shlex.quote(NAS_CLAUDE_WORKER_IMAGE_NAME)} .", 1800),
                 ("Start compose stack", f"cd {shlex.quote(NAS_PATH)} && {compose_cmd} up -d --force-recreate", 600),
                 ("Inspect compose stack", f"cd {shlex.quote(NAS_PATH)} && {compose_cmd} ps", 180),
             ]

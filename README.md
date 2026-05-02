@@ -11,6 +11,7 @@ Personal blog & toolbox built with **Next.js 14** and **SQLite**.
 - ✅ **Todos** — Task list with deadlines
 - 🖼️ **Files** — Image uploads organized into albums
 - 🤖 **AI Chat** — Multi-provider chat (OpenAI + Anthropic) with streaming history
+- **Claude Code Worker** — Admin-only web UI that proxies prompts to an isolated Claude Code worker container
 - 📰 **Subscriptions** — AI-generated briefs from blogs, GitHub, X/Twitter, RSS, Reddit
 - 🐦 **Post to X** — Turn blog posts or diary entries into tweets/threads, attach site images
 - 🔮 **Fortune** — Chinese divination (BaZi, ZiWei, I Ching, Plum Blossom)
@@ -65,6 +66,10 @@ CLOUDFLARE_TUNNEL_TOKEN=
 CLAUDE_API_KEY=
 CLAUDE_MODEL=claude-sonnet-4-6
 CLAUDE_API_HOST=https://api.anthropic.com
+CLAUDE_CODE_WORKER_URL=http://claude-worker:8787
+CLAUDE_PERMISSION_MODE=dontAsk
+CLAUDE_ALLOWED_TOOLS=Read,Glob,Grep
+CLAUDE_DISALLOWED_TOOLS=Bash,Edit,Write,NotebookEdit
 
 # Optional AI image tool
 GPT_IMAGE_API_KEY=
@@ -79,7 +84,7 @@ NAS_PATH=/volume1/docker/my-site
 NAS_PASSWORD=
 ```
 
-AI providers are configured through the admin UI at `/admin/ai-config`. When `CLAUDE_API_KEY` is set in `.env.local`, that env-backed Claude provider is always shown as the default provider; additional saved providers remain available without replacing it. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it calls a chat-completions style image endpoint with `GPT_IMAGE_MODEL` and `GPT_IMAGE_GROUP`, supports an optional reference image upload, and may wait a minute or longer for upstream generation.
+AI providers are configured through the admin UI at `/admin/ai-config`. When `CLAUDE_API_KEY` is set in `.env.local`, that env-backed Claude provider is always shown as the default provider; additional saved providers remain available without replacing it. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The admin UI also exposes `/admin/claude-code`, which calls an internal Claude Code worker through `/api/claude-code`. The worker maps `CLAUDE_API_KEY`, `CLAUDE_API_HOST`, and `CLAUDE_MODEL` into Claude Code's Anthropic environment variables and defaults to read-only tools. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it calls a chat-completions style image endpoint with `GPT_IMAGE_MODEL` and `GPT_IMAGE_GROUP`, supports an optional reference image upload, and may wait a minute or longer for upstream generation.
 
 ## Quality Gates
 
@@ -108,13 +113,13 @@ docker compose up -d
 
 ### Deploy to Synology NAS
 
-`./deploy-to-nas.sh` reads the root `.env.local`, uploads that env file plus `docker-compose.nas.yml`, builds `my-site:latest` on the NAS, and runs:
+`./deploy-to-nas.sh` reads the root `.env.local`, uploads that env file plus `docker-compose.nas.yml`, builds `my-site:latest` and `my-site-claude-worker:latest` on the NAS, and runs:
 
 ```bash
 docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```
 
-Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`.
+Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`. Claude Code worker deployment also requires `CLAUDE_API_KEY`; `CLAUDE_API_HOST` and `CLAUDE_MODEL` are optional overrides.
 The deploy script writes timestamped logs to `log/deploy/` and always attempts to remove the remote staging directory and close SSH/SFTP sessions before exiting.
 
 ## Testing

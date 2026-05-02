@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-26T16:38:55.587Z",
+  "generatedAt": "2026-05-02T18:25:04.585Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -187,6 +187,11 @@
         "description": "Admin blog list/editor entry."
       },
       {
+        "route": "/admin/claude-code",
+        "file": "app/admin/claude-code/page.tsx",
+        "description": "Page route in the Next.js App Router tree."
+      },
+      {
         "route": "/admin/diary",
         "file": "app/admin/diary/page.tsx",
         "description": "Diary management page."
@@ -314,6 +319,11 @@
         "description": "List or create blog content."
       },
       {
+        "route": "/api/claude-code",
+        "file": "app/api/claude-code/route.ts",
+        "description": "API route in the application backend."
+      },
+      {
         "route": "/api/diary/[id]",
         "file": "app/api/diary/[id]/route.ts",
         "description": "Single diary entry operations."
@@ -410,6 +420,7 @@
       "components/AIChatTool.tsx",
       "components/AIImageTool.tsx",
       "components/BaziTool.tsx",
+      "components/ClaudeCodeTool.tsx",
       "components/DateRangeFilter.tsx",
       "components/DeadlineAlert.tsx",
       "components/FortuneTool.tsx",
@@ -1013,6 +1024,7 @@
       "tests/api/bazi/route.test.ts",
       "tests/api/blog/route.test.ts",
       "tests/api/blog/slug.test.ts",
+      "tests/api/claude-code/route.test.ts",
       "tests/api/diary/id.test.ts",
       "tests/api/diary/route.test.ts",
       "tests/api/files/id.test.ts",
@@ -1036,6 +1048,6 @@
       "tests/lib/runtime-paths.test.ts",
       "tests/lib/skill-taxonomy.test.ts"
     ],
-    "count": 32
+    "count": 33
   }
 }

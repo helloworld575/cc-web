@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-04-26T16:38:55.587Z
+Generated: 2026-05-02T18:25:04.585Z
 
 ## Snapshot
 
@@ -49,11 +49,12 @@ Generated: 2026-04-26T16:38:55.587Z
 - `app/api/fortune/route.ts`: Streaming fortune analysis route with history integration.
 - `app/api/bazi/route.ts`: Dedicated BaZi streaming route.
 
-## Page Routes (15)
+## Page Routes (16)
 
 - `/admin/ai-config` -> `app/admin/ai-config/page.tsx`: Admin page for AI provider configuration.
 - `/admin/blog/[slug]` -> `app/admin/blog/[slug]/page.tsx`: Admin editor for a single blog post.
 - `/admin/blog` -> `app/admin/blog/page.tsx`: Admin blog list/editor entry.
+- `/admin/claude-code` -> `app/admin/claude-code/page.tsx`: Page route in the Next.js App Router tree.
 - `/admin/diary` -> `app/admin/diary/page.tsx`: Diary management page.
 - `/admin/files` -> `app/admin/files/page.tsx`: File and album management page.
 - `/admin/skills` -> `app/admin/skills/page.tsx`: Admin skill management UI.
@@ -67,7 +68,7 @@ Generated: 2026-04-26T16:38:55.587Z
 - `/` -> `app/page.tsx`: Public homepage.
 - `/tools` -> `app/tools/page.tsx`: Main tool hub.
 
-## API Routes (31)
+## API Routes (32)
 
 - `/api/ai-chat/[id]` -> `app/api/ai-chat/[id]/route.ts`: Read, update, or delete stored AI chat sessions.
 - `/api/ai-chat` -> `app/api/ai-chat/route.ts`: Create and stream AI chat sessions.
@@ -82,6 +83,7 @@ Generated: 2026-04-26T16:38:55.587Z
 - `/api/bazi` -> `app/api/bazi/route.ts`: Specialized BaZi analysis endpoint.
 - `/api/blog/[slug]` -> `app/api/blog/[slug]/route.ts`: Read, update, or delete a single blog post.
 - `/api/blog` -> `app/api/blog/route.ts`: List or create blog content.
+- `/api/claude-code` -> `app/api/claude-code/route.ts`: API route in the application backend.
 - `/api/diary/[id]` -> `app/api/diary/[id]/route.ts`: Single diary entry operations.
 - `/api/diary` -> `app/api/diary/route.ts`: Diary entry CRUD.
 - `/api/files/[id]` -> `app/api/files/[id]/route.ts`: Single file operations.
@@ -168,7 +170,7 @@ Generated: 2026-04-26T16:38:55.587Z
 
 ## Tests
 
-- API and helper test files: 32
+- API and helper test files: 33
 - Examples: `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai-providers/test.test.ts`, `tests/api/ai/route.test.ts`, `tests/api/bazi/route.test.ts`
 
 ## Notes

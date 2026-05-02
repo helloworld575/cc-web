@@ -1,0 +1,26 @@
+FROM node:20-alpine
+
+RUN apk add --no-cache bash git libgcc libstdc++ ripgrep && \
+    npm install -g @anthropic-ai/claude-code@latest && \
+    addgroup --system --gid 1002 claude && \
+    adduser --system --uid 1002 --ingroup claude claude
+
+WORKDIR /worker
+COPY scripts/claude-worker.mjs ./claude-worker.mjs
+
+RUN mkdir -p /workspaces /home/claude/.claude && \
+    chown -R claude:claude /worker /workspaces /home/claude
+
+USER claude
+
+ENV NODE_ENV=production
+ENV CLAUDE_WORKER_PORT=8787
+ENV CLAUDE_WORKSPACE_ROOT=/workspaces
+ENV CLAUDE_PERMISSION_MODE=dontAsk
+ENV CLAUDE_ALLOWED_TOOLS=Read,Glob,Grep
+ENV CLAUDE_DISALLOWED_TOOLS=Bash,Edit,Write,NotebookEdit
+ENV USE_BUILTIN_RIPGREP=0
+
+EXPOSE 8787
+
+CMD ["node", "/worker/claude-worker.mjs"]
