@@ -136,7 +136,7 @@ export const translations = {
 
     imageLab: 'Image Lab',
     imageTitle: 'GPT Image',
-    imageDesc: 'Generate a quick visual using the configured gpt-image-2 endpoint.',
+    imageDesc: 'Generate an image using the configured chat-completions image endpoint.',
     imagePrompt: 'Prompt',
     imagePromptPlaceholder: 'Describe the image you want',
     imageGenerating: 'Generating',
@@ -288,7 +288,7 @@ export const translations = {
 
     imageLab: '图像实验室',
     imageTitle: 'GPT 图像',
-    imageDesc: '通过已配置的 gpt-image-2 端点快速生成图片。',
+    imageDesc: '通过已配置的 chat-completions 生图端点生成图片。',
     imagePrompt: '提示词',
     imagePromptPlaceholder: '描述你想生成的图片',
     imageGenerating: '生成中',

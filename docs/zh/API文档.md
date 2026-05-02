@@ -120,7 +120,28 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 ## AI 图像
 
 ### `POST /api/ai-image`
-使用已配置的 `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY` 生成图像。
+使用已配置的 `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY` 生成图像。后端会发送 chat-completions 风格的流式生图请求，并等待上游生成完成后再向浏览器返回 JSON。
+
+上游请求体格式：
+
+```json
+{
+  "model": "gpt-image-2-pro",
+  "group": "vip_2_image",
+  "messages": [
+    { "role": "user", "content": "测试" },
+    { "role": "assistant", "content": "" },
+    { "role": "user", "content": "<prompt>" }
+  ],
+  "stream": true,
+  "temperature": 0.7,
+  "top_p": 1,
+  "frequency_penalty": 0,
+  "presence_penalty": 0
+}
+```
+
+可通过 `GPT_IMAGE_MODEL` 和 `GPT_IMAGE_GROUP` 覆盖默认值。
 
 如果上游图像服务返回 HTML 或无法解析的 JSON，接口会返回 `502` JSON，并包含 `error` 与 `detail`，不会再抛出服务端 JSON 解析异常。
 

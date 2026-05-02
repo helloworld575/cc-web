@@ -35,7 +35,7 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
 
   await page.getByTestId('tools-tab-image').click();
   await expect(page.getByRole('heading', { name: 'GPT 图像' })).toBeVisible();
-  await expect(page.getByText('通过已配置的 gpt-image-2 端点快速生成图片。')).toBeVisible();
+  await expect(page.getByText('通过已配置的 chat-completions 生图端点生成图片。')).toBeVisible();
   await page.getByTestId('ai-image-prompt').fill('A playful paper-cut moon over Shanghai');
   await page.getByTestId('ai-image-generate').click();
   await expect(page.getByTestId('ai-image-result')).toBeVisible();

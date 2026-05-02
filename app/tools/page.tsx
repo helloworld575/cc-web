@@ -56,7 +56,7 @@ const TOOLS_COPY = {
       },
       image: {
         eyebrow: 'Creative',
-        description: 'Generate quick images through the configured gpt-image-2 endpoint.',
+        description: 'Generate images through the configured chat-completions image endpoint.',
       },
       subscriptions: {
         eyebrow: 'Digest',

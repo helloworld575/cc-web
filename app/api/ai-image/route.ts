@@ -8,10 +8,19 @@ const MOCK_IMAGE_BASE64 =
 
 function getImageGenerationUrl() {
   const configured = (process.env.GPT_IMAGE_API_URL || 'https://right.codes').replace(/\/+$/, '');
-  if (configured.endsWith('/v1/images/generations')) return configured;
-  if (configured.endsWith('/v1')) return `${configured}/images/generations`;
-  if (configured.endsWith('/gpt')) return `${configured}/v1/images/generations`;
-  return `${configured}/gpt/v1/images/generations`;
+  if (configured.endsWith('/v1/chat/completions')) return configured;
+  if (configured.endsWith('/chat/completions')) return configured;
+  if (configured.endsWith('/v1')) return `${configured}/chat/completions`;
+  if (configured.endsWith('/gpt')) return `${configured}/v1/chat/completions`;
+  return `${configured}/gpt/v1/chat/completions`;
+}
+
+function getImageModel() {
+  return process.env.GPT_IMAGE_MODEL || 'gpt-image-2-pro';
+}
+
+function getImageGroup() {
+  return process.env.GPT_IMAGE_GROUP || 'vip_2_image';
 }
 
 async function readUpstreamError(response: Response) {
@@ -57,6 +66,107 @@ async function readUpstreamJson(response: Response) {
   }
 }
 
+function buildImageRequestBody(prompt: string) {
+  return {
+    model: getImageModel(),
+    group: getImageGroup(),
+    messages: [
+      { role: 'user', content: '测试' },
+      { role: 'assistant', content: '' },
+      { role: 'user', content: prompt },
+    ],
+    stream: true,
+    temperature: 0.7,
+    top_p: 1,
+    frequency_penalty: 0,
+    presence_penalty: 0,
+  };
+}
+
+function extractContentFromJson(data: any) {
+  return [
+    data.choices?.[0]?.message?.content,
+    data.choices?.[0]?.delta?.content,
+    data.message?.content,
+    data.content,
+    data.text,
+    data.output,
+  ].find(value => typeof value === 'string' && value.trim()) || '';
+}
+
+function extractImageFromText(text: string) {
+  const markdownImage = text.match(/!\[[^\]]*]\(([^)\s]+)[^)]*\)/);
+  if (markdownImage?.[1]) return markdownImage[1];
+
+  const dataImage = text.match(/data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+/);
+  if (dataImage?.[0]) return dataImage[0];
+
+  const imageUrl = text.match(/https?:\/\/[^\s"'<>)]*\.(?:png|jpe?g|webp|gif)(?:\?[^\s"'<>)]*)?/i);
+  if (imageUrl?.[0]) return imageUrl[0];
+
+  const anyUrl = text.match(/https?:\/\/[^\s"'<>)]*/i);
+  return anyUrl?.[0] || '';
+}
+
+function normalizeImageResponse(data: any, prompt: string) {
+  const legacyImage = data.data?.[0]?.b64_json
+    ? `data:image/png;base64,${data.data[0].b64_json}`
+    : data.data?.[0]?.url;
+  const content = extractContentFromJson(data);
+  const image = legacyImage || extractImageFromText(content);
+
+  return {
+    image,
+    revisedPrompt: data.data?.[0]?.revised_prompt || content || prompt,
+    created: data.created,
+  };
+}
+
+async function readUpstreamStream(response: Response) {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return { text: '', error: 'Image API returned an empty stream', detail: null };
+  }
+
+  const decoder = new TextDecoder();
+  let buf = '';
+  let text = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data: ')) continue;
+      const raw = trimmed.slice(6).trim();
+      if (!raw || raw === '[DONE]') continue;
+      try {
+        const parsed = JSON.parse(raw);
+        text += extractContentFromJson(parsed);
+      } catch {
+        text += raw;
+      }
+    }
+  }
+
+  if (buf.trim().startsWith('data: ')) {
+    const raw = buf.trim().slice(6).trim();
+    if (raw && raw !== '[DONE]') {
+      try {
+        text += extractContentFromJson(JSON.parse(raw));
+      } catch {
+        text += raw;
+      }
+    }
+  }
+
+  return { text, error: null, detail: null };
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -75,7 +185,7 @@ export async function POST(req: Request) {
   if (process.env.E2E_MOCK_STREAMS === '1') {
     return Response.json({
       image: `data:image/png;base64,${MOCK_IMAGE_BASE64}`,
-      model: 'gpt-image-2',
+      model: getImageModel(),
       prompt,
       revised_prompt: prompt,
     });
@@ -84,40 +194,57 @@ export async function POST(req: Request) {
   const apiKey = process.env.GPT_IMAGE_API_KEY;
   if (!apiKey) return Response.json({ error: 'GPT_IMAGE_API_KEY is not configured' }, { status: 500 });
 
-  const upstream = await fetch(getImageGenerationUrl(), {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-image-2',
-      prompt,
-    }),
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetch(getImageGenerationUrl(), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(buildImageRequestBody(prompt)),
+    });
+  } catch (caught: unknown) {
+    const errorLike = caught as { message?: string };
+    return Response.json({ error: errorLike?.message || 'Failed to reach image API' }, { status: 502 });
+  }
 
   if (!upstream.ok) {
     const { error, detail } = await readUpstreamError(upstream);
     return Response.json({ error, detail }, { status: 502 });
   }
 
-  const { data, error: parseError, detail: parseDetail } = await readUpstreamJson(upstream);
-  if (parseError) {
-    return Response.json({ error: parseError, detail: parseDetail }, { status: 502 });
-  }
+  const contentType = upstream.headers.get('content-type') || '';
+  let image = '';
+  let revisedPrompt = prompt;
+  let created: unknown;
 
-  const image = data.data?.[0]?.b64_json
-    ? `data:image/png;base64,${data.data[0].b64_json}`
-    : data.data?.[0]?.url;
-  const revisedPrompt = data.data?.[0]?.revised_prompt;
+  if (contentType.includes('text/event-stream')) {
+    const { text, error, detail } = await readUpstreamStream(upstream);
+    if (error) {
+      return Response.json({ error, detail }, { status: 502 });
+    }
+    image = extractImageFromText(text);
+    revisedPrompt = prompt;
+  } else {
+    const { data, error: parseError, detail: parseDetail } = await readUpstreamJson(upstream);
+    if (parseError) {
+      return Response.json({ error: parseError, detail: parseDetail }, { status: 502 });
+    }
+
+    const normalized = normalizeImageResponse(data, prompt);
+    image = normalized.image;
+    revisedPrompt = normalized.revisedPrompt;
+    created = normalized.created;
+  }
 
   if (!image) return Response.json({ error: 'Image API returned no image' }, { status: 502 });
 
   return Response.json({
     image,
-    model: 'gpt-image-2',
+    model: getImageModel(),
     prompt,
     revised_prompt: revisedPrompt ?? prompt,
-    created: data.created,
+    created,
   });
 }

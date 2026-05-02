@@ -120,7 +120,28 @@ Lightweight connection test. Body: `{"provider_id": 1}`. Use `{"provider_id": -1
 ## AI Image
 
 ### `POST /api/ai-image`
-Generate an image with the configured `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY`.
+Generate an image with the configured `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY`. The backend sends a chat-completions style streaming request and waits for the upstream image result before returning JSON to the browser.
+
+Upstream request shape:
+
+```json
+{
+  "model": "gpt-image-2-pro",
+  "group": "vip_2_image",
+  "messages": [
+    { "role": "user", "content": "测试" },
+    { "role": "assistant", "content": "" },
+    { "role": "user", "content": "<prompt>" }
+  ],
+  "stream": true,
+  "temperature": 0.7,
+  "top_p": 1,
+  "frequency_penalty": 0,
+  "presence_penalty": 0
+}
+```
+
+Override the defaults with `GPT_IMAGE_MODEL` and `GPT_IMAGE_GROUP`.
 
 If the upstream image service returns HTML or invalid JSON, the route returns `502` JSON with `error` and `detail` instead of throwing a server-side parse exception.
 

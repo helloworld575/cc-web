@@ -69,6 +69,8 @@ CLAUDE_API_HOST=https://api.anthropic.com
 # Optional AI image tool
 GPT_IMAGE_API_KEY=
 GPT_IMAGE_API_URL=https://right.codes
+GPT_IMAGE_MODEL=gpt-image-2-pro
+GPT_IMAGE_GROUP=vip_2_image
 
 # Synology NAS deploy (used by ./deploy-to-nas.sh)
 NAS_HOST=
@@ -77,7 +79,7 @@ NAS_PATH=/volume1/docker/my-site
 NAS_PASSWORD=
 ```
 
-AI providers are configured through the admin UI at `/admin/ai-config`. When `CLAUDE_API_KEY` is set in `.env.local`, that env-backed Claude provider is always shown as the default provider; additional saved providers remain available without replacing it. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`.
+AI providers are configured through the admin UI at `/admin/ai-config`. When `CLAUDE_API_KEY` is set in `.env.local`, that env-backed Claude provider is always shown as the default provider; additional saved providers remain available without replacing it. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it calls a chat-completions style image endpoint with `GPT_IMAGE_MODEL` and `GPT_IMAGE_GROUP` and may wait a minute or longer for upstream generation.
 
 ## Quality Gates
 
@@ -210,6 +212,7 @@ See [docs/en/development.md](./docs/en/development.md#adding-an-ai-skill) for ho
 | Hydration mismatch in Nav | Make sure locale cookie matches or clear cookies |
 | AI proxy rejects streaming test | Use `/api/ai-providers/test` endpoint (non-streaming) |
 | AI image returns HTML instead of JSON | Check `GPT_IMAGE_API_URL`; `/api/ai-image` returns a 502 JSON error with the first part of the upstream HTML response |
+| AI image never starts | Make sure the upstream supports `/v1/chat/completions` and accepts `model`, `group`, `messages`, and `stream: true` |
 | X post fails with empty `{}` | Check app has Read+Write permissions, regenerate access tokens |
 | Fortune streaming stops early | Increase `max_tokens` in `app/api/fortune/route.ts` |
 
