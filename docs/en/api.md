@@ -122,6 +122,17 @@ Lightweight connection test. Body: `{"provider_id": 1}`. Use `{"provider_id": -1
 ### `POST /api/ai-image`
 Generate an image with the configured `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY`. The backend sends a chat-completions style streaming request and waits for the upstream image result before returning JSON to the browser. Root provider URLs are normalized to `/v1/chat/completions`; set a full URL or a `/gpt` URL only if the provider explicitly requires that prefix.
 
+Request body:
+
+```json
+{
+  "prompt": "Generate a product photo",
+  "reference_image": "data:image/png;base64,..."
+}
+```
+
+`reference_image` is optional and must be a PNG, JPG, or WebP data URL.
+
 Upstream request shape:
 
 ```json

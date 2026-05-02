@@ -122,6 +122,17 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 ### `POST /api/ai-image`
 使用已配置的 `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY` 生成图像。后端会发送 chat-completions 风格的流式生图请求，并等待上游生成完成后再向浏览器返回 JSON。根服务地址会自动归一化为 `/v1/chat/completions`；只有在服务商明确要求 `/gpt` 前缀时，才把 `GPT_IMAGE_API_URL` 配成包含 `/gpt` 的地址。
 
+请求体：
+
+```json
+{
+  "prompt": "生成产品图",
+  "reference_image": "data:image/png;base64,..."
+}
+```
+
+`reference_image` 可选，必须是 PNG、JPG 或 WebP 的 data URL。
+
 上游请求体格式：
 
 ```json

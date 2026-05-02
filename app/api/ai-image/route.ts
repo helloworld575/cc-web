@@ -23,6 +23,20 @@ function getImageGroup() {
   return process.env.GPT_IMAGE_GROUP || 'vip_2_image';
 }
 
+function normalizeReferenceImage(value: unknown) {
+  if (value == null || value === '') return { value: null, error: null };
+  if (typeof value !== 'string') {
+    return { value: null, error: 'Reference image must be a data URL image' };
+  }
+
+  const trimmed = value.trim();
+  if (!/^data:image\/(?:png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/i.test(trimmed)) {
+    return { value: null, error: 'Reference image must be a data URL image' };
+  }
+
+  return { value: trimmed, error: null };
+}
+
 function logImageFailure(reason: string, detail: Record<string, unknown>) {
   console.warn('[ai-image]', reason, detail);
 }
@@ -70,14 +84,22 @@ async function readUpstreamJson(response: Response) {
   }
 }
 
-function buildImageRequestBody(prompt: string) {
+function buildUserImageMessage(prompt: string, referenceImage: string | null) {
+  if (!referenceImage) return prompt;
+  return [
+    { type: 'text', text: prompt },
+    { type: 'image_url', image_url: { url: referenceImage } },
+  ];
+}
+
+function buildImageRequestBody(prompt: string, referenceImage: string | null) {
   return {
     model: getImageModel(),
     group: getImageGroup(),
     messages: [
       { role: 'user', content: '测试' },
       { role: 'assistant', content: '' },
-      { role: 'user', content: prompt },
+      { role: 'user', content: buildUserImageMessage(prompt, referenceImage) },
     ],
     stream: true,
     temperature: 0.7,
@@ -186,6 +208,9 @@ export async function POST(req: Request) {
   const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
   if (!prompt) return Response.json({ error: 'Prompt is required' }, { status: 400 });
 
+  const referenceImage = normalizeReferenceImage(body.reference_image);
+  if (referenceImage.error) return Response.json({ error: referenceImage.error }, { status: 400 });
+
   if (process.env.E2E_MOCK_STREAMS === '1') {
     return Response.json({
       image: `data:image/png;base64,${MOCK_IMAGE_BASE64}`,
@@ -208,7 +233,7 @@ export async function POST(req: Request) {
         'Content-Type': 'application/json',
         'New-Api-Group': imageGroup,
       },
-      body: JSON.stringify(buildImageRequestBody(prompt)),
+      body: JSON.stringify(buildImageRequestBody(prompt, referenceImage.value)),
     });
   } catch (caught: unknown) {
     const errorLike = caught as { message?: string };

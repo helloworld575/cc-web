@@ -1,9 +1,14 @@
 'use client';
+import type { ChangeEvent } from 'react';
 import { useState } from 'react';
 import { useLocale } from '@/components/useLocale';
 
+const MAX_REFERENCE_IMAGE_BYTES = 6 * 1024 * 1024;
+const REFERENCE_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+
 export default function AIImageTool() {
   const [prompt, setPrompt] = useState('');
+  const [referenceImage, setReferenceImage] = useState('');
   const [image, setImage] = useState('');
   const [revisedPrompt, setRevisedPrompt] = useState('');
   const [error, setError] = useState('');
@@ -26,6 +31,34 @@ export default function AIImageTool() {
     return `HTTP ${response.status}`;
   }
 
+  function readFileAsDataUrl(file: File) {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleReferenceImage(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    if (!REFERENCE_IMAGE_TYPES.has(file.type) || file.size > MAX_REFERENCE_IMAGE_BYTES) {
+      setError(t('imageReferenceInvalid'));
+      return;
+    }
+
+    try {
+      setError('');
+      setReferenceImage(await readFileAsDataUrl(file));
+    } catch (caught: unknown) {
+      const errorLike = caught as { message?: string };
+      setError(errorLike.message || t('imageReferenceInvalid'));
+    }
+  }
+
   async function generate() {
     if (!prompt.trim() || loading) return;
 
@@ -38,7 +71,7 @@ export default function AIImageTool() {
       const response = await fetch('/api/ai-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, reference_image: referenceImage || undefined }),
       });
       if (!response.ok) {
         setError(await readErrorResponse(response));
@@ -75,6 +108,38 @@ export default function AIImageTool() {
             className="w-full resize-none rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-700 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
           />
         </label>
+
+        <div className="mt-4">
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{t('imageReference')}</span>
+          {referenceImage ? (
+            <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-slate-50">
+              <img
+                data-testid="ai-image-reference-preview"
+                src={referenceImage}
+                alt={t('imageReference')}
+                className="h-36 w-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => setReferenceImage('')}
+                className="w-full px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-white"
+              >
+                {t('imageReferenceRemove')}
+              </button>
+            </div>
+          ) : (
+            <label className="block cursor-pointer rounded-[22px] border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-center text-xs leading-6 text-slate-500 transition hover:border-sky-300 hover:bg-white">
+              <input
+                data-testid="ai-image-reference-input"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleReferenceImage}
+                className="sr-only"
+              />
+              {t('imageReferenceHint')}
+            </label>
+          )}
+        </div>
 
         <button
           data-testid="ai-image-generate"

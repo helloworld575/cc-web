@@ -97,6 +97,46 @@ describe('POST /api/ai-image', () => {
     });
   });
 
+  it('sends an uploaded reference image as multimodal message content', async () => {
+    mockSession(true);
+    const referenceImage = 'data:image/png;base64,aW1hZ2U=';
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: 'https://cdn.example.com/with-reference.png' } }],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    const res = await POST(makePostReq({
+      prompt: 'use this style',
+      reference_image: referenceImage,
+    }));
+
+    expect(res.status).toBe(200);
+    const [, init] = mockFetch.mock.calls[0];
+    const upstreamBody = JSON.parse(init.body);
+    expect(upstreamBody.messages[2]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'text', text: 'use this style' },
+        { type: 'image_url', image_url: { url: referenceImage } },
+      ],
+    });
+  });
+
+  it('rejects invalid reference image payloads', async () => {
+    mockSession(true);
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    const res = await POST(makePostReq({
+      prompt: 'use this style',
+      reference_image: 'not-an-image',
+    }));
+
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe('Reference image must be a data URL image');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it('does not double-prefix /gpt when the configured URL already includes it', async () => {
     mockSession(true);
     process.env.GPT_IMAGE_API_URL = 'https://right.codes/gpt';
