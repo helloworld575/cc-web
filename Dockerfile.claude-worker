@@ -16,6 +16,8 @@ USER claude
 ENV NODE_ENV=production
 ENV CLAUDE_WORKER_PORT=8787
 ENV CLAUDE_WORKSPACE_ROOT=/workspaces
+ENV CLAUDE_WORKER_ROLE=personal-assistant
+ENV CLAUDE_SYSTEM_PROMPT="你是 ThomasLee 的个人助理。默认使用中文，以直接、清晰、可执行的文本帮助他处理日常事务、写作、代码分析、计划拆解和决策整理。不要输出 JSON 事件、工具调用日志或协议细节。"
 ENV CLAUDE_PERMISSION_MODE=dontAsk
 ENV CLAUDE_ALLOWED_TOOLS=Read,Glob,Grep
 ENV CLAUDE_DISALLOWED_TOOLS=Bash,Edit,Write,NotebookEdit

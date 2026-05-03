@@ -70,6 +70,7 @@ CLAUDE_CODE_WORKER_URL=http://claude-worker:8787
 CLAUDE_PERMISSION_MODE=dontAsk
 CLAUDE_ALLOWED_TOOLS=Read,Glob,Grep
 CLAUDE_DISALLOWED_TOOLS=Bash,Edit,Write,NotebookEdit
+CLAUDE_SYSTEM_PROMPT=You are ThomasLee's personal assistant.
 
 # Optional AI image tool
 GPT_IMAGE_API_KEY=
@@ -84,7 +85,7 @@ NAS_PATH=/volume1/docker/my-site
 NAS_PASSWORD=
 ```
 
-AI providers are configured through the admin UI at `/admin/ai-config`. When `CLAUDE_API_KEY` is set in `.env.local`, that env-backed Claude provider is always shown as the default provider; additional saved providers remain available without replacing it. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The admin UI also exposes `/admin/claude-code`, which calls an internal Claude Code worker through `/api/claude-code`. The worker maps `CLAUDE_API_KEY`, `CLAUDE_API_HOST`, and `CLAUDE_MODEL` into Claude Code's Anthropic environment variables and defaults to read-only tools. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it calls a chat-completions style image endpoint with `GPT_IMAGE_MODEL` and `GPT_IMAGE_GROUP`, supports an optional reference image upload, and may wait a minute or longer for upstream generation.
+AI providers are configured through the admin UI at `/admin/ai-config`. When `CLAUDE_API_KEY` is set in `.env.local`, that env-backed Claude provider is always shown as the default provider; additional saved providers remain available without replacing it. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The admin UI also exposes `/admin/claude-code`, which calls an internal Claude Code worker through `/api/claude-code`. The worker maps `CLAUDE_API_KEY`, `CLAUDE_API_HOST`, and `CLAUDE_MODEL` into Claude Code's Anthropic environment variables, defaults to a personal-assistant system prompt, and returns plain text rather than Claude Code JSON events. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it calls a chat-completions style image endpoint with `GPT_IMAGE_MODEL` and `GPT_IMAGE_GROUP`, supports an optional reference image upload, and may wait a minute or longer for upstream generation.
 
 ## Quality Gates
 

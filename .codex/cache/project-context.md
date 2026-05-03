@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-05-02T18:25:04.585Z
+Generated: 2026-05-03T02:31:39.736Z
 
 ## Snapshot
 
@@ -170,7 +170,7 @@ Generated: 2026-05-02T18:25:04.585Z
 
 ## Tests
 
-- API and helper test files: 33
+- API and helper test files: 34
 - Examples: `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai-providers/test.test.ts`, `tests/api/ai/route.test.ts`, `tests/api/bazi/route.test.ts`
 
 ## Notes

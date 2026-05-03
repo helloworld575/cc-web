@@ -69,26 +69,26 @@ describe('POST /api/claude-code', () => {
     const encoder = new TextEncoder();
     const workerStream = new ReadableStream({
       start(controller) {
-        controller.enqueue(encoder.encode('{"type":"assistant","text":"ok"}\n'));
+        controller.enqueue(encoder.encode('ok'));
         controller.close();
       },
     });
     mockFetch.mockResolvedValue(new Response(workerStream, {
       status: 200,
-      headers: { 'Content-Type': 'application/x-ndjson' },
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     }));
 
     const { POST } = await import('@/app/api/claude-code/route');
     const res = await POST(makePostReq({ prompt: 'inspect repo', cwd: 'repo' }));
 
     expect(res.status).toBe(200);
-    expect(res.headers.get('Content-Type')).toContain('application/x-ndjson');
+    expect(res.headers.get('Content-Type')).toContain('text/plain');
     expect(mockFetch).toHaveBeenCalledWith('http://claude-worker:8787/run', expect.objectContaining({
       method: 'POST',
       body: JSON.stringify({ prompt: 'inspect repo', cwd: 'repo' }),
     }));
 
     const text = await res.text();
-    expect(text).toContain('"text":"ok"');
+    expect(text).toBe('ok');
   });
 });

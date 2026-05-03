@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-02T18:25:04.585Z",
+  "generatedAt": "2026-05-03T02:31:39.736Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -1042,12 +1042,13 @@
       "tests/api/todos/route.test.ts",
       "tests/api/uploads/route.test.ts",
       "tests/api/x-post/route.test.ts",
+      "tests/config/claude-worker.test.ts",
       "tests/config/dockerfile.test.ts",
       "tests/lib/auth.test.ts",
       "tests/lib/i18n.test.ts",
       "tests/lib/runtime-paths.test.ts",
       "tests/lib/skill-taxonomy.test.ts"
     ],
-    "count": 33
+    "count": 34
   }
 }

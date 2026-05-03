@@ -7,6 +7,13 @@ const port = Number(process.env.CLAUDE_WORKER_PORT || 8787);
 const workspaceRoot = path.resolve(process.env.CLAUDE_WORKSPACE_ROOT || '/workspaces');
 const maxPromptChars = Number(process.env.CLAUDE_MAX_PROMPT_CHARS || 20000);
 const requestTimeoutMs = Number(process.env.CLAUDE_REQUEST_TIMEOUT_MS || 600000);
+const DEFAULT_PERSONAL_ASSISTANT_PROMPT = [
+  '你是 ThomasLee 的个人助理。',
+  '你的职责是用直接、清晰、可执行的文本帮助他处理日常事务、写作、代码分析、计划拆解和决策整理。',
+  '默认使用中文回答，除非用户明确要求其他语言。',
+  '不要输出 JSON 事件、工具调用日志或协议细节；面向用户只输出自然语言文本。',
+  '在信息不足时先说明缺口，再给出最稳妥的下一步。',
+].join('\n');
 
 function json(res, status, payload) {
   res.writeHead(status, {
@@ -56,6 +63,10 @@ function appendCsvOption(args, name, value) {
   args.push(name, normalized);
 }
 
+function getSystemPrompt() {
+  return process.env.CLAUDE_SYSTEM_PROMPT?.trim() || DEFAULT_PERSONAL_ASSISTANT_PROMPT;
+}
+
 async function handleRun(req, res) {
   let body;
   try {
@@ -85,12 +96,19 @@ async function handleRun(req, res) {
   }
 
   res.writeHead(200, {
-    'Content-Type': 'application/x-ndjson; charset=utf-8',
+    'Content-Type': 'text/plain; charset=utf-8',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
   });
 
-  const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose'];
+  const args = [
+    '-p',
+    prompt,
+    '--output-format',
+    'text',
+    '--append-system-prompt',
+    getSystemPrompt(),
+  ];
   if (process.env.CLAUDE_PERMISSION_MODE) {
     args.push('--permission-mode', process.env.CLAUDE_PERMISSION_MODE);
   }
@@ -116,16 +134,13 @@ async function handleRun(req, res) {
   });
 
   child.stderr.on('data', chunk => {
-    res.write(JSON.stringify({
-      type: 'stderr',
-      text: chunk.toString('utf8'),
-    }) + '\n');
+    res.write(`\n[worker stderr]\n${chunk.toString('utf8')}`);
   });
 
   child.on('error', error => {
     clearTimeout(timeout);
     if (!res.writableEnded) {
-      res.write(JSON.stringify({ type: 'error', error: error.message }) + '\n');
+      res.write(`\n[worker error] ${error.message}\n`);
       res.end();
     }
   });
@@ -133,7 +148,9 @@ async function handleRun(req, res) {
   child.on('close', code => {
     clearTimeout(timeout);
     if (!res.writableEnded) {
-      res.write(JSON.stringify({ type: 'exit', code }) + '\n');
+      if (code !== 0) {
+        res.write(`\n[worker exited with code ${code}]\n`);
+      }
       res.end();
     }
   });
@@ -144,6 +161,7 @@ const server = createServer(async (req, res) => {
     json(res, 200, {
       ok: true,
       workspaceRoot,
+      role: process.env.CLAUDE_WORKER_ROLE || 'personal-assistant',
       model: process.env.CLAUDE_MODEL || process.env.ANTHROPIC_MODEL || null,
       hasApiKey: Boolean(process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY),
     });

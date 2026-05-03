@@ -73,7 +73,7 @@ export async function POST(req: Request) {
 
   return new Response(upstream.body, {
     headers: {
-      'Content-Type': upstream.headers.get('Content-Type') || 'application/x-ndjson',
+      'Content-Type': upstream.headers.get('Content-Type') || 'text/plain; charset=utf-8',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
     },

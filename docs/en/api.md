@@ -128,7 +128,7 @@ Request body:
 { "prompt": "Summarize this workspace", "cwd": "default" }
 ```
 
-Responses use `application/x-ndjson` and stream Claude Code JSON events. Docker Compose sets the worker URL to `http://claude-worker:8787`.
+Responses use `text/plain` and contain only user-facing text. Docker Compose sets the worker URL to `http://claude-worker:8787`; the worker defaults to a personal-assistant system prompt.
 
 ---
 

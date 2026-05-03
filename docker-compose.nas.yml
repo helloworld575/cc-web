@@ -14,7 +14,8 @@ services:
     env_file:
       - .env.local
     depends_on:
-      - claude-worker
+      claude-worker:
+        condition: service_healthy
 
   claude-worker:
     image: ${NAS_CLAUDE_WORKER_IMAGE_NAME:-my-site-claude-worker:latest}
@@ -36,6 +37,12 @@ services:
       USE_BUILTIN_RIPGREP: 0
     volumes:
       - claude-workspaces:/workspaces
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   cloudflared:
     image: cloudflare/cloudflared:latest
