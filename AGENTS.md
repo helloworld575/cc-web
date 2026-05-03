@@ -1,10 +1,14 @@
 # Codex Working Guide
 
-Read these files first before scanning the repository:
+Read this compact file first before scanning the repository:
 
-1. `.codex/cache/project-context.md`
-2. `.codex/cache/project-context.json`
-3. `.codex/cache/legacy-summary.md`
+1. `.codex/cache/project-brief.md`
+
+Load the larger cache files only when the task needs that detail:
+
+- `.codex/cache/project-context.md`: human-readable route, module, database, skill, and test inventory.
+- `.codex/cache/project-context.json`: machine-readable inventory for scripted or exact lookups.
+- `.codex/cache/legacy-summary.md`: Claude, Kiro, or IDE migration provenance.
 
 This repository is a Next.js 14 App Router application backed by SQLite. It mixes a personal blog with internal tools: diary, todos, file albums, AI chat, subscriptions, X posting, and Chinese fortune workflows.
 
@@ -18,13 +22,14 @@ This repository is a Next.js 14 App Router application backed by SQLite. It mixe
 
 ## Codex Cache
 
+- `.codex/cache/project-brief.md` is the default startup context and should stay compact.
 - `.codex/cache/project-context.md` is the human-readable project memory.
 - `.codex/cache/project-context.json` is the machine-readable cache.
-- Refresh both after structural changes with `npm run codex:cache`.
+- Refresh all generated cache files after structural changes with `npm run codex:cache`.
 
 ## Working Rules
 
-- Prefer the cache files above before re-reading broad parts of the repo.
+- Prefer the compact brief before re-reading broad parts of the repo, then load detailed cache files only as needed.
 - Run `npm run lint` before completing architecture, style, workflow, or broad UI changes; it combines format, architecture, and TypeScript checks.
 - Run `npm run verify` for non-e2e release gates, and `npm run verify:large` for large changes that require the full e2e suite.
 - Use `.codex/agents/architecture-reviewer.md` when the user asks for an architecture/style review agent, context cleanup, or codebase consistency audit.
