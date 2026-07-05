@@ -16,8 +16,7 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   await expect(page.getByText('更安静的工作台')).toBeVisible();
   await expect(page.getByTestId('tools-tab-skills')).toContainText('技能');
 
-  await page.getByTestId('tools-tab-diary').click();
-  await expect(page.getByText('E2E diary note')).toBeVisible();
+  await expect(page.getByTestId('tools-tab-diary')).toHaveCount(0);
 
   await page.getByTestId('tools-tab-subscriptions').click();
   await expect(page.getByText('E2E Brief')).toBeVisible();

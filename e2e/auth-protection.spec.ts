@@ -7,6 +7,9 @@ test('admin routes redirect anonymous users and login rejects bad credentials', 
   await page.goto('/admin/blog');
   await expect(page).toHaveURL(/\/login/);
 
+  await page.goto('/admin/diary');
+  await expect(page).toHaveURL(/\/login/);
+
   await page.getByTestId('login-password').fill('wrong-password');
   await page.getByTestId('login-submit').click();
   await expect(page).toHaveURL(/\/login/);

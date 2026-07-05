@@ -1,6 +1,5 @@
 'use client';
 import { useDeferredValue, useEffect, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
 import Pagination from '@/components/Pagination';
 import FortuneTool from '@/components/FortuneTool';
 import AIChatTool from '@/components/AIChatTool';
@@ -15,20 +14,14 @@ interface Todo {
   done: number;
 }
 
-interface DiaryEntry {
-  id: number;
-  date: string;
-  content: string;
-}
-
-type ToolTab = 'todos' | 'diary' | 'bazi' | 'ai-chat' | 'image' | 'subscriptions' | 'skills';
+type ToolTab = 'todos' | 'bazi' | 'ai-chat' | 'image' | 'subscriptions' | 'skills';
 
 const PAGE_SIZE = 10;
 
 const TOOLS_COPY = {
   en: {
     workspace: 'Workspace',
-    workspaceDesc: 'A calmer command deck for daily work, diary review, divination flows, and AI collaboration.',
+    workspaceDesc: 'A calmer command deck for daily work, divination flows, and AI collaboration.',
     cards: [
       ['Live', 'Streaming markdown'],
       ['Elegant', 'More motion, less abruptness'],
@@ -41,10 +34,6 @@ const TOOLS_COPY = {
       todos: {
         eyebrow: 'Workflow',
         description: 'Search, filter, and skim your task queue without losing the quiet rhythm of the page.',
-      },
-      diary: {
-        eyebrow: 'Archive',
-        description: 'Read back through entries in a cleaner reading surface with better spacing and calmer typography.',
       },
       bazi: {
         eyebrow: 'Fortune',
@@ -74,13 +63,6 @@ const TOOLS_COPY = {
       visibleDesc: 'tasks after search and status filters.',
       empty: 'Try changing the filters or add a new task from the admin panel.',
     },
-    diary: {
-      search: 'Search',
-      intro: 'A softer reading mode for notes, sketches, and older entries that should breathe a little more.',
-      pages: 'Pages',
-      pagesDesc: 'entries match the current date or content search.',
-      empty: 'Try a broader keyword or scroll another page of entries.',
-    },
     skills: {
       catalog: 'Catalog',
       heading: 'Codex skills',
@@ -102,7 +84,7 @@ const TOOLS_COPY = {
   },
   zh: {
     workspace: '工作台',
-    workspaceDesc: '更安静的工作台，用来处理日常任务、日记回顾、命理流程与 AI 协作。',
+    workspaceDesc: '更安静的工作台，用来处理日常任务、命理流程与 AI 协作。',
     cards: [
       ['流式', 'Markdown 实时呈现'],
       ['顺滑', '更克制的动效与切换'],
@@ -115,10 +97,6 @@ const TOOLS_COPY = {
       todos: {
         eyebrow: '流程',
         description: '搜索、筛选并快速浏览待办，不打断页面的整体节奏。',
-      },
-      diary: {
-        eyebrow: '归档',
-        description: '用更干净的阅读面板回看日记，留出更舒服的留白与层次。',
       },
       bazi: {
         eyebrow: '命理',
@@ -144,13 +122,6 @@ const TOOLS_COPY = {
       visibleDesc: '条任务符合当前搜索与状态筛选。',
       empty: '试试调整筛选条件，或者先去管理后台新增任务。',
     },
-    diary: {
-      search: '搜索',
-      intro: '给日记和笔记一个更柔和的阅读模式，让内容本身更舒展。',
-      pages: '条目',
-      pagesDesc: '篇内容匹配当前日期或关键词搜索。',
-      empty: '试试更宽泛的关键词，或者翻到其他页查看。',
-    },
     skills: {
       catalog: '目录',
       heading: 'Codex 技能',
@@ -175,21 +146,17 @@ const TOOLS_COPY = {
 export default function ToolsPage() {
   const [tab, setTab] = useState<ToolTab>('todos');
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [todoSearch, setTodoSearch] = useState('');
-  const [diarySearch, setDiarySearch] = useState('');
   const [skillQuery, setSkillQuery] = useState('');
   const [todoFilter, setTodoFilter] = useState<'all' | 'done' | 'pending'>('all');
   const [todoPage, setTodoPage] = useState(1);
-  const [diaryPage, setDiaryPage] = useState(1);
   const deferredSkillQuery = useDeferredValue(skillQuery);
   const { locale, t } = useLocale();
   const copy = TOOLS_COPY[locale];
 
   useEffect(() => {
     fetch('/api/todos').then(res => (res.ok ? res.json() : Promise.reject())).then(setTodos).catch(() => {});
-    fetch('/api/diary').then(res => (res.ok ? res.json() : Promise.reject())).then(setEntries).catch(() => {});
     fetch('/api/skills?catalog=all').then(res => (res.ok ? res.json() : Promise.reject())).then(setSkills).catch(() => {});
   }, []);
 
@@ -198,10 +165,6 @@ export default function ToolsPage() {
     .filter(todo => (todoFilter === 'all' ? true : todoFilter === 'done' ? todo.done : !todo.done));
   const pagedTodos = filteredTodos.slice((todoPage - 1) * PAGE_SIZE, todoPage * PAGE_SIZE);
 
-  const filteredDiary = entries.filter(entry =>
-    entry.date.includes(diarySearch) || entry.content.toLowerCase().includes(diarySearch.toLowerCase())
-  );
-  const pagedDiary = filteredDiary.slice((diaryPage - 1) * PAGE_SIZE, diaryPage * PAGE_SIZE);
   const filteredSkills = skills.filter(skill => matchSkillSummary(skill, deferredSkillQuery));
   const groupedSkills = groupSkillSummaries(filteredSkills);
   const invocableSkillCount = skills.filter(skill => skill.invocable).length;
@@ -238,10 +201,9 @@ export default function ToolsPage() {
         </div>
       </section>
 
-      <div className="relative z-10 mb-6 grid gap-3 md:grid-cols-7">
+      <div className="relative z-10 mb-6 grid gap-3 md:grid-cols-6">
         {([
           ['todos', t('toolsTitle')],
-          ['diary', t('diary')],
           ['bazi', t('bazi')],
           ['ai-chat', t('aiChat')],
           ['image', 'Image'],
@@ -348,63 +310,6 @@ export default function ToolsPage() {
               )}
 
               <Pagination total={filteredTodos.length} page={todoPage} pageSize={PAGE_SIZE} onPage={setTodoPage} />
-            </div>
-          </div>
-        )}
-
-        {tab === 'diary' && (
-          <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-            <div className="rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.88))] p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{copy.diary.search}</p>
-              <h2 className="mt-2 font-display text-3xl text-slate-900">{t('diary')}</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-500">
-                {copy.diary.intro}
-              </p>
-
-              <div className="mt-5 space-y-4">
-                <input
-                  value={diarySearch}
-                  onChange={event => {
-                    setDiarySearch(event.target.value);
-                    setDiaryPage(1);
-                  }}
-                  placeholder={t('searchPlaceholder')}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:bg-white focus:ring-4 focus:ring-sky-100"
-                />
-                <div className="rounded-[24px] bg-[#f8f5ef] px-4 py-4">
-                  <p className="text-xs uppercase tracking-[0.22em] text-amber-700/50">{copy.diary.pages}</p>
-                  <p className="mt-2 font-display text-4xl text-slate-900">{filteredDiary.length}</p>
-                  <p className="mt-2 text-sm text-slate-500">{copy.diary.pagesDesc}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-[28px] border border-white/70 bg-white/94 p-5 shadow-sm">
-              {pagedDiary.length === 0 ? (
-                <div className="flex min-h-[360px] items-center justify-center text-center text-slate-500">
-                  <div>
-                    <p className="font-display text-3xl text-slate-900">{t('noPosts')}</p>
-                    <p className="mt-3 text-sm text-slate-500">{copy.diary.empty}</p>
-                  </div>
-                </div>
-              ) : (
-                <ul className="space-y-4">
-                  {pagedDiary.map((entry, index) => (
-                    <li
-                      key={entry.id}
-                      className="rounded-[28px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.9))] px-5 py-5 shadow-sm animate-slide-up"
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{entry.date}</p>
-                      <article className="mt-4 prose prose-sm max-w-none prose-headings:font-semibold prose-p:leading-7 prose-p:text-slate-600">
-                        <ReactMarkdown>{entry.content}</ReactMarkdown>
-                      </article>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              <Pagination total={filteredDiary.length} page={diaryPage} pageSize={PAGE_SIZE} onPage={setDiaryPage} />
             </div>
           </div>
         )}
