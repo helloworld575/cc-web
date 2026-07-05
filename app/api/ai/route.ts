@@ -4,6 +4,15 @@ import { authOptions } from '@/lib/auth';
 import { getSkill, resolveSkillReference } from '@/lib/skills';
 import { rateLimitByIp } from '@/lib/rateLimit';
 import { isInvocableSkill } from '@/lib/skill-taxonomy';
+import {
+  buildClaudeHeaders,
+  buildClaudeMessagesPayload,
+  extractClaudeStreamText,
+  getClaudeMaxTokens,
+  getClaudeMessagesUrl,
+  getClaudeModel,
+  isClaudeStreamDone,
+} from '@/lib/ai-gateway';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -25,24 +34,19 @@ export async function POST(req: Request) {
   const apiKey = process.env.CLAUDE_API_KEY;
   if (!apiKey) return new Response(JSON.stringify({ error: 'CLAUDE_API_KEY not configured' }), { status: 500 });
 
-  const host = (process.env.CLAUDE_API_HOST ?? 'https://api.anthropic.com').replace(/\/$/, '');
   const prompt = skill.prompt.replace('{{content}}', content);
 
-  const payload: Record<string, unknown> = {
-    model: process.env.CLAUDE_MODEL ?? 'claude-sonnet-4-6',
-    max_tokens: 4096,
+  const payload = buildClaudeMessagesPayload({
+    model: getClaudeModel(),
+    maxTokens: getClaudeMaxTokens(),
     stream: true,
     messages: [{ role: 'user', content: prompt }],
-  };
-  if (skill.system) payload.system = skill.system;
+    system: skill.system,
+  });
 
-  const upstream = await fetch(`${host}/v1/messages`, {
+  const upstream = await fetch(getClaudeMessagesUrl(), {
     method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
+    headers: buildClaudeHeaders(apiKey),
     body: JSON.stringify(payload),
   });
 
@@ -79,10 +83,11 @@ export async function POST(req: Request) {
             try {
               const parsed = JSON.parse(raw);
               // Only forward text delta events
-              if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: parsed.delta.text })}\n\n`));
+              const text = extractClaudeStreamText(parsed);
+              if (text) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
               }
-              if (parsed.type === 'message_stop') {
+              if (isClaudeStreamDone(parsed)) {
                 controller.close();
                 return;
               }

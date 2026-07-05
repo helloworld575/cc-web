@@ -9,6 +9,7 @@ vi.stubGlobal('fetch', mockFetch);
 describe('POST /api/ai', () => {
   beforeEach(() => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
+    mockFetch.mockReset();
   });
 
   it('returns 401 without session', async () => {
@@ -94,5 +95,49 @@ describe('POST /api/ai', () => {
     ));
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+  });
+
+  it('sends skill prompts to Claude with the right.codes messages request shape', async () => {
+    mockSession(true);
+    delete process.env.CLAUDE_API_HOST;
+    process.env.CLAUDE_MODEL = 'claude-opus-4-8';
+    process.env.CLAUDE_MAX_TOKENS = '32000';
+    (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
+      id: 'test',
+      name: 'Test',
+      prompt: 'Polish: {{content}}',
+      output: 'markdown',
+      system: 'sys',
+      invocable: true,
+    });
+    mockStreamResponse(mockFetch);
+
+    const { POST } = await import('@/app/api/ai/route');
+    const res = await POST(postReq(
+      { skill: 'test', content: 'hello' },
+      { 'x-forwarded-for': '1.2.3.4' },
+    ));
+
+    expect(res.status).toBe(200);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://www.right.codes/claude/v1/messages');
+    expect(JSON.parse(init.body)).toMatchObject({
+      model: 'claude-opus-4-8',
+      max_tokens: 32000,
+      stream: true,
+      system: 'sys',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Polish: hello',
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
+        },
+      ],
+    });
   });
 });

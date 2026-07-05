@@ -55,6 +55,40 @@ describe('POST /api/ai-providers/test', () => {
     expect(init.headers['x-api-key']).toBe('test-claude-key');
   });
 
+  it('tests env-backed Claude through the default right.codes messages request shape', async () => {
+    mockSession(true);
+    process.env.CLAUDE_API_KEY = 'test-claude-key';
+    process.env.CLAUDE_MODEL = 'claude-opus-4-8';
+    delete process.env.CLAUDE_API_HOST;
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({
+      content: [{ text: 'ok' }],
+      model: 'claude-opus-4-8',
+    }), { status: 200 }));
+
+    const { POST } = await import('@/app/api/ai-providers/test/route');
+    const res = await POST(makePostReq({ provider_id: -1 }));
+
+    expect(res.status).toBe(200);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://www.right.codes/claude/v1/messages');
+    expect(JSON.parse(init.body)).toMatchObject({
+      model: 'claude-opus-4-8',
+      max_tokens: 32,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Hi',
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it('returns 404 when a stored provider is missing', async () => {
     mockSession(true);
     mockDbStmt({ get: vi.fn(() => undefined) });

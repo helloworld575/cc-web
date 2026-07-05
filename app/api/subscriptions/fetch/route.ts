@@ -8,6 +8,12 @@ import { getSkill } from '@/lib/skills';
 import { isInvocableSkill, type InvocableSkill } from '@/lib/skill-taxonomy';
 import { fetchByCategory } from '@/lib/fetchers';
 import crypto from 'crypto';
+import {
+  buildClaudeHeaders,
+  buildClaudeMessagesPayload,
+  extractClaudeResponseText,
+  getClaudeMessagesUrl,
+} from '@/lib/ai-gateway';
 
 async function generateBriefWithSkill(
   skill: InvocableSkill,
@@ -27,32 +33,34 @@ async function generateBriefWithSkill(
     .replace('{{url}}', source.url);
 
   try {
-    const payload: Record<string, unknown> = {
-      model: provider.model,
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: userPrompt }],
-    };
-    if (skill.system) payload.system = skill.system;
+    let payload: Record<string, unknown> = {};
 
     let reqUrl: string;
     let reqHeaders: Record<string, string>;
 
     if (provider.api_type === 'anthropic') {
-      reqUrl = `${provider.api_url}/v1/messages`;
-      reqHeaders = {
-        'x-api-key': provider.api_key,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      };
+      reqUrl = getClaudeMessagesUrl(provider.api_url);
+      reqHeaders = buildClaudeHeaders(provider.api_key);
+      payload = buildClaudeMessagesPayload({
+        model: provider.model,
+        maxTokens: 1024,
+        stream: false,
+        system: skill.system,
+        messages: [{ role: 'user', content: userPrompt }],
+      });
     } else {
       reqUrl = `${provider.api_url.replace(/\/$/, '')}/v1/chat/completions`;
       reqHeaders = {
         'Authorization': `Bearer ${provider.api_key}`,
         'content-type': 'application/json',
       };
+      payload = {
+        model: provider.model,
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: userPrompt }],
+      };
       if (skill.system) {
         (payload.messages as any[]).unshift({ role: 'system', content: skill.system });
-        delete payload.system;
       }
     }
 
@@ -71,7 +79,7 @@ async function generateBriefWithSkill(
 
     const data = await response.json();
     if (provider.api_type === 'anthropic') {
-      return data.content?.[0]?.text || 'No brief generated';
+      return extractClaudeResponseText(data) || 'No brief generated';
     } else {
       return data.choices?.[0]?.message?.content || 'No brief generated';
     }

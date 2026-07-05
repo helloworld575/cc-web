@@ -4,6 +4,12 @@ import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
 import { ENV_CLAUDE_PROVIDER_ID, getEnvClaudeProvider } from '@/lib/ai-providers';
+import {
+  buildClaudeHeaders,
+  buildClaudeMessagesPayload,
+  extractClaudeResponseText,
+  getClaudeMessagesUrl,
+} from '@/lib/ai-gateway';
 
 /**
  * Lightweight connection test for AI providers.
@@ -31,18 +37,15 @@ export async function POST(req: Request) {
   try {
     if (provider.api_type === 'anthropic') {
       // Anthropic: minimal non-streaming request
-      const res = await fetch(`${provider.api_url}/v1/messages`, {
+      const res = await fetch(getClaudeMessagesUrl(provider.api_url), {
         method: 'POST',
-        headers: {
-          'x-api-key': provider.api_key,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
+        headers: buildClaudeHeaders(provider.api_key),
+        body: JSON.stringify(buildClaudeMessagesPayload({
           model: provider.model,
-          max_tokens: 32,
+          maxTokens: 32,
+          stream: false,
           messages: [{ role: 'user', content: 'Hi' }],
-        }),
+        })),
         signal: AbortSignal.timeout(30000),
       });
 
@@ -55,7 +58,7 @@ export async function POST(req: Request) {
       }
 
       const data = await res.json();
-      const text = data.content?.[0]?.text || '';
+      const text = extractClaudeResponseText(data);
       return Response.json({ ok: true, text, model: data.model });
 
     } else {

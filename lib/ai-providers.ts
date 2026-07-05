@@ -1,3 +1,11 @@
+import {
+  DEFAULT_CLAUDE_MAX_TOKENS,
+  DEFAULT_CLAUDE_MODEL,
+  getClaudeApiHost,
+  getClaudeMaxTokens,
+  getClaudeModel,
+} from '@/lib/ai-gateway';
+
 export const ENV_CLAUDE_PROVIDER_ID = -1;
 
 export interface AiProviderConfig {
@@ -21,11 +29,11 @@ export function getEnvClaudeProvider(): AiProviderConfig | null {
     id: ENV_CLAUDE_PROVIDER_ID,
     name: 'Claude Env Default',
     api_type: 'anthropic',
-    api_url: (process.env.CLAUDE_API_HOST || 'https://api.anthropic.com').replace(/\/$/, ''),
+    api_url: getClaudeApiHost(),
     api_key: apiKey,
-    model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-6',
+    model: getClaudeModel() || DEFAULT_CLAUDE_MODEL,
     system_prompt: '',
-    max_tokens: Number(process.env.CLAUDE_MAX_TOKENS || 4096),
+    max_tokens: getClaudeMaxTokens(DEFAULT_CLAUDE_MAX_TOKENS),
     is_default: 1,
     source: 'env',
   };

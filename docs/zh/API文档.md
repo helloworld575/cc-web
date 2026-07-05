@@ -99,11 +99,11 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 {
   "name": "Claude",
   "api_type": "anthropic",
-  "api_url": "https://api.anthropic.com",
+  "api_url": "https://www.right.codes/claude",
   "api_key": "sk-...",
-  "model": "claude-opus-4-6",
+  "model": "claude-opus-4-8",
   "system_prompt": "",
-  "max_tokens": 4096,
+  "max_tokens": 32000,
   "is_default": true
 }
 ```
@@ -120,7 +120,7 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 ## AI 图像
 
 ### `POST /api/ai-image`
-使用已配置的 `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY` 生成图像。后端会发送 chat-completions 风格的流式生图请求，并等待上游生成完成后再向浏览器返回 JSON。根服务地址会自动归一化为 `/v1/chat/completions`；只有在服务商明确要求 `/gpt` 前缀时，才把 `GPT_IMAGE_API_URL` 配成包含 `/gpt` 的地址。
+默认会调用 right.codes 原生 `/v1/images/generations` 图像接口。只有旧网关必须走 `/v1/chat/completions` 时，才设置 `GPT_IMAGE_API_MODE=chat`。
 
 请求体：
 
@@ -138,23 +138,14 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 ```json
 {
   "model": "gpt-image-2-pro",
-  "group": "vip_2_image",
-  "messages": [
-    { "role": "user", "content": "测试" },
-    { "role": "assistant", "content": "" },
-    { "role": "user", "content": "<prompt>" }
-  ],
-  "stream": true,
-  "temperature": 0.7,
-  "top_p": 1,
-  "frequency_penalty": 0,
-  "presence_penalty": 0
+  "prompt": "<prompt>",
+  "image": "data:image/png;base64,...",
+  "size": "1024x1024",
+  "response_format": "url"
 }
 ```
 
-可通过 `GPT_IMAGE_MODEL` 和 `GPT_IMAGE_GROUP` 覆盖默认值。
-
-为了兼容 New API 类网关，分组会同时通过请求体字段 `group` 和请求头 `New-Api-Group` 发送。
+原生图像模式使用 `model`、`prompt`、可选 `image`、可选 `size` 和 `response_format`。旧 chat-completions 图像网关仍可通过 `GPT_IMAGE_API_MODE=chat` 启用。
 
 如果上游图像服务返回 HTML 或无法解析的 JSON，接口会返回 `502` JSON，并包含 `error` 与 `detail`，不会再抛出服务端 JSON 解析异常。
 

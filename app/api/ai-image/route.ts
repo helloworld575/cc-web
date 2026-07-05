@@ -7,12 +7,26 @@ const MOCK_IMAGE_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zx7cAAAAASUVORK5CYII=';
 
 function getImageGenerationUrl() {
-  const configured = (process.env.GPT_IMAGE_API_URL || 'https://right.codes').replace(/\/+$/, '');
+  const configured = (process.env.GPT_IMAGE_API_URL || 'https://www.right.codes/draw').replace(/\/+$/, '');
+  if (configured.endsWith('/v1/images/generations')) return configured;
+  if (configured.endsWith('/images/generations')) return configured;
+  if (configured.endsWith('/v1')) return `${configured}/images/generations`;
+  return `${configured}/v1/images/generations`;
+}
+
+function getChatImageGenerationUrl() {
+  const configured = (process.env.GPT_IMAGE_API_URL || 'https://www.right.codes/draw').replace(/\/+$/, '');
   if (configured.endsWith('/v1/chat/completions')) return configured;
   if (configured.endsWith('/chat/completions')) return configured;
   if (configured.endsWith('/v1')) return `${configured}/chat/completions`;
   if (configured.endsWith('/gpt')) return `${configured}/v1/chat/completions`;
   return `${configured}/v1/chat/completions`;
+}
+
+function getImageApiMode() {
+  const configured = process.env.GPT_IMAGE_API_MODE?.trim().toLowerCase();
+  if (configured === 'chat' || configured === 'chat-completions') return 'chat';
+  return 'images';
 }
 
 function getImageModel() {
@@ -107,6 +121,17 @@ function buildImageRequestBody(prompt: string, referenceImage: string | null) {
     frequency_penalty: 0,
     presence_penalty: 0,
   };
+}
+
+function buildNativeImageRequestBody(prompt: string, referenceImage: string | null, size: unknown) {
+  const payload: Record<string, unknown> = {
+    model: getImageModel(),
+    prompt,
+    response_format: 'url',
+  };
+  if (typeof size === 'string' && size.trim()) payload.size = size.trim();
+  if (referenceImage) payload.image = referenceImage;
+  return payload;
 }
 
 function extractContentFromJson(data: any) {
@@ -225,15 +250,24 @@ export async function POST(req: Request) {
 
   let upstream: Response;
   const imageGroup = getImageGroup();
+  const mode = getImageApiMode();
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  };
+  const requestUrl = mode === 'chat' ? getChatImageGenerationUrl() : getImageGenerationUrl();
+  const requestBody = mode === 'chat'
+    ? buildImageRequestBody(prompt, referenceImage.value)
+    : buildNativeImageRequestBody(prompt, referenceImage.value, body.size);
+  if (mode === 'chat') {
+    headers['New-Api-Group'] = imageGroup;
+  }
+
   try {
-    upstream = await fetch(getImageGenerationUrl(), {
+    upstream = await fetch(requestUrl, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'New-Api-Group': imageGroup,
-      },
-      body: JSON.stringify(buildImageRequestBody(prompt, referenceImage.value)),
+      headers,
+      body: JSON.stringify(requestBody),
     });
   } catch (caught: unknown) {
     const errorLike = caught as { message?: string };

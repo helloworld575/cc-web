@@ -67,9 +67,9 @@ Admin pages:
 3. Fill in:
    - **Name** — e.g., "Claude"
    - **API Type** — `openai` or `anthropic`
-   - **API URL** — base URL (e.g., `https://api.anthropic.com`)
+   - **API URL** — base URL (e.g., `https://www.right.codes/claude`)
    - **API Key** — your secret key
-   - **Model** — e.g., `claude-opus-4-6` or `gpt-4o`
+   - **Model** — e.g., `claude-opus-4-8` or `gpt-4o`
 4. Check **Set as default** for at least one provider
 5. Click **Test Connection** to verify
 6. Click **Save**

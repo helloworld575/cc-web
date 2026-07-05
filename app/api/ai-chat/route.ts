@@ -4,6 +4,13 @@ import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
 import { ENV_CLAUDE_PROVIDER_ID, getEnvClaudeProvider, type AiProviderConfig } from '@/lib/ai-providers';
+import {
+  buildClaudeHeaders,
+  buildClaudeMessagesPayload,
+  extractClaudeStreamText,
+  getClaudeMessagesUrl,
+  isClaudeStreamDone,
+} from '@/lib/ai-gateway';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -68,20 +75,18 @@ function buildAnthropicRequest(provider: AiProviderConfig, messages: ChatMessage
     .filter(Boolean).join('\n\n');
 
   const payload: Record<string, unknown> = {
-    model: provider.model,
-    max_tokens: provider.max_tokens || 4096,
-    stream: true,
-    messages: chatMessages.map(m => ({ role: m.role, content: m.content })),
+    ...buildClaudeMessagesPayload({
+      model: provider.model,
+      maxTokens: provider.max_tokens || undefined,
+      stream: true,
+      system: systemPrompt,
+      messages: chatMessages,
+    }),
   };
-  if (systemPrompt) payload.system = systemPrompt;
 
   return {
-    url: `${provider.api_url}/v1/messages`,
-    headers: {
-      'x-api-key': provider.api_key,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
+    url: getClaudeMessagesUrl(provider.api_url),
+    headers: buildClaudeHeaders(provider.api_key),
     body: JSON.stringify(payload),
   };
 }
@@ -158,11 +163,12 @@ function createAnthropicStream(
             if (raw === '[DONE]') { finish(controller); return; }
             try {
               const parsed = JSON.parse(raw);
-              if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
-                options.onText?.(parsed.delta.text);
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: parsed.delta.text })}\n\n`));
+              const text = extractClaudeStreamText(parsed);
+              if (text) {
+                options.onText?.(text);
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
               }
-              if (parsed.type === 'message_stop') {
+              if (isClaudeStreamDone(parsed)) {
                 finish(controller);
                 return;
               }

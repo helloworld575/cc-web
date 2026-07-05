@@ -29,6 +29,7 @@ describe('POST /api/ai-image', () => {
   afterEach(() => {
     consoleWarn.mockRestore();
     delete process.env.E2E_MOCK_STREAMS;
+    delete process.env.GPT_IMAGE_API_MODE;
   });
 
   it('returns 401 without session', async () => {
@@ -55,6 +56,7 @@ describe('POST /api/ai-image', () => {
 
   it('generates an image through the streaming chat image endpoint', async () => {
     mockSession(true);
+    process.env.GPT_IMAGE_API_MODE = 'chat';
     const stream = new ReadableStream({
       start(controller) {
         const encoder = new TextEncoder();
@@ -97,8 +99,40 @@ describe('POST /api/ai-image', () => {
     });
   });
 
+  it('generates an image through the right.codes native images endpoint by default', async () => {
+    mockSession(true);
+    process.env.GPT_IMAGE_API_URL = 'https://www.right.codes/draw';
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({
+      data: [{
+        url: 'https://cdn.example.com/native.png',
+        revised_prompt: 'a tiny robot, polished',
+      }],
+      created: 123,
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    const res = await POST(makePostReq({ prompt: 'a tiny robot', size: '1024x1024' }));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.image).toBe('https://cdn.example.com/native.png');
+    expect(data.revised_prompt).toBe('a tiny robot, polished');
+
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://www.right.codes/draw/v1/images/generations');
+    expect(init.headers.Authorization).toBe('Bearer test-image-key');
+    expect(init.headers['New-Api-Group']).toBeUndefined();
+    expect(JSON.parse(init.body)).toEqual({
+      model: 'gpt-image-2-pro',
+      prompt: 'a tiny robot',
+      size: '1024x1024',
+      response_format: 'url',
+    });
+  });
+
   it('sends an uploaded reference image as multimodal message content', async () => {
     mockSession(true);
+    process.env.GPT_IMAGE_API_MODE = 'chat';
     const referenceImage = 'data:image/png;base64,aW1hZ2U=';
     mockFetch.mockResolvedValue(new Response(JSON.stringify({
       choices: [{ message: { content: 'https://cdn.example.com/with-reference.png' } }],
@@ -139,6 +173,7 @@ describe('POST /api/ai-image', () => {
 
   it('does not double-prefix /gpt when the configured URL already includes it', async () => {
     mockSession(true);
+    process.env.GPT_IMAGE_API_MODE = 'chat';
     process.env.GPT_IMAGE_API_URL = 'https://right.codes/gpt';
     mockFetch.mockResolvedValue(new Response(JSON.stringify({
       data: [{ b64_json: Buffer.from('fake-image').toString('base64') }],
@@ -152,6 +187,7 @@ describe('POST /api/ai-image', () => {
 
   it('normalizes root provider URLs to the standard v1 chat completions path', async () => {
     mockSession(true);
+    process.env.GPT_IMAGE_API_MODE = 'chat';
     process.env.GPT_IMAGE_API_URL = 'https://www.openclaudecode.cn';
     mockFetch.mockResolvedValue(new Response(JSON.stringify({
       choices: [{ message: { content: 'https://cdn.example.com/root.png' } }],
@@ -165,6 +201,7 @@ describe('POST /api/ai-image', () => {
 
   it('normalizes configured URLs that already include the chat completions API path', async () => {
     mockSession(true);
+    process.env.GPT_IMAGE_API_MODE = 'chat';
     process.env.GPT_IMAGE_API_URL = 'https://right.codes/gpt/v1/chat/completions';
     mockFetch.mockResolvedValue(new Response(JSON.stringify({
       data: [{ b64_json: Buffer.from('fake-image').toString('base64') }],
@@ -178,6 +215,7 @@ describe('POST /api/ai-image', () => {
 
   it('allows image model and group to be configured by env', async () => {
     mockSession(true);
+    process.env.GPT_IMAGE_API_MODE = 'chat';
     process.env.GPT_IMAGE_MODEL = 'custom-image-model';
     process.env.GPT_IMAGE_GROUP = 'custom-image-group';
     mockFetch.mockResolvedValue(new Response(JSON.stringify({
@@ -197,6 +235,7 @@ describe('POST /api/ai-image', () => {
 
   it('includes upstream status and body when image generation fails', async () => {
     mockSession(true);
+    process.env.GPT_IMAGE_API_MODE = 'chat';
     mockFetch.mockResolvedValue(new Response('upstream refused request', {
       status: 404,
       headers: { 'Content-Type': 'text/plain' },
@@ -213,6 +252,7 @@ describe('POST /api/ai-image', () => {
 
   it('returns a JSON error when the image API returns HTML with a successful status', async () => {
     mockSession(true);
+    process.env.GPT_IMAGE_API_MODE = 'chat';
     mockFetch.mockResolvedValue(new Response('<!doctype html><html><body>proxy login</body></html>', {
       status: 200,
       headers: { 'Content-Type': 'text/html' },
@@ -229,6 +269,7 @@ describe('POST /api/ai-image', () => {
 
   it('returns a JSON error when the image API JSON cannot be parsed', async () => {
     mockSession(true);
+    process.env.GPT_IMAGE_API_MODE = 'chat';
     mockFetch.mockResolvedValue(new Response('{not json', {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

@@ -122,6 +122,44 @@ describe('POST /api/ai-chat', () => {
     expect(JSON.parse(init.body).model).toBe('claude-opus-4-6');
   });
 
+  it('defaults env-backed Claude requests to the right.codes messages API shape', async () => {
+    process.env.CLAUDE_API_KEY = 'test-claude-key';
+    process.env.CLAUDE_MODEL = 'claude-opus-4-8';
+    process.env.CLAUDE_MAX_TOKENS = '32000';
+    delete process.env.CLAUDE_API_HOST;
+    mockSession(true);
+    mockAnthropicStreamResponse();
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: -1,
+      messages: [{ role: 'user', content: 'hi' }],
+    }));
+
+    expect(res.status).toBe(200);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://www.right.codes/claude/v1/messages');
+    expect(init.headers['x-api-key']).toBe('test-claude-key');
+    expect(init.headers['content-type']).toBe('application/json');
+    expect(JSON.parse(init.body)).toMatchObject({
+      model: 'claude-opus-4-8',
+      max_tokens: 32000,
+      stream: true,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'hi',
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it('streams OpenAI response successfully', async () => {
     mockSession(true);
     mockDbStmt({

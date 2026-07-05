@@ -3,6 +3,15 @@ import { calcBazi, formatElementsDesc, getTenGod, STEMS } from '@/lib/bazi';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { rateLimitByIp } from '@/lib/rateLimit';
+import {
+  buildClaudeHeaders,
+  buildClaudeMessagesPayload,
+  extractClaudeStreamText,
+  getClaudeMaxTokens,
+  getClaudeMessagesUrl,
+  getClaudeModel,
+  isClaudeStreamDone,
+} from '@/lib/ai-gateway';
 
 const SYSTEM = `你是一位精通中国传统命理学的算命大师，深谙四柱八字、五行生克、十神体系。
 
@@ -61,22 +70,16 @@ export async function POST(req: Request) {
 4. 具体特征描述与人生建议
 5. 注意事项与改善方向`;
 
-  const host = (process.env.CLAUDE_API_HOST ?? 'https://api.anthropic.com').replace(/\/$/, '');
-
-  const upstream = await fetch(`${host}/v1/messages`, {
+  const upstream = await fetch(getClaudeMessagesUrl(), {
     method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: process.env.CLAUDE_MODEL ?? 'claude-sonnet-4-6',
-      max_tokens: 4096,
+    headers: buildClaudeHeaders(apiKey),
+    body: JSON.stringify(buildClaudeMessagesPayload({
+      model: getClaudeModel(),
+      maxTokens: getClaudeMaxTokens(),
       stream: true,
       system: SYSTEM,
       messages: [{ role: 'user', content: prompt }],
-    }),
+    })),
   });
 
   if (!upstream.ok) {
@@ -111,10 +114,11 @@ export async function POST(req: Request) {
             if (raw === '[DONE]') { controller.close(); return; }
             try {
               const parsed = JSON.parse(raw);
-              if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: parsed.delta.text })}\n\n`));
+              const text = extractClaudeStreamText(parsed);
+              if (text) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
               }
-              if (parsed.type === 'message_stop') { controller.close(); return; }
+              if (isClaudeStreamDone(parsed)) { controller.close(); return; }
             } catch { /* skip */ }
           }
         }

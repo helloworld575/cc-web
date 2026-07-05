@@ -159,7 +159,7 @@ export default function AdminAIConfigPage() {
               <label className="text-xs text-gray-500 block mb-1">API URL (base URL)</label>
               <input value={editing.api_url} onChange={e => setEditing({ ...editing, api_url: e.target.value })}
                 className="border rounded px-2 py-1 text-sm w-full font-mono"
-                placeholder={editing.api_type === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.openai.com'} />
+                placeholder={editing.api_type === 'anthropic' ? 'https://www.right.codes/claude' : 'https://api.openai.com'} />
             </div>
             <div>
               <label className="text-xs text-gray-500 block mb-1">API Key</label>
@@ -172,7 +172,7 @@ export default function AdminAIConfigPage() {
                 <label className="text-xs text-gray-500 block mb-1">Model</label>
                 <input value={editing.model} onChange={e => setEditing({ ...editing, model: e.target.value })}
                   className="border rounded px-2 py-1 text-sm w-full font-mono"
-                  placeholder={editing.api_type === 'anthropic' ? 'claude-sonnet-4-6' : 'gpt-4o'} />
+                  placeholder={editing.api_type === 'anthropic' ? 'claude-opus-4-8' : 'gpt-4o'} />
               </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Max Tokens</label>
