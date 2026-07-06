@@ -113,7 +113,7 @@ List configured providers (API keys are masked). If `CLAUDE_API_KEY` or `RIGHT_C
 When an env-backed provider is present, newly saved or updated database providers are stored as non-default even if `is_default` is submitted.
 
 ### `POST /api/ai-providers/test`
-Lightweight connection test. Body: `{"provider_id": 1}`. Use `{"provider_id": -1}` to test the env-backed Claude provider. Returns `{"ok": true, "text": "...", "model": "..."}`.
+Lightweight connection test. Body: `{"provider_id": 1}`. Use `{"provider_id": -1}` to test the env-backed Claude provider or `{"provider_id": -2}` to test the env-backed Right Code GPT-5.5 provider. Right Code GPT-5.5 is tested through `https://www.right.codes/codex/v1/responses`. Returns `{"ok": true, "text": "...", "model": "..."}`.
 
 ---
 
@@ -180,7 +180,7 @@ List saved chat summaries, newest first. Optional query param: `provider_id`.
 ```
 
 ### `POST /api/ai-chat`
-Streaming chat endpoint. Returns SSE (`text/event-stream`) and saves the completed transcript to `ai_chat_history`. The stored transcript remains complete, but the upstream model request is compacted to the recent conversation window.
+Streaming chat endpoint. Returns SSE (`text/event-stream`) and saves the completed transcript to `ai_chat_history`. The stored transcript remains complete, but the upstream model request is compacted to the recent conversation window. Right Code GPT-5.5 providers with base URL `https://www.right.codes/codex` use the Responses API (`/v1/responses`) and stream `response.output_text.delta` events.
 
 ```json
 {

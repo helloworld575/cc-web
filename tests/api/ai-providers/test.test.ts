@@ -13,6 +13,21 @@ function makePostReq(body: unknown) {
   });
 }
 
+function mockResponsesStreamText(text: string) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(`data: {"type":"response.output_text.delta","delta":${JSON.stringify(text)}}\n\n`));
+      controller.enqueue(encoder.encode('data: {"type":"response.completed"}\n\n'));
+      controller.close();
+    },
+  });
+  mockFetch.mockResolvedValue(new Response(stream, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  }));
+}
+
 describe('POST /api/ai-providers/test', () => {
   beforeEach(() => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
@@ -89,15 +104,12 @@ describe('POST /api/ai-providers/test', () => {
     });
   });
 
-  it('tests the env-backed Right Code GPT-5.5 provider with OpenAI-compatible requests', async () => {
+  it('tests the env-backed Right Code GPT-5.5 provider with Responses API requests', async () => {
     mockSession(true);
     process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
     process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
     process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
-    mockFetch.mockResolvedValue(new Response(JSON.stringify({
-      choices: [{ message: { content: 'ok' } }],
-      model: 'gpt-5.5',
-    }), { status: 200 }));
+    mockResponsesStreamText('ok');
 
     const { POST } = await import('@/app/api/ai-providers/test/route');
     const res = await POST(makePostReq({ provider_id: -2 }));
@@ -106,13 +118,47 @@ describe('POST /api/ai-providers/test', () => {
     const data = await res.json();
     expect(data).toEqual({ ok: true, text: 'ok', model: 'gpt-5.5' });
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/codex/v1/chat/completions');
+    expect(url).toBe('https://www.right.codes/codex/v1/responses');
     expect(init.headers.Authorization).toBe('Bearer test-right-code-key');
     expect(JSON.parse(init.body)).toMatchObject({
       model: 'gpt-5.5',
-      max_tokens: 32,
-      messages: [{ role: 'user', content: 'Hi' }],
+      max_output_tokens: 1024,
+      stream: true,
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'Hi' }],
+        },
+      ],
     });
+  });
+
+  it('tests saved Right Code GPT-5.5 presets through the Responses API', async () => {
+    mockSession(true);
+    mockDbStmt({
+      get: vi.fn(() => ({
+        id: 7,
+        name: 'Right Code GPT-5.5',
+        api_type: 'openai',
+        api_url: 'https://www.right.codes/codex',
+        api_key: 'saved-right-code-key',
+        model: 'gpt-5.5',
+        system_prompt: '',
+        max_tokens: 32000,
+      })),
+    });
+    mockResponsesStreamText('saved ok');
+
+    const { POST } = await import('@/app/api/ai-providers/test/route');
+    const res = await POST(makePostReq({ provider_id: 7 }));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({ ok: true, text: 'saved ok', model: 'gpt-5.5' });
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://www.right.codes/codex/v1/responses');
+    expect(init.headers.Authorization).toBe('Bearer saved-right-code-key');
   });
 
   it('returns 404 when a stored provider is missing', async () => {

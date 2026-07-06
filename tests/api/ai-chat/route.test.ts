@@ -17,6 +17,19 @@ function mockOpenAIStreamResponse() {
   mockFetch.mockResolvedValue(new Response(stream, { status: 200 }));
 }
 
+function mockResponsesStreamResponse() {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"hello"}\n\n'));
+      controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":" world"}\n\n'));
+      controller.enqueue(encoder.encode('data: {"type":"response.completed"}\n\n'));
+      controller.close();
+    },
+  });
+  mockFetch.mockResolvedValue(new Response(stream, { status: 200 }));
+}
+
 function mockAnthropicStreamResponse() {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -189,13 +202,13 @@ describe('POST /api/ai-chat', () => {
     expect(text).toContain('"text":"hello"');
   });
 
-  it('streams the env-backed Right Code GPT-5.5 provider successfully', async () => {
+  it('streams the env-backed Right Code GPT-5.5 provider through the Responses API', async () => {
     mockSession(true);
     process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
     process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
     process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
     process.env.RIGHT_CODE_GPT_MAX_TOKENS = '32000';
-    mockOpenAIStreamResponse();
+    mockResponsesStreamResponse();
 
     const { POST } = await import('@/app/api/ai-chat/route');
     const res = await POST(makePostReq({
@@ -205,13 +218,85 @@ describe('POST /api/ai-chat', () => {
 
     expect(res.status).toBe(200);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/codex/v1/chat/completions');
+    expect(url).toBe('https://www.right.codes/codex/v1/responses');
     expect(init.headers.Authorization).toBe('Bearer test-right-code-key');
     expect(JSON.parse(init.body)).toMatchObject({
       model: 'gpt-5.5',
-      max_tokens: 32000,
+      max_output_tokens: 32000,
       stream: true,
-      messages: [{ role: 'user', content: 'hi' }],
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'hi' }],
+        },
+      ],
+    });
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += decoder.decode(value);
+    }
+    expect(text).toContain('"text":"hello"');
+    expect(text).toContain('"text":" world"');
+  });
+
+  it('streams saved Right Code GPT-5.5 presets through the Responses API', async () => {
+    mockSession(true);
+    mockDbStmt({
+      get: vi.fn(() => ({
+        id: 7,
+        name: 'Right Code GPT-5.5',
+        api_type: 'openai',
+        api_url: 'https://www.right.codes/codex',
+        api_key: 'saved-right-code-key',
+        model: 'gpt-5.5',
+        system_prompt: 'Be concise',
+        max_tokens: 32000,
+      })),
+    });
+    mockResponsesStreamResponse();
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: 7,
+      messages: [
+        { role: 'user', content: 'hi' },
+        { role: 'assistant', content: 'hello' },
+        { role: 'user', content: 'again' },
+      ],
+    }));
+
+    expect(res.status).toBe(200);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://www.right.codes/codex/v1/responses');
+    expect(init.headers.Authorization).toBe('Bearer saved-right-code-key');
+    expect(JSON.parse(init.body)).toMatchObject({
+      model: 'gpt-5.5',
+      instructions: 'Be concise',
+      max_output_tokens: 32000,
+      stream: true,
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'hi' }],
+        },
+        {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'hello' }],
+        },
+        {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'again' }],
+        },
+      ],
     });
   });
 

@@ -41,6 +41,7 @@ export default function AIChatTool() {
   const [deletingChatId, setDeletingChatId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [streamStage, setStreamStage] = useState<'ready' | 'dispatch' | 'thinking' | 'rendering'>('ready');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -71,6 +72,25 @@ export default function AIChatTool() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streaming]);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFullscreen(false);
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullscreen]);
 
   function resetComposerHeight() {
     if (textareaRef.current) {
@@ -301,10 +321,19 @@ export default function AIChatTool() {
     thinking: 'Thinking',
     rendering: 'Streaming markdown',
   }[streamStage];
+  const shellClassName = isFullscreen
+    ? 'fixed inset-0 z-50 grid h-dvh min-h-0 gap-4 overflow-hidden bg-slate-100 p-3 sm:p-4 lg:grid-cols-[300px_minmax(0,1fr)]'
+    : 'grid gap-4 lg:h-[calc(100vh-8rem)] lg:min-h-[680px] lg:grid-cols-[300px_minmax(0,1fr)]';
+  const asideClassName = isFullscreen
+    ? 'glass-panel min-h-0 overflow-y-auto rounded-[28px] px-5 py-5'
+    : 'glass-panel min-h-0 rounded-[28px] px-5 py-5 lg:overflow-y-auto';
+  const chatPanelClassName = isFullscreen
+    ? 'glass-panel flex min-h-0 flex-col overflow-hidden rounded-[32px] px-4 py-4 sm:px-5 sm:py-5'
+    : 'glass-panel flex min-h-[720px] flex-col overflow-hidden rounded-[32px] px-4 py-4 sm:px-5 sm:py-5 lg:min-h-0';
 
   return (
-    <div data-testid="ai-chat-shell" className="grid gap-4 lg:h-[calc(100vh-8rem)] lg:min-h-[680px] lg:grid-cols-[300px_minmax(0,1fr)]">
-      <aside className="glass-panel min-h-0 rounded-[28px] px-5 py-5 lg:overflow-y-auto">
+    <div data-testid="ai-chat-shell" data-fullscreen={isFullscreen ? 'true' : 'false'} className={shellClassName}>
+      <aside className={asideClassName}>
         <div className="mb-5">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Chat Studio</p>
           <h2 className="mt-2 font-display text-3xl text-slate-900">{t('aiChat')}</h2>
@@ -444,7 +473,7 @@ export default function AIChatTool() {
         </div>
       </aside>
 
-      <section className="glass-panel flex min-h-[720px] flex-col overflow-hidden rounded-[32px] px-4 py-4 sm:px-5 sm:py-5 lg:min-h-0">
+      <section className={chatPanelClassName}>
         <div className="mb-4 flex shrink-0 items-center justify-between gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.95),rgba(241,245,249,0.88))] px-4 py-4 shadow-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Session</p>
@@ -455,9 +484,34 @@ export default function AIChatTool() {
               {messages.length === 0 ? t('aiChatWelcomeDesc') : t('aiChatStreamingDesc')}
             </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
-            <span className="status-dot" />
-            {streaming ? t('aiChatLiveResponse') : t('aiChatIdle')}
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-2 text-xs text-slate-500 sm:flex">
+              <span className="status-dot" />
+              {streaming ? t('aiChatLiveResponse') : t('aiChatIdle')}
+            </div>
+            <button
+              type="button"
+              aria-label={isFullscreen ? 'Exit fullscreen chat' : 'Enter fullscreen chat'}
+              title={isFullscreen ? 'Exit fullscreen chat' : 'Enter fullscreen chat'}
+              onClick={() => setIsFullscreen(value => !value)}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-900 hover:shadow-md"
+            >
+              {isFullscreen ? (
+                <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3v5H3" />
+                  <path d="M16 3v5h5" />
+                  <path d="M8 21v-5H3" />
+                  <path d="M16 21v-5h5" />
+                </svg>
+              ) : (
+                <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9V3h6" />
+                  <path d="M21 9V3h-6" />
+                  <path d="M3 15v6h6" />
+                  <path d="M21 15v6h-6" />
+                </svg>
+              )}
+            </button>
           </div>
         </div>
 

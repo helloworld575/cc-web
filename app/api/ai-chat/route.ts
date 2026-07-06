@@ -11,6 +11,12 @@ import {
   getClaudeMessagesUrl,
   isClaudeStreamDone,
 } from '@/lib/ai-gateway';
+import {
+  extractResponsesStreamText,
+  getOpenAiApiStyle,
+  getOpenAiEndpointUrl,
+  isResponsesStreamDone,
+} from '@/lib/openai-compatible';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -113,6 +119,43 @@ function buildOpenAIRequest(provider: AiProviderConfig, messages: ChatMessage[])
 
   return {
     url,
+    headers: {
+      'Authorization': `Bearer ${provider.api_key}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  };
+}
+
+function buildResponsesRequest(provider: AiProviderConfig, messages: ChatMessage[]) {
+  const systemMessages = messages.filter(message => message.role === 'system');
+  const chatMessages = messages.filter(message => message.role !== 'system');
+  const instructions = [provider.system_prompt, ...systemMessages.map(message => message.content)]
+    .filter(Boolean)
+    .join('\n\n');
+
+  const payload: Record<string, unknown> = {
+    model: provider.model,
+    max_output_tokens: provider.max_tokens || 4096,
+    stream: true,
+    input: chatMessages.map(message => ({
+      type: 'message',
+      role: message.role,
+      content: [
+        {
+          type: message.role === 'assistant' ? 'output_text' : 'input_text',
+          text: message.content,
+        },
+      ],
+    })),
+  };
+
+  if (instructions) {
+    payload.instructions = instructions;
+  }
+
+  return {
+    url: getOpenAiEndpointUrl(provider),
     headers: {
       'Authorization': `Bearer ${provider.api_key}`,
       'content-type': 'application/json',
@@ -255,6 +298,73 @@ function createOpenAIStream(
   });
 }
 
+function createResponsesStream(
+  upstreamBody: ReadableStream<Uint8Array>,
+  options: {
+    chatId?: number;
+    onText?: (text: string) => void;
+    onDone?: () => void;
+  } = {},
+) {
+  const encoder = new TextEncoder();
+  let upstreamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let donePersisted = false;
+
+  function finish(controller: ReadableStreamDefaultController<Uint8Array>) {
+    if (!donePersisted) {
+      options.onDone?.();
+      donePersisted = true;
+    }
+    controller.close();
+  }
+
+  return new ReadableStream({
+    async start(controller) {
+      if (options.chatId) {
+        enqueueEvent(controller, { chat_id: options.chatId });
+      }
+      upstreamReader = upstreamBody.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await upstreamReader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const raw = line.slice(6).trim();
+            if (raw === '[DONE]') { finish(controller); return; }
+            try {
+              const parsed = JSON.parse(raw);
+              const text = extractResponsesStreamText(parsed);
+              if (text) {
+                options.onText?.(text);
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+              }
+              if (isResponsesStreamDone(parsed)) {
+                finish(controller);
+                return;
+              }
+            } catch { /* skip malformed */ }
+          }
+        }
+      }
+      finish(controller);
+    },
+    cancel() {
+      if (!donePersisted) {
+        options.onDone?.();
+        donePersisted = true;
+      }
+      upstreamReader?.cancel();
+    },
+  });
+}
+
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -349,10 +459,14 @@ export async function POST(req: Request) {
 
   const upstreamMessages = compactMessagesForProvider(messages);
 
-  // Build request based on provider type
+  const openAiApiStyle = provider.api_type === 'openai'
+    ? getOpenAiApiStyle(provider)
+    : null;
   const reqConfig = provider.api_type === 'anthropic'
     ? buildAnthropicRequest(provider, upstreamMessages)
-    : buildOpenAIRequest(provider, upstreamMessages);
+    : openAiApiStyle === 'responses'
+      ? buildResponsesRequest(provider, upstreamMessages)
+      : buildOpenAIRequest(provider, upstreamMessages);
 
   let upstream: Response;
   try {
@@ -393,7 +507,9 @@ export async function POST(req: Request) {
   };
   const stream = provider.api_type === 'anthropic'
     ? createAnthropicStream(upstream.body!, streamOptions)
-    : createOpenAIStream(upstream.body!, streamOptions);
+    : openAiApiStyle === 'responses'
+      ? createResponsesStream(upstream.body!, streamOptions)
+      : createOpenAIStream(upstream.body!, streamOptions);
 
   return new Response(stream, {
     headers: {

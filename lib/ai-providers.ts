@@ -9,6 +9,8 @@ import {
 export const ENV_CLAUDE_PROVIDER_ID = -1;
 export const ENV_RIGHT_CODE_GPT_PROVIDER_ID = -2;
 
+export type OpenAiApiStyle = 'chat_completions' | 'responses';
+
 export interface AiProviderConfig {
   id: number;
   name: string;
@@ -20,6 +22,7 @@ export interface AiProviderConfig {
   max_tokens: number;
   is_default: number;
   source?: 'env' | 'db';
+  api_style?: OpenAiApiStyle;
 }
 
 export function getEnvClaudeProvider(): AiProviderConfig | null {
@@ -45,6 +48,15 @@ function readNumberEnv(name: string, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function readOpenAiApiStyleEnv(name: string, fallback: OpenAiApiStyle) {
+  const configured = process.env[name]?.trim().toLowerCase();
+  if (configured === 'responses' || configured === 'response') return 'responses';
+  if (configured === 'chat' || configured === 'chat_completions' || configured === 'chat-completions') {
+    return 'chat_completions';
+  }
+  return fallback;
+}
+
 export function getEnvRightCodeGptProvider(): AiProviderConfig | null {
   const apiKey = process.env.RIGHT_CODE_GPT_API_KEY || process.env.RIGHT_CODE_API_KEY;
   if (!apiKey) return null;
@@ -60,6 +72,7 @@ export function getEnvRightCodeGptProvider(): AiProviderConfig | null {
     max_tokens: readNumberEnv('RIGHT_CODE_GPT_MAX_TOKENS', 32000),
     is_default: 0,
     source: 'env',
+    api_style: readOpenAiApiStyleEnv('RIGHT_CODE_GPT_API_STYLE', 'responses'),
   };
 }
 

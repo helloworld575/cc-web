@@ -10,11 +10,52 @@ import {
   extractClaudeResponseText,
   getClaudeMessagesUrl,
 } from '@/lib/ai-gateway';
+import {
+  extractResponsesText,
+  extractResponsesStreamText,
+  getOpenAiApiStyle,
+  getOpenAiEndpointUrl,
+  isResponsesStreamDone,
+} from '@/lib/openai-compatible';
 
 /**
  * Lightweight connection test for AI providers.
- * Makes a minimal non-streaming request to verify the API key and URL work.
+ * Uses the cheapest request shape that can verify the API key, URL, and text extraction.
  */
+async function readResponsesStreamText(upstreamBody: ReadableStream<Uint8Array>) {
+  const reader = upstreamBody.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  let text = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data: ')) continue;
+      const raw = trimmed.slice(6).trim();
+      if (!raw || raw === '[DONE]') continue;
+
+      try {
+        const parsed = JSON.parse(raw);
+        text += extractResponsesStreamText(parsed);
+        if (isResponsesStreamDone(parsed)) {
+          return text;
+        }
+      } catch {
+        // Ignore malformed SSE lines.
+      }
+    }
+  }
+
+  return text;
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -64,10 +105,9 @@ export async function POST(req: Request) {
 
     } else {
       // OpenAI-compatible: minimal non-streaming request
-      const baseUrl = provider.api_url.replace(/\/$/, '');
-      const url = baseUrl.endsWith('/chat/completions')
-        ? baseUrl
-        : `${baseUrl}/v1/chat/completions`;
+      const apiStyle = getOpenAiApiStyle(provider);
+      const isResponsesApi = apiStyle === 'responses';
+      const url = getOpenAiEndpointUrl(provider);
 
       const res = await fetch(url, {
         method: 'POST',
@@ -75,12 +115,25 @@ export async function POST(req: Request) {
           'Authorization': `Bearer ${provider.api_key}`,
           'content-type': 'application/json',
         },
-        body: JSON.stringify({
-          model: provider.model,
-          max_tokens: 32,
-          messages: [{ role: 'user', content: 'Hi' }],
-        }),
-        signal: AbortSignal.timeout(30000),
+        body: JSON.stringify(isResponsesApi
+          ? {
+              model: provider.model,
+              max_output_tokens: 1024,
+              stream: true,
+              input: [
+                {
+                  type: 'message',
+                  role: 'user',
+                  content: [{ type: 'input_text', text: 'Hi' }],
+                },
+              ],
+            }
+          : {
+              model: provider.model,
+              max_tokens: 32,
+              messages: [{ role: 'user', content: 'Hi' }],
+            }),
+        signal: AbortSignal.timeout(isResponsesApi ? 60000 : 30000),
       });
 
       if (!res.ok) {
@@ -88,6 +141,21 @@ export async function POST(req: Request) {
         return Response.json({
           ok: false,
           error: err.error?.message || `API returned ${res.status}`,
+        });
+      }
+
+      if (isResponsesApi) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('text/event-stream') && res.body) {
+          const text = await readResponsesStreamText(res.body);
+          return Response.json({ ok: true, text, model: provider.model });
+        }
+
+        const data = await res.json();
+        return Response.json({
+          ok: true,
+          text: extractResponsesText(data),
+          model: data.model || provider.model,
         });
       }
 
