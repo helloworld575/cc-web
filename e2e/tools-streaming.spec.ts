@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test';
 import { login } from './helpers';
 
 test('tools workspace covers seeded data and streaming mock flows', async ({ page }) => {
+  const chatPrompt = `Render markdown for e2e ${Date.now()}`;
+
   await login(page);
   await page.goto('/blog');
   await page.getByRole('link', { name: 'Tools' }).click();
@@ -49,13 +51,25 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   await expect(page.getByTestId('ai-image-result')).toBeVisible();
 
   await page.getByTestId('tools-tab-ai-chat').click();
-  await page.getByTestId('ai-chat-input').fill('Render markdown for e2e');
+  await page.getByTestId('ai-chat-input').fill(chatPrompt);
   await page.getByTestId('ai-chat-send').click();
   await expect(page.getByTestId('ai-chat-messages')).toContainText('Mock response');
   await expect(page.getByTestId('ai-chat-messages')).toContainText('streamed item');
-  await expect(page.getByTestId('ai-chat-history')).toContainText('Render markdown for e2e');
-  await page.getByRole('button', { name: /Render markdown for e2e/ }).click();
+  await expect(page.getByTestId('ai-chat-history')).toContainText(chatPrompt);
+  await page.getByLabel(new RegExp(`Open chat ${chatPrompt}`)).click();
   await expect(page.getByTestId('ai-chat-messages')).toContainText('Mock response');
+  page.once('dialog', async dialog => {
+    expect(dialog.message()).toContain(chatPrompt);
+    await dialog.accept();
+  });
+  const deleteResponsePromise = page.waitForResponse(response => (
+    response.url().includes('/api/ai-chat/') && response.request().method() === 'DELETE'
+  ));
+  await page.getByLabel(new RegExp(`Delete chat ${chatPrompt}`)).click();
+  const deleteResponse = await deleteResponsePromise;
+  expect(deleteResponse.ok()).toBeTruthy();
+  await expect(page.getByLabel(new RegExp(`Delete chat ${chatPrompt}`))).toHaveCount(0);
+  await expect(page.getByTestId('ai-chat-messages')).not.toContainText('Mock response');
 
   await page.getByTestId('tools-tab-bazi').click();
   await page.getByTestId('fortune-start').click();

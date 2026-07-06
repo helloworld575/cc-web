@@ -38,6 +38,7 @@ export default function AIChatTool() {
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [deletingChatId, setDeletingChatId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [streamStage, setStreamStage] = useState<'ready' | 'dispatch' | 'thinking' | 'rendering'>('ready');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -112,8 +113,11 @@ export default function AIChatTool() {
       const response = await fetch(`/api/ai-chat/${chatId}`);
       if (!response.ok) throw new Error(await readErrorResponse(response));
       const chat = await response.json() as ChatDetail;
-      setCurrentChatId(chat.id);
-      setSelectedProvider(chat.provider_id);
+      const providerId = Number(chat.provider_id);
+      setCurrentChatId(Number(chat.id));
+      if (selectedProvider !== providerId) {
+        setSelectedProvider(providerId);
+      }
       setMessages(chat.messages);
       resetComposerHeight();
     } catch (caught: unknown) {
@@ -133,6 +137,29 @@ export default function AIChatTool() {
     setStreamStage('ready');
     abortRef.current = null;
     resetComposerHeight();
+  }
+
+  async function deleteChat(chat: ChatSummary) {
+    if (streaming || deletingChatId) return;
+    if (!window.confirm(`${t('aiChatDeleteConfirm')} ${chat.title}`)) return;
+
+    setDeletingChatId(chat.id);
+    setError('');
+    try {
+      const response = await fetch(`/api/ai-chat/${chat.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error(await readErrorResponse(response));
+
+      const chatId = Number(chat.id);
+      setHistory(items => items.filter(item => Number(item.id) !== chatId));
+      if (currentChatId === chatId) {
+        newChat();
+      }
+    } catch (caught: unknown) {
+      const errorLike = caught as { message?: string };
+      setError(errorLike?.message || t('aiChatDeleteFailed'));
+    } finally {
+      setDeletingChatId(null);
+    }
   }
 
   async function send() {
@@ -367,24 +394,49 @@ export default function AIChatTool() {
             ) : (
               <div data-testid="ai-chat-history" className="max-h-72 space-y-2 overflow-y-auto pr-1">
                 {history.map(chat => (
-                  <button
+                  <div
                     key={chat.id}
-                    type="button"
-                    onClick={() => loadChat(chat.id)}
-                    disabled={streaming}
-                    className={`w-full rounded-xl px-3 py-3 text-left transition ${
+                    className={`flex items-stretch gap-2 rounded-xl transition ${
                       currentChatId === chat.id
                         ? 'bg-slate-900 text-white'
                         : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                    } ${streaming ? 'opacity-50' : ''}`}
                   >
-                    <span className="block truncate text-sm font-medium">{chat.title}</span>
-                    <span className={`mt-1 block text-xs ${
-                      currentChatId === chat.id ? 'text-white/55' : 'text-slate-400'
-                    }`}>
-                      {new Date(chat.updated_at).toLocaleString()}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      aria-label={`Open chat ${chat.title}`}
+                      onClick={() => loadChat(chat.id)}
+                      disabled={streaming}
+                      className="min-w-0 flex-1 rounded-xl px-3 py-3 text-left disabled:cursor-not-allowed"
+                    >
+                      <span className="block truncate text-sm font-medium">{chat.title}</span>
+                      <span className={`mt-1 block text-xs ${
+                        currentChatId === chat.id ? 'text-white/55' : 'text-slate-400'
+                      }`}>
+                        {new Date(chat.updated_at).toLocaleString()}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Delete chat ${chat.title}`}
+                      title={t('aiChatDelete')}
+                      onClick={() => deleteChat(chat)}
+                      disabled={streaming || deletingChatId === chat.id}
+                      className={`my-2 mr-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                        currentChatId === chat.id
+                          ? 'bg-white/10 text-white/70 hover:bg-red-500 hover:text-white'
+                          : 'bg-white text-slate-400 hover:bg-red-50 hover:text-red-600'
+                      }`}
+                    >
+                      <svg aria-hidden="true" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4h8v2" />
+                        <path d="M19 6l-1 14H6L5 6" />
+                        <path d="M10 11v5" />
+                        <path d="M14 11v5" />
+                      </svg>
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
