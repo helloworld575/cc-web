@@ -303,8 +303,8 @@ export default function AIChatTool() {
   }[streamStage];
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-      <aside className="glass-panel rounded-[28px] px-5 py-5">
+    <div data-testid="ai-chat-shell" className="grid gap-4 lg:h-[calc(100vh-8rem)] lg:min-h-[680px] lg:grid-cols-[300px_minmax(0,1fr)]">
+      <aside className="glass-panel min-h-0 rounded-[28px] px-5 py-5 lg:overflow-y-auto">
         <div className="mb-5">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Chat Studio</p>
           <h2 className="mt-2 font-display text-3xl text-slate-900">{t('aiChat')}</h2>
@@ -444,8 +444,8 @@ export default function AIChatTool() {
         </div>
       </aside>
 
-      <section className="glass-panel flex min-h-[640px] flex-col rounded-[32px] px-4 py-4 sm:px-5 sm:py-5">
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.95),rgba(241,245,249,0.88))] px-4 py-4 shadow-sm">
+      <section className="glass-panel flex min-h-[720px] flex-col overflow-hidden rounded-[32px] px-4 py-4 sm:px-5 sm:py-5 lg:min-h-0">
+        <div className="mb-4 flex shrink-0 items-center justify-between gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.95),rgba(241,245,249,0.88))] px-4 py-4 shadow-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Session</p>
             <h3 className="mt-1 text-lg font-semibold text-slate-900">
@@ -461,11 +461,12 @@ export default function AIChatTool() {
           </div>
         </div>
 
-        <div className="relative flex-1 overflow-hidden rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.88))] p-3 shadow-inner">
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.88))] p-3 shadow-inner">
           <div className="pointer-events-none absolute inset-x-6 top-0 h-16 bg-gradient-to-b from-white/75 via-white/35 to-transparent" />
-          <div data-testid="ai-chat-messages" className="relative flex h-full flex-col gap-4 overflow-y-auto px-1 py-1">
+          <div data-testid="ai-chat-scroll" className="relative flex h-full min-h-0 flex-col gap-4 overflow-y-auto scroll-smooth px-1 py-1">
+            <div data-testid="ai-chat-messages" className="flex flex-col gap-4">
             {messages.length === 0 && (
-              <div className="flex h-full flex-col items-center justify-center text-center">
+              <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
                 <div className="orb-shell mb-5">
                   <span className="orb orb-a" />
                   <span className="orb orb-b" />
@@ -487,10 +488,10 @@ export default function AIChatTool() {
                   style={{ animationDelay: `${Math.min(index, 6) * 45}ms` }}
                 >
                   <div
-                    className={`max-w-[92%] rounded-[24px] px-4 py-3 shadow-sm sm:max-w-[82%] ${
+                    className={`max-w-[96%] rounded-[24px] px-4 py-3 shadow-sm ${
                       isAssistant
-                        ? 'border border-white/80 bg-white/95 text-slate-800'
-                        : 'bg-slate-900 text-white'
+                        ? 'border border-white/80 bg-white/95 text-slate-900 sm:max-w-[92%]'
+                        : 'bg-slate-900 text-white sm:max-w-[82%]'
                     }`}
                   >
                     <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em]">
@@ -523,16 +524,17 @@ export default function AIChatTool() {
             })}
 
             <div ref={messagesEndRef} />
+            </div>
           </div>
         </div>
 
         {error && (
-          <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          <div className="mt-3 shrink-0 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
             {error}
           </div>
         )}
 
-        <div className="mt-4 rounded-[28px] border border-white/70 bg-white/90 p-3 shadow-sm">
+        <div className="mt-4 shrink-0 rounded-[28px] border border-white/70 bg-white/95 p-3 shadow-sm">
           <div className="flex items-end gap-3">
             <textarea
               data-testid="ai-chat-input"

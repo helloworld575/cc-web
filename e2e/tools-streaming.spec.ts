@@ -51,10 +51,23 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   await expect(page.getByTestId('ai-image-result')).toBeVisible();
 
   await page.getByTestId('tools-tab-ai-chat').click();
+  await expect(page.getByTestId('ai-chat-shell')).toBeVisible();
+  await page.getByTestId('ai-chat-shell').scrollIntoViewIfNeeded();
+  await expect(page.getByTestId('ai-chat-input')).toBeInViewport();
+  await expect(page.getByTestId('ai-chat-scroll')).toBeVisible();
+  const chatShellHeight = await page.getByTestId('ai-chat-shell').evaluate(element => element.getBoundingClientRect().height);
+  expect(chatShellHeight).toBeGreaterThan(620);
+  const chatScrollOverflow = await page.getByTestId('ai-chat-scroll').evaluate(element => window.getComputedStyle(element).overflowY);
+  expect(['auto', 'scroll']).toContain(chatScrollOverflow);
   await page.getByTestId('ai-chat-input').fill(chatPrompt);
   await page.getByTestId('ai-chat-send').click();
   await expect(page.getByTestId('ai-chat-messages')).toContainText('Mock response');
   await expect(page.getByTestId('ai-chat-messages')).toContainText('streamed item');
+  await expect(page.getByTestId('markdown-csv-table')).toBeVisible();
+  await expect(page.getByTestId('markdown-table')).toBeVisible();
+  const markdownTextColor = await page.locator('.markdown-stream p').first().evaluate(element => window.getComputedStyle(element).color);
+  const markdownRgb = markdownTextColor.match(/\d+/g)?.map(Number) ?? [255, 255, 255];
+  expect(markdownRgb[0] + markdownRgb[1] + markdownRgb[2]).toBeLessThan(120);
   await expect(page.getByTestId('ai-chat-history')).toContainText(chatPrompt);
   await page.getByLabel(new RegExp(`Open chat ${chatPrompt}`)).click();
   await expect(page.getByTestId('ai-chat-messages')).toContainText('Mock response');

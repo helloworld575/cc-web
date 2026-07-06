@@ -74,7 +74,7 @@ Admin pages:
 5. Click **Test Connection** to verify
 6. Click **Save**
 
-Then go to **Tools → AI Chat** and select your provider from the dropdown. If `CLAUDE_API_KEY` or `RIGHT_CODE_GPT_API_KEY` is set in `.env.local`, env-backed providers stay at the top and the first configured env provider stays as the default while saved providers remain selectable. Completed chats are saved automatically, grouped by provider, and can be reopened or deleted from the history list. Full transcripts stay in history, while only the recent conversation window is sent to the upstream model to reduce context usage.
+Then go to **Tools → AI Chat** and select your provider from the dropdown. If `CLAUDE_API_KEY` or `RIGHT_CODE_GPT_API_KEY` is set in `.env.local`, env-backed providers stay at the top and the first configured env provider stays as the default while saved providers remain selectable. Completed chats are saved automatically, grouped by provider, and can be reopened or deleted from the history list. The chat panel keeps the composer anchored while the message timeline scrolls, and markdown tables or fenced CSV/TSV output render as readable tables. Full transcripts stay in history, while only the recent conversation window is sent to the upstream model to reduce context usage.
 
 ---
 

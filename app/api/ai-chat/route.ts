@@ -321,6 +321,8 @@ export async function POST(req: Request) {
       `Echo: ${latestUserMessage}\n\n`,
       '- streamed item\n',
       '- second item\n\n',
+      '| name | score |\n| --- | ---: |\n| alpha | 1 |\n| beta | 2 |\n\n',
+      '```csv\nname,score\nalpha,1\nbeta,2\n```\n\n',
       '```md\nflow-ready\n```',
     ];
     const encoder = new TextEncoder();
