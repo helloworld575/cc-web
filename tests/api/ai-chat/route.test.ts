@@ -189,6 +189,32 @@ describe('POST /api/ai-chat', () => {
     expect(text).toContain('"text":"hello"');
   });
 
+  it('streams the env-backed Right Code GPT-5.5 provider successfully', async () => {
+    mockSession(true);
+    process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
+    process.env.RIGHT_CODE_GPT_MAX_TOKENS = '32000';
+    mockOpenAIStreamResponse();
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: -2,
+      messages: [{ role: 'user', content: 'hi' }],
+    }));
+
+    expect(res.status).toBe(200);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://www.right.codes/codex/v1/chat/completions');
+    expect(init.headers.Authorization).toBe('Bearer test-right-code-key');
+    expect(JSON.parse(init.body)).toMatchObject({
+      model: 'gpt-5.5',
+      max_tokens: 32000,
+      stream: true,
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+  });
+
   it('streams Anthropic response successfully', async () => {
     mockSession(true);
     mockDbStmt({

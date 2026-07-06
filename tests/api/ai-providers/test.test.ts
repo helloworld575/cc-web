@@ -89,6 +89,32 @@ describe('POST /api/ai-providers/test', () => {
     });
   });
 
+  it('tests the env-backed Right Code GPT-5.5 provider with OpenAI-compatible requests', async () => {
+    mockSession(true);
+    process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: 'ok' } }],
+      model: 'gpt-5.5',
+    }), { status: 200 }));
+
+    const { POST } = await import('@/app/api/ai-providers/test/route');
+    const res = await POST(makePostReq({ provider_id: -2 }));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({ ok: true, text: 'ok', model: 'gpt-5.5' });
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://www.right.codes/codex/v1/chat/completions');
+    expect(init.headers.Authorization).toBe('Bearer test-right-code-key');
+    expect(JSON.parse(init.body)).toMatchObject({
+      model: 'gpt-5.5',
+      max_tokens: 32,
+      messages: [{ role: 'user', content: 'Hi' }],
+    });
+  });
+
   it('returns 404 when a stored provider is missing', async () => {
     mockSession(true);
     mockDbStmt({ get: vi.fn(() => undefined) });

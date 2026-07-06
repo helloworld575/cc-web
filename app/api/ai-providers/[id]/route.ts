@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
-import { getEnvClaudeProvider } from '@/lib/ai-providers';
+import { hasEnvDefaultProvider } from '@/lib/ai-providers';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -46,8 +46,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   // If api_key looks masked, keep the existing one
   const resolvedKey = (!api_key || api_key.startsWith('••••')) ? existing.api_key : api_key;
 
-  const envProvider = getEnvClaudeProvider();
-  const savedDefault = envProvider ? 0 : is_default ? 1 : 0;
+  const savedDefault = hasEnvDefaultProvider() ? 0 : is_default ? 1 : 0;
 
   // If setting as default, clear existing default
   if (savedDefault) {

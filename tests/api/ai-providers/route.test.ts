@@ -85,6 +85,31 @@ describe('GET /api/ai-providers', () => {
       expect.objectContaining({ id: 1, name: 'Stored GPT', is_default: 0 }),
     ]);
   });
+
+  it('returns an env-backed Right Code GPT-5.5 provider when configured', async () => {
+    mockSession(true);
+    process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
+    process.env.RIGHT_CODE_GPT_MAX_TOKENS = '32000';
+    mockDbStmt({ all: vi.fn(() => []) });
+
+    const { GET } = await import('@/app/api/ai-providers/route');
+    const res = await GET(new Request('http://localhost'));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toContainEqual(expect.objectContaining({
+      id: -2,
+      name: 'Right Code GPT-5.5 Env',
+      api_type: 'openai',
+      api_url: 'https://www.right.codes/codex',
+      api_key: '****-key',
+      model: 'gpt-5.5',
+      max_tokens: 32000,
+      source: 'env',
+    }));
+  });
 });
 
 describe('POST /api/ai-providers', () => {

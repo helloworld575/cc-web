@@ -64,17 +64,17 @@ Admin pages:
 
 1. Go to **Admin → AI Config**
 2. Click **+ New Provider**
-3. Fill in:
+3. Use a Right Code preset or fill in:
    - **Name** — e.g., "Claude"
    - **API Type** — `openai` or `anthropic`
-   - **API URL** — base URL (e.g., `https://www.right.codes/claude`)
+   - **API URL** — base URL (e.g., `https://www.right.codes/codex` or `https://www.right.codes/claude`)
    - **API Key** — your secret key
-   - **Model** — e.g., `claude-opus-4-8` or `gpt-4o`
+   - **Model** — e.g., `gpt-5.5` or `claude-opus-4-8`
 4. Check **Set as default** for at least one provider
 5. Click **Test Connection** to verify
 6. Click **Save**
 
-Then go to **Tools → AI Chat** and select your provider from the dropdown. If `CLAUDE_API_KEY` is set in `.env.local`, the env-backed Claude provider stays as the default while saved providers remain selectable. Completed chats are saved automatically, grouped by provider, and can be reopened from the history list. Full transcripts stay in history, while only the recent conversation window is sent to the upstream model to reduce context usage.
+Then go to **Tools → AI Chat** and select your provider from the dropdown. If `CLAUDE_API_KEY` or `RIGHT_CODE_GPT_API_KEY` is set in `.env.local`, env-backed providers stay at the top and the first configured env provider stays as the default while saved providers remain selectable. Completed chats are saved automatically, grouped by provider, and can be reopened from the history list. Full transcripts stay in history, while only the recent conversation window is sent to the upstream model to reduce context usage.
 
 ---
 

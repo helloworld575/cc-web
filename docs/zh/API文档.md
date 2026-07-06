@@ -92,7 +92,7 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 ## AI 服务商
 
 ### `GET /api/ai-providers`
-列出配置的服务商（API key 会打码）。如果 `.env.local` 配置了 `CLAUDE_API_KEY`，env provider 会排在第一位并保持默认。
+列出配置的服务商（API key 会打码）。如果 `.env.local` 配置了 `CLAUDE_API_KEY` 或 `RIGHT_CODE_GPT_API_KEY`，env provider 会排在前面，第一个 env provider 会保持默认。
 
 ### `POST /api/ai-providers`
 ```json

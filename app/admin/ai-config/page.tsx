@@ -19,6 +19,29 @@ const EMPTY: Provider = {
   system_prompt: '', max_tokens: 4096, is_default: 0,
 };
 
+const RIGHT_CODE_PRESETS = [
+  {
+    label: 'Right Code GPT-5.5',
+    values: {
+      name: 'Right Code GPT-5.5',
+      api_type: 'openai' as const,
+      api_url: 'https://www.right.codes/codex',
+      model: 'gpt-5.5',
+      max_tokens: 32000,
+    },
+  },
+  {
+    label: 'Right Code Claude',
+    values: {
+      name: 'Right Code Claude',
+      api_type: 'anthropic' as const,
+      api_url: 'https://www.right.codes/claude',
+      model: 'claude-opus-4-8',
+      max_tokens: 32000,
+    },
+  },
+];
+
 export default function AdminAIConfigPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [editing, setEditing] = useState<Provider | null>(null);
@@ -35,6 +58,18 @@ export default function AdminAIConfigPage() {
   useEffect(() => { loadProviders(); }, []);
 
   function startNew() { setEditing({ ...EMPTY }); setError(''); setTestResult(null); }
+  function applyPreset(preset: typeof RIGHT_CODE_PRESETS[number]) {
+    if (!editing) return;
+    setEditing({
+      ...editing,
+      ...preset.values,
+      api_key: editing.api_key,
+      system_prompt: editing.system_prompt,
+    });
+    setError('');
+    setTestResult(null);
+  }
+
   function startEdit(p: Provider) {
     if (p.source === 'env') return;
     setEditing({ ...p });
@@ -69,19 +104,21 @@ export default function AdminAIConfigPage() {
 
   async function testProvider() {
     if (!editing) return;
+    await testProviderById(editing.id);
+  }
+
+  async function testProviderById(providerId?: number) {
+    if (!providerId) {
+      setTestResult({ ok: false, msg: 'Please save the provider first before testing.' });
+      return;
+    }
     setTesting(true);
     setTestResult(null);
     try {
-      // For new providers, we need to save first
-      if (!editing.id) {
-        setTestResult({ ok: false, msg: 'Please save the provider first before testing.' });
-        setTesting(false);
-        return;
-      }
       const res = await fetch('/api/ai-providers/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider_id: editing.id }),
+        body: JSON.stringify({ provider_id: providerId }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -121,7 +158,11 @@ export default function AdminAIConfigPage() {
                   {p.source === 'env' ? <span className="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded">env.local</span> : null}
                 </div>
                 {p.source === 'env' ? (
-                  <span className="text-xs text-gray-400">Read-only</span>
+                  <button onClick={e => { e.stopPropagation(); testProviderById(p.id); }}
+                    disabled={testing}
+                    className="text-xs text-blue-500 hover:text-blue-700 disabled:opacity-50">
+                    {testing ? 'Testing' : 'Test'}
+                  </button>
                 ) : (
                   <button onClick={e => { e.stopPropagation(); del(p.id!); }}
                     className="text-red-400 hover:text-red-600 text-xs">Delete</button>
@@ -140,6 +181,17 @@ export default function AdminAIConfigPage() {
         {/* Editor */}
         {editing && (
           <div className="border rounded-lg px-4 py-4 space-y-3">
+            <div>
+              <label className="text-xs text-gray-500 block mb-2">Right Code presets</label>
+              <div className="flex flex-wrap gap-2">
+                {RIGHT_CODE_PRESETS.map(preset => (
+                  <button key={preset.label} type="button" onClick={() => applyPreset(preset)}
+                    className="border border-slate-300 px-2.5 py-1 rounded text-xs hover:border-black hover:bg-slate-50">
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Name</label>
@@ -172,7 +224,7 @@ export default function AdminAIConfigPage() {
                 <label className="text-xs text-gray-500 block mb-1">Model</label>
                 <input value={editing.model} onChange={e => setEditing({ ...editing, model: e.target.value })}
                   className="border rounded px-2 py-1 text-sm w-full font-mono"
-                  placeholder={editing.api_type === 'anthropic' ? 'claude-opus-4-8' : 'gpt-4o'} />
+                  placeholder={editing.api_type === 'anthropic' ? 'claude-opus-4-8' : 'gpt-5.5'} />
               </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">Max Tokens</label>
@@ -195,7 +247,7 @@ export default function AdminAIConfigPage() {
             </div>
             {hasEnvDefaultProvider && (
               <p className="text-xs text-gray-400">
-                The env.local Claude provider is the default. Saved providers remain available, but cannot override it while CLAUDE_API_KEY is set.
+                An env.local provider is the default. Saved providers remain available, but cannot override it while env-backed providers are configured.
               </p>
             )}
 

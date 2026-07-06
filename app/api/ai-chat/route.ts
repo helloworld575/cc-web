@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
-import { ENV_CLAUDE_PROVIDER_ID, getEnvClaudeProvider, type AiProviderConfig } from '@/lib/ai-providers';
+import { getEnvProviderById, type AiProviderConfig } from '@/lib/ai-providers';
 import {
   buildClaudeHeaders,
   buildClaudeMessagesPayload,
@@ -284,8 +284,9 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Missing provider_id or messages' }, { status: 400 });
   }
 
-  const provider = Number(provider_id) === ENV_CLAUDE_PROVIDER_ID
-    ? getEnvClaudeProvider()
+  const envProvider = getEnvProviderById(Number(provider_id));
+  const provider = envProvider
+    ? envProvider
     : db.prepare('SELECT * FROM ai_providers WHERE id = ?').get(provider_id) as AiProviderConfig | undefined;
   if (!provider) {
     return Response.json({ error: 'Provider not found' }, { status: 404 });

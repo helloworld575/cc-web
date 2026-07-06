@@ -25,3 +25,19 @@ test('admin AI provider form saves an OpenAI-compatible provider', async ({ page
   await expect(providerCard).not.toContainText('Default');
   await expect(page.locator('.border.rounded-lg').filter({ hasText: 'Claude Env Default' })).toContainText('Default');
 });
+
+test('admin AI provider form applies the Right Code GPT-5.5 preset', async ({ page }) => {
+  await login(page);
+  await page.goto('/admin/ai-config');
+
+  await page.getByRole('button', { name: /\+ New Provider/ }).click();
+
+  const editor = page.locator('main').locator('.border.rounded-lg').last();
+  await editor.getByRole('button', { name: 'Right Code GPT-5.5' }).click();
+
+  await expect(editor.locator('input').nth(0)).toHaveValue('Right Code GPT-5.5');
+  await expect(editor.locator('select').first()).toHaveValue('openai');
+  await expect(editor.locator('input').nth(1)).toHaveValue('https://www.right.codes/codex');
+  await expect(editor.locator('input').nth(3)).toHaveValue('gpt-5.5');
+  await expect(editor.locator('input').nth(4)).toHaveValue('32000');
+});

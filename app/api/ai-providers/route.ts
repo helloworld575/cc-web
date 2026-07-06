@@ -3,14 +3,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
-import { getEnvClaudeProvider, toPublicProvider, type AiProviderConfig } from '@/lib/ai-providers';
+import { getEnvProviders, hasEnvDefaultProvider, toPublicProvider, type AiProviderConfig } from '@/lib/ai-providers';
 
 function mergeVisibleProviders(providers: AiProviderConfig[]) {
-  const envProvider = getEnvClaudeProvider();
-  if (!envProvider) return providers;
+  const envProviders = getEnvProviders();
+  if (envProviders.length === 0) return providers;
 
   return [
-    envProvider,
+    ...envProviders,
     ...providers.map(provider => ({ ...provider, is_default: 0 })),
   ];
 }
@@ -45,8 +45,7 @@ export async function POST(req: Request) {
     return Response.json({ error: 'api_type must be "openai" or "anthropic"' }, { status: 400 });
   }
 
-  const envProvider = getEnvClaudeProvider();
-  const savedDefault = envProvider ? 0 : is_default ? 1 : 0;
+  const savedDefault = hasEnvDefaultProvider() ? 0 : is_default ? 1 : 0;
 
   if (savedDefault) {
     db.prepare('UPDATE ai_providers SET is_default = 0 WHERE is_default = 1').run();
