@@ -41,7 +41,12 @@ export async function middleware(req: NextRequest) {
 
   // Protect admin routes
   if (req.nextUrl.pathname.startsWith('/admin')) {
-    const token = await getToken({ req });
+    // Keep this aligned with authOptions.useSecureCookies for NAS LAN HTTP access.
+    const token = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: false,
+    });
     if (!token) {
       return NextResponse.redirect(new URL('/login', req.url));
     }
