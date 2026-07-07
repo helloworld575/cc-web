@@ -1,5 +1,4 @@
 'use client';
-import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 import { useLocale } from '@/components/useLocale';
 
@@ -8,6 +7,26 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { t } = useLocale();
+
+  async function submitCredentials() {
+    const csrfResponse = await fetch('/api/auth/csrf', { cache: 'no-store' });
+    if (!csrfResponse.ok) return false;
+    const { csrfToken } = await csrfResponse.json();
+    if (!csrfToken) return false;
+
+    const callbackResponse = await fetch('/api/auth/callback/credentials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        csrfToken,
+        password,
+        callbackUrl: `${window.location.origin}/admin/blog`,
+        json: 'true',
+      }),
+    });
+
+    return callbackResponse.ok;
+  }
 
   async function waitForSession() {
     for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -27,14 +46,9 @@ export default function LoginPage() {
 
     setSubmitting(true);
     setError('');
-    const callbackUrl = `${window.location.origin}/admin/blog`;
-    const res = await signIn('credentials', {
-      password,
-      redirect: false,
-      callbackUrl,
-    });
+    const submitted = await submitCredentials();
 
-    if (res?.ok || await waitForSession()) {
+    if (submitted && await waitForSession()) {
       window.location.assign('/admin/blog');
       return;
     }
