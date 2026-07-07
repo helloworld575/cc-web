@@ -78,8 +78,21 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   await expect(page.getByTestId('ai-chat-input')).toBeInViewport();
   await page.getByLabel('Exit fullscreen chat').click();
   await expect(page.getByLabel('Enter fullscreen chat')).toBeVisible();
+
+  await expect(page.getByTestId('ai-chat-skill')).toBeVisible();
+  await expect(page.getByTestId('ai-chat-skill').locator('option[value="content/distribution/api-publishing"]')).toHaveCount(1);
+  await page.getByTestId('ai-chat-skill').selectOption('content/distribution/api-publishing');
+  let chatRequestBody: any = null;
+  await page.route('**/api/ai-chat', async route => {
+    if (route.request().method() === 'POST') {
+      chatRequestBody = route.request().postDataJSON();
+    }
+    await route.continue();
+  });
+
   await page.getByTestId('ai-chat-input').fill(chatPrompt);
   await page.getByTestId('ai-chat-send').click();
+  await expect.poll(() => chatRequestBody?.skill).toBe('content/distribution/api-publishing');
   await expect(page.getByTestId('ai-chat-messages')).toContainText('Mock response');
   await expect(page.getByTestId('ai-chat-messages')).toContainText('streamed item');
   await expect(page.getByTestId('markdown-csv-table')).toBeVisible();

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockSession, mockDbStmt, mockRateLimit429 } from '../../helpers';
 import { rateLimitByIp } from '@/lib/rateLimit';
+import { getSkill, resolveSkillReference } from '@/lib/skills';
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
@@ -53,6 +54,8 @@ function makePostReq(body: unknown) {
 describe('POST /api/ai-chat', () => {
   beforeEach(() => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
+    (getSkill as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    (resolveSkillReference as ReturnType<typeof vi.fn>).mockReturnValue(null);
     mockFetch.mockReset();
   });
 
@@ -243,6 +246,47 @@ describe('POST /api/ai-chat', () => {
     }
     expect(text).toContain('"text":"hello"');
     expect(text).toContain('"text":" world"');
+  });
+
+  it('injects the selected skill into AI chat requests', async () => {
+    mockSession(true);
+    process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
+    (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
+      id: 'article-polish',
+      name: 'Article Polish',
+      description: 'Polish text',
+      prompt: 'Polish this:\n\n{{content}}',
+      output: 'content',
+      system: 'Use a clear editorial voice.',
+      invocable: true,
+    });
+    mockResponsesStreamResponse();
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: -2,
+      skill: 'article-polish',
+      messages: [{ role: 'user', content: 'rough draft' }],
+    }));
+
+    expect(res.status).toBe(200);
+    const [, init] = mockFetch.mock.calls[0];
+    const upstreamBody = JSON.parse(init.body);
+    expect(upstreamBody.instructions).toContain('Use a clear editorial voice.');
+    expect(upstreamBody.input).toMatchObject([
+      {
+        type: 'message',
+        role: 'user',
+        content: [
+          {
+            type: 'input_text',
+            text: 'Polish this:\n\nrough draft',
+          },
+        ],
+      },
+    ]);
   });
 
   it('streams saved Right Code GPT-5.5 presets through the Responses API', async () => {

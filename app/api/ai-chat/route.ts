@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
 import { getEnvProviderById, type AiProviderConfig } from '@/lib/ai-providers';
+import { getSkill, resolveSkillReference, type Skill } from '@/lib/skills';
+import { isInvocableSkill } from '@/lib/skill-taxonomy';
 import {
   buildClaudeHeaders,
   buildClaudeMessagesPayload,
@@ -51,6 +53,42 @@ function compactMessagesForProvider(messages: ChatMessage[]) {
   }
 
   return withinCharBudget;
+}
+
+function fillSkillPrompt(template: string, content: string) {
+  if (template.includes('{{content}}')) {
+    return template.replaceAll('{{content}}', content);
+  }
+
+  return `${template.trim()}\n\n${content}`.trim();
+}
+
+function buildSkillSystemMessage(skill: Skill): ChatMessage | null {
+  const parts = [
+    `Active skill: ${skill.name}`,
+    skill.description ? `Skill purpose: ${skill.description}` : '',
+    skill.output ? `Expected skill output: ${skill.output}` : '',
+    skill.system || '',
+  ].filter(Boolean);
+
+  if (parts.length === 0) return null;
+  return { role: 'system', content: parts.join('\n\n') };
+}
+
+function applySkillToLatestUserMessage(messages: ChatMessage[], skill: Skill) {
+  const nextMessages = messages.map(message => ({ ...message }));
+  for (let index = nextMessages.length - 1; index >= 0; index -= 1) {
+    if (nextMessages[index].role === 'user') {
+      nextMessages[index] = {
+        ...nextMessages[index],
+        content: fillSkillPrompt(skill.prompt || '{{content}}', nextMessages[index].content),
+      };
+      break;
+    }
+  }
+
+  const systemMessage = buildSkillSystemMessage(skill);
+  return systemMessage ? [systemMessage, ...nextMessages] : nextMessages;
 }
 
 function saveNewChat(providerId: number, messages: ChatMessage[]) {
@@ -394,6 +432,21 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Missing provider_id or messages' }, { status: 400 });
   }
 
+  const skillReference = typeof body.skill === 'string'
+    ? body.skill.trim()
+    : typeof body.skill_id === 'string'
+      ? body.skill_id.trim()
+      : '';
+  const skill = skillReference
+    ? (getSkill(skillReference) ?? resolveSkillReference(skillReference))
+    : null;
+  if (skillReference && !skill) {
+    return Response.json({ error: `Unknown skill: ${skillReference}` }, { status: 400 });
+  }
+  if (skill && !isInvocableSkill(skill)) {
+    return Response.json({ error: `Skill is not invocable: ${skillReference}` }, { status: 400 });
+  }
+
   const envProvider = getEnvProviderById(Number(provider_id));
   const provider = envProvider
     ? envProvider
@@ -457,7 +510,10 @@ export async function POST(req: Request) {
     });
   }
 
-  const upstreamMessages = compactMessagesForProvider(messages);
+  const upstreamSourceMessages = skill
+    ? applySkillToLatestUserMessage(messages, skill)
+    : messages;
+  const upstreamMessages = compactMessagesForProvider(upstreamSourceMessages);
 
   const openAiApiStyle = provider.api_type === 'openai'
     ? getOpenAiApiStyle(provider)

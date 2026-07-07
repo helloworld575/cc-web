@@ -3,6 +3,7 @@ import { startTransition, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocale } from '@/components/useLocale';
 import StreamingMarkdown from '@/components/StreamingMarkdown';
+import type { InvocableSkillSummary } from '@/lib/skill-taxonomy';
 
 interface Provider {
   id: number;
@@ -33,6 +34,8 @@ export default function AIChatTool() {
   const { t } = useLocale();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<number | null>(null);
+  const [skills, setSkills] = useState<InvocableSkillSummary[]>([]);
+  const [selectedSkill, setSelectedSkill] = useState('');
   const [currentChatId, setCurrentChatId] = useState<number | null>(null);
   const [history, setHistory] = useState<ChatSummary[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -62,6 +65,11 @@ export default function AIChatTool() {
           setSelectedProvider(list[0].id);
         }
       })
+      .catch(() => {});
+
+    fetch('/api/skills')
+      .then(res => (res.ok ? res.json() : []))
+      .then((list: InvocableSkillSummary[]) => setSkills(list))
       .catch(() => {});
   }, []);
 
@@ -205,6 +213,7 @@ export default function AIChatTool() {
         body: JSON.stringify({
           chat_id: currentChatId,
           provider_id: selectedProvider,
+          skill: selectedSkill || undefined,
           messages: outboundMessages,
         }),
         signal: controller.signal,
@@ -316,6 +325,7 @@ export default function AIChatTool() {
   }
 
   const activeProvider = providers.find(provider => provider.id === selectedProvider);
+  const activeSkill = skills.find(skill => skill.lookup.invoke === selectedSkill || skill.id === selectedSkill);
   const stageLabel = {
     ready: 'Ready',
     dispatch: 'Dispatching',
@@ -361,6 +371,29 @@ export default function AIChatTool() {
                 </option>
               ))}
             </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Skill</span>
+            <select
+              data-testid="ai-chat-skill"
+              value={selectedSkill}
+              onChange={event => setSelectedSkill(event.target.value)}
+              disabled={streaming}
+              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <option value="">No skill</option>
+              {skills.map(skill => (
+                <option key={skill.id} value={skill.lookup.invoke}>
+                  {skill.name} ({skill.output})
+                </option>
+              ))}
+            </select>
+            {activeSkill && (
+              <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-500">
+                {activeSkill.description}
+              </p>
+            )}
           </label>
 
           <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
