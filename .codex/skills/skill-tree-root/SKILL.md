@@ -1,10 +1,9 @@
 ---
 name: skill-tree-root
 description: >-
-  Top-level router for the local skill catalog. Use this skill when a request
-  is broad, spans multiple skill families, or you need to decide which router
-  or leaf skill should handle the task before loading more detailed
-  instructions.
+  Top-level router for the local skill catalog. Use this skill when a request is
+  broad, spans multiple skill families, or you need to decide which router or
+  leaf skill should handle the task before loading more detailed instructions.
 invocable: false
 hierarchy:
   domain: catalog
@@ -31,22 +30,32 @@ orchestration:
   mode: route
   children:
     - skill: agent-router
-      when: Route here for browser automation, testing, tool extension, agent memory, or terminal control work.
+      when: >-
+        Route here for browser automation, testing, tool extension, agent
+        memory, or terminal control work.
       mode: route
     - skill: business-router
-      when: Route here for business strategy, pricing, validation, customer discovery, or growth planning.
+      when: >-
+        Route here for business strategy, pricing, validation, customer
+        discovery, or growth planning.
       mode: route
     - skill: content-router
-      when: Route here for article writing, polishing, SEO, translation, FAQs, or distribution copy.
+      when: >-
+        Route here for article writing, polishing, SEO, translation, FAQs, or
+        distribution copy.
       mode: route
     - skill: fortune-router
-      when: Route here for BaZi, Liu Yao, Meihua, or Ziwei fortune analysis requests.
+      when: >-
+        Route here for BaZi, Liu Yao, Meihua, or Ziwei fortune analysis
+        requests.
       mode: route
     - skill: knowledge-router
-      when: Route here for research, summarization, or subscription digest work.
+      when: 'Route here for research, summarization, or subscription digest work.'
       mode: route
     - skill: strategy-router
-      when: Route here for methodology, prioritization, contradiction analysis, planning, or multi-skill workflows.
+      when: >-
+        Route here for methodology, prioritization, contradiction analysis,
+        planning, or multi-skill workflows.
       mode: route
 ---
 # Skill Tree Root

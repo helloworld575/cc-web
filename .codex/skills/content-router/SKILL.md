@@ -2,9 +2,8 @@
 name: content-router
 description: >-
   Router for writing and publishing workflows. Use this whenever the task is
-  about article structure, polishing, FAQ generation, titles, tags,
-  translation, or turning content into social posts before picking a leaf
-  content skill.
+  about article structure, polishing, FAQ generation, titles, tags, translation,
+  or turning content into social posts before picking a leaf content skill.
 invocable: false
 hierarchy:
   domain: content
@@ -34,28 +33,44 @@ orchestration:
   mode: route
   children:
     - skill: article-faq
-      when: Use when the user needs a FAQ section, common reader questions, or a Q&A block for an article.
+      when: >-
+        Use when the user needs a FAQ section, common reader questions, or a Q&A
+        block for an article.
       mode: direct
     - skill: article-title
-      when: Use when the user needs headline options, title exploration, or SEO-friendly article titles.
+      when: >-
+        Use when the user needs headline options, title exploration, or
+        SEO-friendly article titles.
       mode: direct
     - skill: article-brief
-      when: Use when the user needs an excerpt, teaser, or short summary hook for a post.
+      when: >-
+        Use when the user needs an excerpt, teaser, or short summary hook for a
+        post.
       mode: direct
     - skill: article-structure
-      when: Use when the article needs section reordering, better flow, or stronger narrative structure.
+      when: >-
+        Use when the article needs section reordering, better flow, or stronger
+        narrative structure.
       mode: direct
     - skill: article-polish
-      when: Use when wording, clarity, rhythm, or readability needs improvement without changing core meaning.
+      when: >-
+        Use when wording, clarity, rhythm, or readability needs improvement
+        without changing core meaning.
       mode: direct
     - skill: article-tags
-      when: Use when the user needs tags, topical keywords, or content taxonomy labels.
+      when: >-
+        Use when the user needs tags, topical keywords, or content taxonomy
+        labels.
       mode: direct
     - skill: article-translate-en
-      when: Use when Chinese article content should be translated into natural English.
+      when: >-
+        Use when Chinese article content should be translated into natural
+        English.
       mode: direct
     - skill: blog-to-x
-      when: Use when a blog post or diary entry should be converted into X or Twitter posts.
+      when: >-
+        Use when a blog post or diary entry should be converted into X or
+        Twitter posts.
       mode: direct
 ---
 # Content Router

@@ -31,10 +31,11 @@ COPY --from=builder /app/public ./public
 
 # Copy content (blog posts etc.) from build stage
 COPY --from=builder /app/content ./content
+COPY --from=builder /app/scripts/crawl-subscriptions.mjs ./scripts/crawl-subscriptions.mjs
 
 # Data & uploads dirs — will be mounted as volumes in production
 RUN mkdir -p data uploads .next/cache .next/server && \
-    chown -R nextjs:nodejs data uploads content .next .codex
+    chown -R nextjs:nodejs data uploads content .next .codex scripts
 
 USER nextjs
 

@@ -10,6 +10,14 @@ describe('POST /api/ai', () => {
   beforeEach(() => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
     mockFetch.mockReset();
+    process.env.CLAUDE_API_KEY = 'test-key';
+    process.env.CLAUDE_MODEL = 'claude-sonnet-4-6';
+    delete process.env.CLAUDE_API_HOST;
+    delete process.env.RIGHT_CODE_GPT_API_KEY;
+    delete process.env.RIGHT_CODE_API_KEY;
+    delete process.env.RIGHT_CODE_GPT_API_URL;
+    delete process.env.RIGHT_CODE_GPT_MODEL;
+    delete process.env.RIGHT_CODE_GPT_API_STYLE;
   });
 
   it('returns 401 without session', async () => {
@@ -134,6 +142,60 @@ describe('POST /api/ai', () => {
               type: 'text',
               text: 'Polish: hello',
               cache_control: { type: 'ephemeral' },
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('sends skill prompts to Right Code GPT with the responses request shape', async () => {
+    mockSession(true);
+    delete process.env.CLAUDE_API_KEY;
+    process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
+    process.env.RIGHT_CODE_GPT_API_STYLE = 'responses';
+    (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
+      id: 'test',
+      name: 'Test',
+      prompt: 'Polish: {{content}}',
+      output: 'markdown',
+      system: 'sys',
+      invocable: true,
+    });
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"hello"}\n\n'));
+        controller.enqueue(encoder.encode('data: {"type":"response.completed"}\n\n'));
+        controller.close();
+      },
+    });
+    mockFetch.mockResolvedValue(new Response(stream, { status: 200 }));
+
+    const { POST } = await import('@/app/api/ai/route');
+    const res = await POST(postReq(
+      { skill: 'test', content: 'hello' },
+      { 'x-forwarded-for': '1.2.3.4' },
+    ));
+
+    expect(res.status).toBe(200);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://www.right.codes/codex/v1/responses');
+    expect(init.headers.Authorization).toBe('Bearer test-right-code-key');
+    expect(JSON.parse(init.body)).toMatchObject({
+      model: 'gpt-5.5',
+      stream: true,
+      instructions: 'sys',
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: 'Polish: hello',
             },
           ],
         },

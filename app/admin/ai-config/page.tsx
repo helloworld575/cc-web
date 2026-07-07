@@ -2,118 +2,42 @@
 import { useEffect, useState } from 'react';
 
 interface Provider {
-  id?: number;
+  id: number;
   name: string;
   api_type: 'openai' | 'anthropic';
   api_url: string;
   api_key: string;
   model: string;
-  system_prompt: string;
   max_tokens: number;
   is_default: number;
   source?: 'env' | 'db';
 }
 
-const EMPTY: Provider = {
-  name: '', api_type: 'openai', api_url: '', api_key: '', model: '',
-  system_prompt: '', max_tokens: 4096, is_default: 0,
-};
-
-const RIGHT_CODE_PRESETS = [
-  {
-    label: 'Right Code GPT-5.5',
-    values: {
-      name: 'Right Code GPT-5.5',
-      api_type: 'openai' as const,
-      api_url: 'https://www.right.codes/codex',
-      model: 'gpt-5.5',
-      max_tokens: 32000,
-    },
-  },
-  {
-    label: 'Right Code Claude',
-    values: {
-      name: 'Right Code Claude',
-      api_type: 'anthropic' as const,
-      api_url: 'https://www.right.codes/claude',
-      model: 'claude-opus-4-8',
-      max_tokens: 32000,
-    },
-  },
-];
-
 export default function AdminAIConfigPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [editing, setEditing] = useState<Provider | null>(null);
-  const [error, setError] = useState('');
-  const [saved, setSaved] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [testingId, setTestingId] = useState<number | null>(null);
+  const [testResult, setTestResult] = useState<Record<number, { ok: boolean; msg: string }>>({});
 
   async function loadProviders() {
+    setLoading(true);
     const res = await fetch('/api/ai-providers');
     if (res.ok) setProviders(await res.json());
+    setLoading(false);
   }
 
-  useEffect(() => { loadProviders(); }, []);
+  useEffect(() => {
+    loadProviders().catch(() => setLoading(false));
+  }, []);
 
-  function startNew() { setEditing({ ...EMPTY }); setError(''); setTestResult(null); }
-  function applyPreset(preset: typeof RIGHT_CODE_PRESETS[number]) {
-    if (!editing) return;
-    setEditing({
-      ...editing,
-      ...preset.values,
-      api_key: editing.api_key,
-      system_prompt: editing.system_prompt,
+  async function testProvider(providerId: number) {
+    setTestingId(providerId);
+    setTestResult(current => {
+      const next = { ...current };
+      delete next[providerId];
+      return next;
     });
-    setError('');
-    setTestResult(null);
-  }
 
-  function startEdit(p: Provider) {
-    if (p.source === 'env') return;
-    setEditing({ ...p });
-    setError('');
-    setTestResult(null);
-  }
-
-  async function save() {
-    if (!editing) return;
-    setError('');
-    const isNew = !editing.id;
-    const url = isNew ? '/api/ai-providers' : `/api/ai-providers/${editing.id}`;
-    const res = await fetch(url, {
-      method: isNew ? 'POST' : 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editing),
-    });
-    if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed'); return; }
-    await loadProviders();
-    setEditing(null);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
-
-  async function del(id: number) {
-    if (id < 0) return;
-    if (!confirm('Delete this AI provider?')) return;
-    await fetch(`/api/ai-providers/${id}`, { method: 'DELETE' });
-    setProviders(providers.filter(p => p.id !== id));
-    if (editing?.id === id) setEditing(null);
-  }
-
-  async function testProvider() {
-    if (!editing) return;
-    await testProviderById(editing.id);
-  }
-
-  async function testProviderById(providerId?: number) {
-    if (!providerId) {
-      setTestResult({ ok: false, msg: 'Please save the provider first before testing.' });
-      return;
-    }
-    setTesting(true);
-    setTestResult(null);
     try {
       const res = await fetch('/api/ai-providers/test', {
         method: 'POST',
@@ -121,156 +45,83 @@ export default function AdminAIConfigPage() {
         body: JSON.stringify({ provider_id: providerId }),
       });
       const data = await res.json();
-      if (data.ok) {
-        setTestResult({ ok: true, msg: `${data.model}: ${data.text}` });
-      } else {
-        setTestResult({ ok: false, msg: data.error || 'Test failed' });
-      }
-    } catch (e: any) {
-      setTestResult({ ok: false, msg: e.message || 'Connection failed' });
+      setTestResult(current => ({
+        ...current,
+        [providerId]: {
+          ok: Boolean(data.ok),
+          msg: data.ok ? `${data.model}: ${data.text}` : data.error || 'Test failed',
+        },
+      }));
+    } catch (caught: unknown) {
+      const errorLike = caught as { message?: string };
+      setTestResult(current => ({
+        ...current,
+        [providerId]: { ok: false, msg: errorLike?.message || 'Connection failed' },
+      }));
+    } finally {
+      setTestingId(null);
     }
-    setTesting(false);
   }
 
-  const hasEnvDefaultProvider = providers.some(provider => provider.source === 'env');
-
   return (
-    <main className="max-w-4xl mx-auto px-6 py-12">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Admin — AI Providers</h1>
-        <div className="flex items-center gap-3">
-          {saved && <span className="text-green-600 text-sm">Saved!</span>}
-          <button onClick={startNew} className="bg-black text-white px-3 py-1 rounded text-sm">+ New Provider</button>
-        </div>
+    <main className="mx-auto max-w-4xl px-6 py-12">
+      <div className="mb-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Environment managed</p>
+        <h1 className="mt-2 text-3xl font-bold text-slate-950">AI Providers</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+          AI provider editing is temporarily disabled. The app now uses the Claude and ChatGPT providers configured in .env.local, and this page only verifies those live settings.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Provider list */}
+      {loading ? (
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500">
+          Loading providers...
+        </div>
+      ) : providers.length === 0 ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-5 text-sm leading-6 text-amber-800">
+          No environment providers are available. Configure CLAUDE_API_KEY and RIGHT_CODE_GPT_API_KEY in .env.local, then redeploy.
+        </div>
+      ) : (
         <div className="space-y-3">
-          {providers.map(p => (
-            <div key={p.id}
-              className={`border rounded-lg px-4 py-3 cursor-pointer transition-colors ${editing?.id === p.id ? 'border-black bg-gray-50' : 'hover:border-gray-400'}`}
-              onClick={() => startEdit(p)}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm">{p.name}</span>
-                  {p.is_default ? <span className="bg-green-100 text-green-700 text-xs px-1.5 py-0.5 rounded">Default</span> : null}
-                  {p.source === 'env' ? <span className="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded">env.local</span> : null}
-                </div>
-                {p.source === 'env' ? (
-                  <button onClick={e => { e.stopPropagation(); testProviderById(p.id); }}
-                    disabled={testing}
-                    className="text-xs text-blue-500 hover:text-blue-700 disabled:opacity-50">
-                    {testing ? 'Testing' : 'Test'}
+          {providers.map(provider => {
+            const result = testResult[provider.id];
+            return (
+              <div key={provider.id} className="rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-slate-900">{provider.name}</span>
+                      {provider.is_default ? (
+                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-700">Default</span>
+                      ) : null}
+                      <span className="rounded bg-sky-100 px-1.5 py-0.5 text-xs text-sky-700">env.local</span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      <span className="rounded bg-slate-100 px-1 font-mono">{provider.api_type}</span>{' '}
+                      <span className="font-mono">{provider.model}</span>
+                      <span className="ml-2 text-slate-400">{provider.max_tokens} max tokens</span>
+                    </p>
+                    <p className="mt-1 truncate font-mono text-xs text-slate-400">{provider.api_url}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => testProvider(provider.id)}
+                    disabled={testingId !== null}
+                    className="rounded border border-sky-300 px-3 py-1 text-sm text-sky-700 transition hover:bg-sky-50 disabled:opacity-50"
+                  >
+                    {testingId === provider.id ? 'Testing...' : 'Test'}
                   </button>
-                ) : (
-                  <button onClick={e => { e.stopPropagation(); del(p.id!); }}
-                    className="text-red-400 hover:text-red-600 text-xs">Delete</button>
+                </div>
+                {result && (
+                  <div className={`mt-3 rounded px-3 py-2 text-xs ${result.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                    {result.msg}
+                  </div>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">
-                <span className="bg-gray-100 px-1 rounded font-mono">{p.api_type}</span>{' '}
-                {p.model}
-              </p>
-              <p className="text-xs text-gray-300 font-mono truncate">{p.api_url}</p>
-            </div>
-          ))}
-          {providers.length === 0 && <p className="text-gray-400 text-sm">No providers configured. Add one to start chatting.</p>}
+            );
+          })}
         </div>
-
-        {/* Editor */}
-        {editing && (
-          <div className="border rounded-lg px-4 py-4 space-y-3">
-            <div>
-              <label className="text-xs text-gray-500 block mb-2">Right Code presets</label>
-              <div className="flex flex-wrap gap-2">
-                {RIGHT_CODE_PRESETS.map(preset => (
-                  <button key={preset.label} type="button" onClick={() => applyPreset(preset)}
-                    className="border border-slate-300 px-2.5 py-1 rounded text-xs hover:border-black hover:bg-slate-50">
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Name</label>
-                <input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })}
-                  className="border rounded px-2 py-1 text-sm w-full" placeholder="My GPT-4" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">API Type</label>
-                <select value={editing.api_type} onChange={e => setEditing({ ...editing, api_type: e.target.value as any })}
-                  className="border rounded px-2 py-1 text-sm w-full">
-                  <option value="openai">OpenAI Compatible</option>
-                  <option value="anthropic">Anthropic (Claude)</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">API URL (base URL)</label>
-              <input value={editing.api_url} onChange={e => setEditing({ ...editing, api_url: e.target.value })}
-                className="border rounded px-2 py-1 text-sm w-full font-mono"
-                placeholder={editing.api_type === 'anthropic' ? 'https://www.right.codes/claude' : 'https://api.openai.com'} />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">API Key</label>
-              <input value={editing.api_key} onChange={e => setEditing({ ...editing, api_key: e.target.value })}
-                type="password" className="border rounded px-2 py-1 text-sm w-full font-mono"
-                placeholder="sk-..." />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Model</label>
-                <input value={editing.model} onChange={e => setEditing({ ...editing, model: e.target.value })}
-                  className="border rounded px-2 py-1 text-sm w-full font-mono"
-                  placeholder={editing.api_type === 'anthropic' ? 'claude-opus-4-8' : 'gpt-5.5'} />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Max Tokens</label>
-                <input type="number" value={editing.max_tokens}
-                  onChange={e => setEditing({ ...editing, max_tokens: parseInt(e.target.value) || 4096 })}
-                  className="border rounded px-2 py-1 text-sm w-full" />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">System Prompt (optional)</label>
-              <textarea value={editing.system_prompt} onChange={e => setEditing({ ...editing, system_prompt: e.target.value })}
-                rows={4} className="border rounded px-2 py-1 text-sm w-full font-mono resize-y"
-                placeholder="You are a helpful assistant..." />
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Set as default</label>
-              <input type="checkbox" checked={!!editing.is_default}
-                disabled={hasEnvDefaultProvider}
-                onChange={e => setEditing({ ...editing, is_default: e.target.checked ? 1 : 0 })} />
-            </div>
-            {hasEnvDefaultProvider && (
-              <p className="text-xs text-gray-400">
-                An env.local provider is the default. Saved providers remain available, but cannot override it while env-backed providers are configured.
-              </p>
-            )}
-
-            {/* Test result */}
-            {testResult && (
-              <div className={`text-xs p-2 rounded ${testResult.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                {testResult.ok ? '✓ ' : '✗ '}{testResult.msg}
-              </div>
-            )}
-
-            {error && <p className="text-red-500 text-xs">{error}</p>}
-            <div className="flex gap-2">
-              <button onClick={save} className="bg-black text-white px-4 py-1 rounded text-sm">Save</button>
-              <button onClick={testProvider} disabled={testing}
-                className="border border-blue-500 text-blue-500 px-4 py-1 rounded text-sm hover:bg-blue-50 disabled:opacity-50">
-                {testing ? 'Testing...' : 'Test Connection'}
-              </button>
-              <button onClick={() => { setEditing(null); setTestResult(null); }}
-                className="text-sm text-gray-500">Cancel</button>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </main>
   );
 }

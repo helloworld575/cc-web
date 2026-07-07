@@ -11,7 +11,7 @@
 - ✅ **待办** — 任务列表，支持截止日期
 - 🖼️ **文件** — 图片上传，按相册组织
 - 🤖 **AI 对话** — 多服务商聊天（OpenAI + Anthropic），支持流式响应和历史记录
-- 📰 **订阅** — 从博客、GitHub、X/Twitter、RSS、Reddit 生成 AI 摘要
+- 📰 **订阅** — 定时抓取网页/RSS，按需整合 AI 摘要
 - 🐦 **发布到 X** — 把博客或日记转成推文/推文串，可附加站点图片
 - 🔮 **命理** — 中国传统占卜（八字、紫微、六爻、梅花易数）
 
@@ -75,9 +75,13 @@ NAS_HOST=
 NAS_USER=
 NAS_PATH=/volume1/docker/my-site
 NAS_PASSWORD=
+SUBSCRIPTION_CRON_SECRET=
+SUBSCRIPTION_CRON_INTERVAL_SECONDS=86400
 ```
 
-AI 服务商通过管理后台 `/admin/ai-config` 配置。当 `.env.local` 设置了 `CLAUDE_API_KEY` 时，env Claude provider 会始终作为默认服务商；新增保存的 provider 仍可选择，但不会替换 env 默认。AI 对话会保存完整历史，但只把最近的对话窗口发送给上游模型，以降低上下文占用。
+AI 服务商暂时改为 `.env.local` 只读配置。`/admin/ai-config` 只展示并测试 Claude 与 Right Code GPT，新增、编辑、删除 provider API 会返回 403。AI 对话会保存完整历史，但只把最近的对话窗口发送给上游模型，以降低上下文占用。
+
+订阅现在拆成抓取和整合两步：`/api/subscriptions/crawl` 抓取 RSS、博客、GitHub、X、Reddit 等内容并写入 `subscription_items`，不调用 AI；需要摘要时再点平台上的“整合摘要”，由 `/api/subscriptions/integrate` 读取已抓取内容并生成 `subscription_briefs`。旧 `/api/subscriptions/fetch` 保留为整合入口的兼容别名。
 
 ## 质量门禁
 
@@ -112,7 +116,7 @@ docker compose up -d
 docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```
 
-部署所需变量统一放在 `.env.local`：`NAS_HOST`、`NAS_USER`、`NAS_PATH`、`NAS_PASSWORD`、`CLOUDFLARE_TUNNEL_TOKEN`。
+部署所需变量统一放在 `.env.local`：`NAS_HOST`、`NAS_USER`、`NAS_PATH`、`NAS_PASSWORD`、`CLOUDFLARE_TUNNEL_TOKEN`。NAS compose 会额外启动 `subscription-cron`，每天调用 `/api/subscriptions/crawl` 抓取订阅原始内容；建议配置 `SUBSCRIPTION_CRON_SECRET`，未配置时会回退使用 `ADMIN_PASSWORD`，抓取间隔可用 `SUBSCRIPTION_CRON_INTERVAL_SECONDS` 调整。
 部署日志会按时间写入 `log/deploy/`，脚本退出前会尽量清理远端暂存目录并关闭 SSH / SFTP 会话。
 
 ## 测试

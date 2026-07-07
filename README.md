@@ -12,7 +12,7 @@ Personal blog & toolbox built with **Next.js 14** and **SQLite**.
 - 🖼️ **Files** — Image uploads organized into albums
 - 🤖 **AI Chat** — Multi-provider chat (OpenAI + Anthropic) with streaming history
 - **Claude Code Worker** — Admin-only web UI that proxies prompts to an isolated Claude Code worker container
-- 📰 **Subscriptions** — AI-generated briefs from blogs, GitHub, X/Twitter, RSS, Reddit
+- 📰 **Subscriptions** — Scheduled web/RSS crawling with on-demand AI briefs
 - 🐦 **Post to X** — Turn blog posts or diary entries into tweets/threads, attach site images
 - 🔮 **Fortune** — Chinese divination (BaZi, ZiWei, I Ching, Plum Blossom)
 
@@ -92,9 +92,13 @@ NAS_HOST=
 NAS_USER=
 NAS_PATH=/volume1/docker/my-site
 NAS_PASSWORD=
+SUBSCRIPTION_CRON_SECRET=
+SUBSCRIPTION_CRON_INTERVAL_SECONDS=86400
 ```
 
-AI providers are configured through the admin UI at `/admin/ai-config`. The form includes Right Code presets for GPT-5.5 (`https://www.right.codes/codex`) and Claude (`https://www.right.codes/claude`). When `CLAUDE_API_KEY` or `RIGHT_CODE_GPT_API_KEY` is set in `.env.local`, the env-backed providers are shown first and the first configured env provider remains the default; additional saved providers remain available without replacing it. By default Claude calls use `https://www.right.codes/claude/v1/messages`, send Anthropic-style text blocks with ephemeral cache control, and stream tokens back to the UI as SSE. Right Code GPT-5.5 calls use the Responses API at `https://www.right.codes/codex/v1/responses`, send `input_text` message blocks, and stream SSE responses back to the chat UI. Saved Right Code GPT presets can keep the base URL `https://www.right.codes/codex`; the backend detects that Codex endpoint and uses Responses automatically. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The admin UI also exposes `/admin/claude-code`, which calls an internal Claude Code worker through `/api/claude-code`. The worker maps `CLAUDE_API_KEY`, `CLAUDE_API_HOST`, and `CLAUDE_MODEL` into Claude Code's Anthropic environment variables, defaults to a personal-assistant system prompt, and returns plain text rather than Claude Code JSON events. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it defaults to the right.codes native `/v1/images/generations` endpoint. Set `GPT_IMAGE_API_MODE=chat` only for legacy chat-completions image gateways that still need `GPT_IMAGE_GROUP`.
+AI providers are temporarily env-only. `/admin/ai-config` is a read-only verification page for the Claude and Right Code GPT providers configured in `.env.local`; POST/PUT/DELETE provider APIs return 403. By default Claude calls use `https://www.right.codes/claude/v1/messages`, send Anthropic-style text blocks with ephemeral cache control, and stream tokens back to the UI as SSE. Right Code GPT-5.5 calls use the Responses API at `https://www.right.codes/codex/v1/responses`, send `input_text` message blocks, and stream SSE responses back to the chat UI. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The admin UI also exposes `/admin/claude-code`, which calls an internal Claude Code worker through `/api/claude-code`. The worker maps `CLAUDE_API_KEY`, `CLAUDE_API_HOST`, and `CLAUDE_MODEL` into Claude Code's Anthropic environment variables, defaults to a personal-assistant system prompt, and returns plain text rather than Claude Code JSON events. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it defaults to the right.codes native `/v1/images/generations` endpoint. Set `GPT_IMAGE_API_MODE=chat` only for legacy chat-completions image gateways that still need `GPT_IMAGE_GROUP`.
+
+Subscriptions now separate crawling from AI summarization. `/api/subscriptions/crawl` fetches RSS/blog/GitHub/X/Reddit content into `subscription_items` without calling AI. `/api/subscriptions/integrate` reads the latest stored items and creates `subscription_briefs` with the provider-neutral `subscription` skill. The old `/api/subscriptions/fetch` endpoint remains as a compatibility alias for integration.
 
 ## Quality Gates
 
@@ -129,7 +133,7 @@ docker compose up -d
 docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```
 
-Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`. Claude Code worker deployment also requires `CLAUDE_API_KEY`; `CLAUDE_API_HOST` and `CLAUDE_MODEL` are optional overrides.
+Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`. Claude Code worker deployment also requires `CLAUDE_API_KEY`; `CLAUDE_API_HOST` and `CLAUDE_MODEL` are optional overrides. NAS compose also starts `subscription-cron`, which calls `/api/subscriptions/crawl` daily. Set `SUBSCRIPTION_CRON_SECRET` for a dedicated bearer token, or it will fall back to `ADMIN_PASSWORD`; adjust the cadence with `SUBSCRIPTION_CRON_INTERVAL_SECONDS`.
 The deploy script writes timestamped logs to `log/deploy/` and always attempts to remove the remote staging directory and close SSH/SFTP sessions before exiting.
 
 ## Testing

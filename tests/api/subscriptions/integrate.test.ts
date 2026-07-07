@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockSession } from '../../helpers';
 import { rateLimitByIp } from '@/lib/rateLimit';
-import { getSkill } from '@/lib/skills';
 import { fetchByCategory } from '@/lib/fetchers';
+import { getSkill } from '@/lib/skills';
 import db from '@/lib/db';
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-describe('POST /api/subscriptions/fetch', () => {
+describe('POST /api/subscriptions/integrate', () => {
   beforeEach(() => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
     vi.mocked(fetchByCategory).mockClear();
@@ -20,8 +20,8 @@ describe('POST /api/subscriptions/fetch', () => {
 
   it('returns 401 without session', async () => {
     mockSession(false);
-    const { POST } = await import('@/app/api/subscriptions/fetch/route');
-    const res = await POST(new Request('http://localhost/api/subscriptions/fetch', { method: 'POST' }));
+    const { POST } = await import('@/app/api/subscriptions/integrate/route');
+    const res = await POST(new Request('http://localhost/api/subscriptions/integrate', { method: 'POST' }));
     expect(res.status).toBe(401);
   });
 
@@ -33,13 +33,13 @@ describe('POST /api/subscriptions/fetch', () => {
       description: 'Guide only',
       invocable: false,
     });
-    const { POST } = await import('@/app/api/subscriptions/fetch/route');
-    const res = await POST(new Request('http://localhost/api/subscriptions/fetch', { method: 'POST', body: '{}' }));
+    const { POST } = await import('@/app/api/subscriptions/integrate/route');
+    const res = await POST(new Request('http://localhost/api/subscriptions/integrate', { method: 'POST', body: '{}' }));
     expect(res.status).toBe(500);
     await expect(res.json()).resolves.toEqual({ error: 'Subscription skill is not invocable' });
   });
 
-  it('acts as a compatibility alias that integrates stored crawl items', async () => {
+  it('generates briefs from stored subscription items without crawling again', async () => {
     mockSession(true);
     (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
       id: 'subscription',
@@ -72,6 +72,7 @@ describe('POST /api/subscriptions/fetch', () => {
     }));
     const getExistingBrief = vi.fn(() => undefined);
     const insertBrief = vi.fn(() => ({ lastInsertRowid: 10, changes: 1 }));
+
     (db.prepare as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
       if (sql.includes('SELECT * FROM subscription_sources WHERE id = ? AND enabled = 1')) {
         return { get: getSource };
@@ -88,8 +89,8 @@ describe('POST /api/subscriptions/fetch', () => {
       return { get: vi.fn(), all: vi.fn(() => []), run: vi.fn() };
     });
 
-    const { POST } = await import('@/app/api/subscriptions/fetch/route');
-    const res = await POST(new Request('http://localhost/api/subscriptions/fetch', {
+    const { POST } = await import('@/app/api/subscriptions/integrate/route');
+    const res = await POST(new Request('http://localhost/api/subscriptions/integrate', {
       method: 'POST',
       body: JSON.stringify({ source_id: 1 }),
     }));
@@ -97,23 +98,6 @@ describe('POST /api/subscriptions/fetch', () => {
     expect(res.status).toBe(200);
     expect(fetchByCategory).not.toHaveBeenCalled();
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/claude/v1/messages');
-    expect(init.headers['x-api-key']).toBe('test-claude-key');
-    expect(JSON.parse(init.body)).toMatchObject({
-      model: 'claude-opus-4-8',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            expect.objectContaining({
-              type: 'text',
-              text: expect.stringContaining('AI Source'),
-            }),
-          ],
-        },
-      ],
-    });
     expect(insertBrief).toHaveBeenCalledWith(
       1,
       'Stored crawl',

@@ -176,6 +176,7 @@ include_files = [
     "postcss.config.mjs",
     "setup.sh",
     "scripts/claude-worker.mjs",
+    "scripts/crawl-subscriptions.mjs",
     "tailwind.config.ts",
     "tsconfig.json",
 ]

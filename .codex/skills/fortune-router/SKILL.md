@@ -31,10 +31,14 @@ orchestration:
   mode: route
   children:
     - skill: bazi-fortune
-      when: Use when the user provides birth date and time for Four Pillars or BaZi interpretation.
+      when: >-
+        Use when the user provides birth date and time for Four Pillars or BaZi
+        interpretation.
       mode: direct
     - skill: liuyao-fortune
-      when: Use when the user asks for Liu Yao or I Ching line-based divination interpretation.
+      when: >-
+        Use when the user asks for Liu Yao or I Ching line-based divination
+        interpretation.
       mode: direct
     - skill: meihua-fortune
       when: Use when the user asks for Meihua Yishu or numerology-style divination.

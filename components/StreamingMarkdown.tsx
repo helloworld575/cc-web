@@ -105,7 +105,7 @@ function MarkdownPre({ children, ...props }: { children?: ReactNode }) {
   return (
     <pre
       {...props}
-      className="overflow-x-auto rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-slate-50 shadow-inner"
+      className="overflow-x-auto rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-slate-50 shadow-inner [&_code]:bg-transparent [&_code]:p-0 [&_code]:font-mono [&_code]:font-medium [&_code]:text-slate-50"
     >
       {children}
     </pre>

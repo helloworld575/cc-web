@@ -17,6 +17,21 @@ services:
       claude-worker:
         condition: service_healthy
 
+  subscription-cron:
+    image: my-site:latest
+    restart: unless-stopped
+    command: ["node", "scripts/crawl-subscriptions.mjs", "--loop", "--target", "http://app:3000"]
+    environment:
+      SUBSCRIPTION_CRON_TARGET: http://app:3000
+      SUBSCRIPTION_CRON_INTERVAL_SECONDS: ${SUBSCRIPTION_CRON_INTERVAL_SECONDS:-86400}
+      SUBSCRIPTION_CRON_RUN_ON_START: ${SUBSCRIPTION_CRON_RUN_ON_START:-1}
+      SUBSCRIPTION_CRON_STARTUP_RETRIES: ${SUBSCRIPTION_CRON_STARTUP_RETRIES:-10}
+      SUBSCRIPTION_CRON_RETRY_SECONDS: ${SUBSCRIPTION_CRON_RETRY_SECONDS:-30}
+    env_file:
+      - .env.local
+    depends_on:
+      - app
+
   claude-worker:
     image: ${NAS_CLAUDE_WORKER_IMAGE_NAME:-my-site-claude-worker:latest}
     restart: unless-stopped

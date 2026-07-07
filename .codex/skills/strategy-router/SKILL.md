@@ -32,37 +32,57 @@ orchestration:
   mode: route
   children:
     - skill: arming-thought
-      when: Use at the start of a broad top-level task to anchor the work in facts and choose downstream skills deliberately.
+      when: >-
+        Use at the start of a broad top-level task to anchor the work in facts
+        and choose downstream skills deliberately.
       mode: direct
     - skill: contradiction-analysis
-      when: Use when the problem has competing forces, unclear priorities, or no obvious first move.
+      when: >-
+        Use when the problem has competing forces, unclear priorities, or no
+        obvious first move.
       mode: direct
     - skill: investigation-first
-      when: Use when facts are incomplete and judgment should wait for more first-hand evidence.
+      when: >-
+        Use when facts are incomplete and judgment should wait for more
+        first-hand evidence.
       mode: direct
     - skill: concentrate-forces
-      when: Use when effort is being split across too many parallel goals and one main breakthrough must be chosen.
+      when: >-
+        Use when effort is being split across too many parallel goals and one
+        main breakthrough must be chosen.
       mode: direct
     - skill: overall-planning
-      when: Use when several important goals must be balanced together and optimizing one can damage another.
+      when: >-
+        Use when several important goals must be balanced together and
+        optimizing one can damage another.
       mode: direct
     - skill: practice-cognition
-      when: Use when a hypothesis needs to be tested in practice and improved through iteration.
+      when: >-
+        Use when a hypothesis needs to be tested in practice and improved
+        through iteration.
       mode: direct
     - skill: mass-line
-      when: Use when many inputs must be collected, synthesized, and validated with affected users or executors.
+      when: >-
+        Use when many inputs must be collected, synthesized, and validated with
+        affected users or executors.
       mode: direct
     - skill: criticism-self-criticism
-      when: Use after delivery or at a review point to examine failures honestly and correct them.
+      when: >-
+        Use after delivery or at a review point to examine failures honestly and
+        correct them.
       mode: direct
     - skill: protracted-strategy
-      when: Use when the work is long-horizon, difficult, and cannot be won quickly.
+      when: 'Use when the work is long-horizon, difficult, and cannot be won quickly.'
       mode: direct
     - skill: spark-prairie-fire
-      when: Use when starting from nearly nothing and needing a small durable foothold before scaling up.
+      when: >-
+        Use when starting from nearly nothing and needing a small durable
+        foothold before scaling up.
       mode: direct
     - skill: workflows
-      when: Use when the task clearly needs several skills chained together in a standard sequence.
+      when: >-
+        Use when the task clearly needs several skills chained together in a
+        standard sequence.
       mode: route
 ---
 # Strategy Router

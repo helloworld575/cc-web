@@ -56,7 +56,7 @@ export default function AdminSubscriptionsPage() {
   async function fetchNow(id: number) {
     setFetching(id);
     setFetchMsg('');
-    const res = await fetch('/api/subscriptions/fetch', {
+    const res = await fetch('/api/subscriptions/crawl', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source_id: id }),
@@ -75,7 +75,7 @@ export default function AdminSubscriptionsPage() {
   async function fetchAll() {
     setFetching(-1);
     setFetchMsg('');
-    const res = await fetch('/api/subscriptions/fetch', {
+    const res = await fetch('/api/subscriptions/crawl', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),

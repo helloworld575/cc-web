@@ -105,6 +105,17 @@ db.exec(`
     fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS subscription_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER NOT NULL REFERENCES subscription_sources(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    content TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // Migrate: add deadline column if not exists
@@ -158,6 +169,9 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_subscription_briefs_source ON subscription_briefs(source_id);
   CREATE INDEX IF NOT EXISTS idx_subscription_briefs_fetched ON subscription_briefs(fetched_at);
   CREATE INDEX IF NOT EXISTS idx_subscription_briefs_hash ON subscription_briefs(content_hash);
+  CREATE INDEX IF NOT EXISTS idx_subscription_items_source ON subscription_items(source_id);
+  CREATE INDEX IF NOT EXISTS idx_subscription_items_fetched ON subscription_items(fetched_at);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_items_source_hash ON subscription_items(source_id, content_hash);
 `);
 
 // Prepared statements for hot queries

@@ -44,7 +44,6 @@ export default function AIChatTool() {
   const [streamStage, setStreamStage] = useState<'ready' | 'dispatch' | 'thinking' | 'rendering'>('ready');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -70,10 +69,6 @@ export default function AIChatTool() {
     if (!selectedProvider) return;
     refreshHistory(selectedProvider);
   }, [selectedProvider]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streaming]);
 
   useEffect(() => {
     setPortalHost(document.body);
@@ -313,9 +308,9 @@ export default function AIChatTool() {
     return (
       <div className="rounded-[28px] border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center text-slate-500 shadow-sm backdrop-blur">
         <p className="mb-2 text-base font-medium text-slate-700">{t('aiChatNoProvider')}</p>
-        <a href="/admin/ai-config" className="text-sm text-sky-700 underline decoration-sky-300 underline-offset-4">
-          {t('aiChatGoConfig')}
-        </a>
+        <p className="text-sm text-slate-500">
+          Configure CLAUDE_API_KEY and RIGHT_CODE_GPT_API_KEY in .env.local, then redeploy.
+        </p>
       </div>
     );
   }
@@ -582,8 +577,6 @@ export default function AIChatTool() {
                 </div>
               );
             })}
-
-            <div ref={messagesEndRef} />
             </div>
           </div>
         </div>

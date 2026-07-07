@@ -18,7 +18,8 @@ export default function SubscriptionBriefsTool() {
   const { t } = useLocale();
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [crawling, setCrawling] = useState(false);
+  const [integrating, setIntegrating] = useState(false);
   const [filter, setFilter] = useState<string>('all');
   const [categories, setCategories] = useState<string[]>([]);
 
@@ -35,15 +36,31 @@ export default function SubscriptionBriefsTool() {
     setLoading(false);
   }
 
-  async function refreshAll() {
-    setRefreshing(true);
-    await fetch('/api/subscriptions/fetch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    });
-    await loadBriefs();
-    setRefreshing(false);
+  async function crawlAll() {
+    setCrawling(true);
+    try {
+      await fetch('/api/subscriptions/crawl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+    } finally {
+      setCrawling(false);
+    }
+  }
+
+  async function integrateAll() {
+    setIntegrating(true);
+    try {
+      await fetch('/api/subscriptions/integrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      await loadBriefs();
+    } finally {
+      setIntegrating(false);
+    }
   }
 
   async function deleteBrief(id: number) {
@@ -78,10 +95,16 @@ export default function SubscriptionBriefsTool() {
             {filteredBriefs.length} {t('subscriptionBriefs')}
           </span>
         </div>
-        <button onClick={refreshAll} disabled={refreshing}
-          className="border rounded px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50">
-          {refreshing ? t('subscriptionRefreshing') : t('subscriptionRefresh')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={crawlAll} disabled={crawling || integrating}
+            className="border rounded px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50">
+            {crawling ? t('subscriptionCrawling') : t('subscriptionCrawl')}
+          </button>
+          <button onClick={integrateAll} disabled={crawling || integrating}
+            className="border rounded px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50">
+            {integrating ? t('subscriptionIntegrating') : t('subscriptionIntegrate')}
+          </button>
+        </div>
       </div>
 
       {/* Briefs list */}

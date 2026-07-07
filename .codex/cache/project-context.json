@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-03T03:45:35.584Z",
+  "generatedAt": "2026-07-07T16:06:53.283Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -130,7 +130,7 @@
     },
     {
       "file": "app/api/ai-providers/route.ts",
-      "description": "CRUD for configured AI providers."
+      "description": "Read-only env-backed AI provider listing."
     },
     {
       "file": "app/api/blog/route.ts",
@@ -153,8 +153,16 @@
       "description": "Subscription source CRUD."
     },
     {
+      "file": "app/api/subscriptions/crawl/route.ts",
+      "description": "Crawl subscription content into raw stored items."
+    },
+    {
+      "file": "app/api/subscriptions/integrate/route.ts",
+      "description": "Generate briefs from stored subscription items."
+    },
+    {
       "file": "app/api/subscriptions/fetch/route.ts",
-      "description": "Fetch and cache subscription content."
+      "description": "Compatibility alias for subscription integration."
     },
     {
       "file": "app/api/subscriptions/briefs/route.ts",
@@ -271,12 +279,12 @@
       {
         "route": "/api/ai-providers/[id]",
         "file": "app/api/ai-providers/[id]/route.ts",
-        "description": "Operate on a single AI provider."
+        "description": "Read a single env-backed AI provider."
       },
       {
         "route": "/api/ai-providers",
         "file": "app/api/ai-providers/route.ts",
-        "description": "List and manage configured AI providers."
+        "description": "List env-backed AI providers."
       },
       {
         "route": "/api/ai-providers/test",
@@ -379,9 +387,19 @@
         "description": "List stored subscription briefs."
       },
       {
+        "route": "/api/subscriptions/crawl",
+        "file": "app/api/subscriptions/crawl/route.ts",
+        "description": "Fetch remote subscription content into raw stored items without AI."
+      },
+      {
         "route": "/api/subscriptions/fetch",
         "file": "app/api/subscriptions/fetch/route.ts",
-        "description": "Fetch and cache remote subscription content."
+        "description": "Compatibility alias for subscription integration."
+      },
+      {
+        "route": "/api/subscriptions/integrate",
+        "file": "app/api/subscriptions/integrate/route.ts",
+        "description": "Generate subscription briefs from stored crawl items."
       },
       {
         "route": "/api/subscriptions",
@@ -434,6 +452,7 @@
       "components/useLocale.ts"
     ],
     "lib": [
+      "lib/ai-gateway.ts",
       "lib/ai-providers.ts",
       "lib/auth.ts",
       "lib/bazi.ts",
@@ -441,10 +460,12 @@
       "lib/fetchers.ts",
       "lib/i18n.ts",
       "lib/markdown.ts",
+      "lib/openai-compatible.ts",
       "lib/rateLimit.ts",
       "lib/runtime-paths.ts",
       "lib/skill-taxonomy.ts",
       "lib/skills.ts",
+      "lib/subscription-service.ts",
       "lib/xapi.ts",
       "lib/yijing.ts",
       "lib/ziwei.ts"
@@ -469,7 +490,8 @@
       "ai_providers",
       "ai_chat_history",
       "subscription_sources",
-      "subscription_briefs"
+      "subscription_briefs",
+      "subscription_items"
     ],
     "migrations": [
       {
@@ -908,6 +930,16 @@
         "hasReferences": false
       },
       {
+        "id": "source-credibility-check",
+        "name": "Source Credibility Check",
+        "description": "Evaluate fetched sources for reliability, freshness, conflicts, and verification needs.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "content",
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
         "id": "spark-prairie-fire",
         "name": "spark-prairie-fire",
         "description": ">",
@@ -964,6 +996,16 @@
         "hasSystem": false,
         "hasPrompt": false,
         "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "web-research-brief",
+        "name": "Web Research Brief",
+        "description": "Summarize fetched web, RSS, search, or crawler output into a source-grounded research brief.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "content",
         "hasScripts": false,
         "hasReferences": false
       },
@@ -1035,8 +1077,10 @@
       "tests/api/skills/id.test.ts",
       "tests/api/skills/route.test.ts",
       "tests/api/subscriptions/briefs.test.ts",
+      "tests/api/subscriptions/crawl.test.ts",
       "tests/api/subscriptions/fetch.test.ts",
       "tests/api/subscriptions/id.test.ts",
+      "tests/api/subscriptions/integrate.test.ts",
       "tests/api/subscriptions/route.test.ts",
       "tests/api/todos/id.test.ts",
       "tests/api/todos/route.test.ts",
@@ -1049,6 +1093,6 @@
       "tests/lib/runtime-paths.test.ts",
       "tests/lib/skill-taxonomy.test.ts"
     ],
-    "count": 34
+    "count": 36
   }
 }

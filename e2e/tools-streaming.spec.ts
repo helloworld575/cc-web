@@ -87,6 +87,18 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   const markdownTextColor = await page.locator('.markdown-stream p').first().evaluate(element => window.getComputedStyle(element).color);
   const markdownRgb = markdownTextColor.match(/\d+/g)?.map(Number) ?? [255, 255, 255];
   expect(markdownRgb[0] + markdownRgb[1] + markdownRgb[2]).toBeLessThan(120);
+  const codeBlockColors = await page.locator('.markdown-stream pre code').first().evaluate(element => {
+    const codeStyle = window.getComputedStyle(element);
+    const preStyle = window.getComputedStyle(element.closest('pre')!);
+    return {
+      color: codeStyle.color,
+      backgroundColor: preStyle.backgroundColor,
+    };
+  });
+  const codeRgb = codeBlockColors.color.match(/\d+/g)?.map(Number) ?? [0, 0, 0];
+  const preBgRgb = codeBlockColors.backgroundColor.match(/\d+/g)?.map(Number) ?? [255, 255, 255];
+  expect(codeRgb[0] + codeRgb[1] + codeRgb[2]).toBeGreaterThan(600);
+  expect(preBgRgb[0] + preBgRgb[1] + preBgRgb[2]).toBeLessThan(120);
   await expect(page.getByTestId('ai-chat-history')).toContainText(chatPrompt);
   await page.getByLabel(new RegExp(`Open chat ${chatPrompt}`)).click();
   await expect(page.getByTestId('ai-chat-messages')).toContainText('Mock response');
@@ -110,6 +122,27 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
 
   await page.getByTestId('fortune-tab-history').click();
   await expect(page.getByRole('button', { name: /BaZi/ }).first()).toBeVisible();
+});
+
+test('ai chat does not auto-scroll while streaming a long message', async ({ page }) => {
+  await login(page);
+  await page.goto('/tools');
+  await page.getByTestId('tools-tab-ai-chat').click();
+  await expect(page.getByTestId('ai-chat-shell')).toBeVisible();
+
+  const longPrompt = [
+    `Do not auto scroll e2e ${Date.now()}`,
+    ...Array.from({ length: 80 }, (_, index) => `line ${index + 1}: keep the reader where they are`),
+  ].join('\n');
+
+  await page.getByTestId('ai-chat-input').fill(longPrompt);
+  await page.getByTestId('ai-chat-scroll').evaluate(element => { element.scrollTop = 0; });
+  const beforeScrollTop = await page.getByTestId('ai-chat-scroll').evaluate(element => element.scrollTop);
+  await page.getByTestId('ai-chat-send').click();
+  await expect(page.getByTestId('ai-chat-messages')).toContainText('Mock response');
+  const afterScrollTop = await page.getByTestId('ai-chat-scroll').evaluate(element => element.scrollTop);
+
+  expect(afterScrollTop).toBeLessThanOrEqual(beforeScrollTop + 4);
 });
 
 test('mobile drawer opens tools and tool tabs stay clickable', async ({ page }) => {

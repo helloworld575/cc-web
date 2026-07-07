@@ -32,22 +32,34 @@ orchestration:
   mode: route
   children:
     - skill: agent-browser
-      when: Use for websites, browser automation, login flows, screenshots, web QA, or scripted UI interaction.
+      when: >-
+        Use for websites, browser automation, login flows, screenshots, web QA,
+        or scripted UI interaction.
       mode: direct
     - skill: webapp-testing
-      when: Use for local app validation, Playwright-style checks, regression hunting, or frontend behavior verification.
+      when: >-
+        Use for local app validation, Playwright-style checks, regression
+        hunting, or frontend behavior verification.
       mode: direct
     - skill: skill-creator
-      when: Use for creating, improving, or evaluating a skill, including trigger tuning and skill benchmark loops.
+      when: >-
+        Use for creating, improving, or evaluating a skill, including trigger
+        tuning and skill benchmark loops.
       mode: direct
     - skill: find-skills
-      when: Use when the user asks to find, install, compare, or browse available skills.
+      when: >-
+        Use when the user asks to find, install, compare, or browse available
+        skills.
       mode: direct
     - skill: memory-systems
-      when: Use for long-term memory, persistence layers, knowledge graphs, or agent memory architecture decisions.
+      when: >-
+        Use for long-term memory, persistence layers, knowledge graphs, or agent
+        memory architecture decisions.
       mode: direct
     - skill: tmux
-      when: Use for remote control of interactive terminal sessions through tmux panes.
+      when: >-
+        Use for remote control of interactive terminal sessions through tmux
+        panes.
       mode: direct
 ---
 # Agent Router
