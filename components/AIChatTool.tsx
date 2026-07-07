@@ -1,5 +1,6 @@
 'use client';
 import { startTransition, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocale } from '@/components/useLocale';
 import StreamingMarkdown from '@/components/StreamingMarkdown';
 
@@ -42,6 +43,7 @@ export default function AIChatTool() {
   const [error, setError] = useState('');
   const [streamStage, setStreamStage] = useState<'ready' | 'dispatch' | 'thinking' | 'rendering'>('ready');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -72,6 +74,10 @@ export default function AIChatTool() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streaming]);
+
+  useEffect(() => {
+    setPortalHost(document.body);
+  }, []);
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -322,7 +328,7 @@ export default function AIChatTool() {
     rendering: 'Streaming markdown',
   }[streamStage];
   const shellClassName = isFullscreen
-    ? 'fixed inset-0 z-50 grid h-dvh min-h-0 gap-4 overflow-hidden bg-slate-100 p-3 sm:p-4 lg:grid-cols-[300px_minmax(0,1fr)]'
+    ? 'fixed inset-0 z-[9999] grid h-dvh min-h-0 gap-4 overflow-hidden bg-slate-100 p-3 sm:p-4 lg:grid-cols-[300px_minmax(0,1fr)]'
     : 'grid gap-4 lg:h-[calc(100vh-8rem)] lg:min-h-[680px] lg:grid-cols-[300px_minmax(0,1fr)]';
   const asideClassName = isFullscreen
     ? 'glass-panel min-h-0 overflow-y-auto rounded-[28px] px-5 py-5'
@@ -331,7 +337,7 @@ export default function AIChatTool() {
     ? 'glass-panel flex min-h-0 flex-col overflow-hidden rounded-[32px] px-4 py-4 sm:px-5 sm:py-5'
     : 'glass-panel flex min-h-[720px] flex-col overflow-hidden rounded-[32px] px-4 py-4 sm:px-5 sm:py-5 lg:min-h-0';
 
-  return (
+  const chatShell = (
     <div data-testid="ai-chat-shell" data-fullscreen={isFullscreen ? 'true' : 'false'} className={shellClassName}>
       <aside className={asideClassName}>
         <div className="mb-5">
@@ -628,4 +634,8 @@ export default function AIChatTool() {
       </section>
     </div>
   );
+
+  return isFullscreen && portalHost
+    ? createPortal(chatShell, portalHost)
+    : chatShell;
 }

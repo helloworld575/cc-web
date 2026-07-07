@@ -61,8 +61,20 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   expect(['auto', 'scroll']).toContain(chatScrollOverflow);
   await page.getByLabel('Enter fullscreen chat').click();
   await expect(page.getByLabel('Exit fullscreen chat')).toBeVisible();
+  await expect(page.getByTestId('ai-chat-shell')).toHaveAttribute('data-fullscreen', 'true');
+  const fullscreenMountedAtBody = await page.getByTestId('ai-chat-shell').evaluate(element => element.parentElement === document.body);
+  expect(fullscreenMountedAtBody).toBeTruthy();
   const fullscreenBox = await page.getByTestId('ai-chat-shell').boundingBox();
   expect(fullscreenBox?.height ?? 0).toBeGreaterThan((page.viewportSize()?.height ?? 720) - 40);
+  const fullscreenIsTopLayer = await page.getByTestId('ai-chat-shell').evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    const topElement = document.elementFromPoint(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+    );
+    return Boolean(topElement && (topElement === element || element.contains(topElement)));
+  });
+  expect(fullscreenIsTopLayer).toBeTruthy();
   await expect(page.getByTestId('ai-chat-input')).toBeInViewport();
   await page.getByLabel('Exit fullscreen chat').click();
   await expect(page.getByLabel('Enter fullscreen chat')).toBeVisible();

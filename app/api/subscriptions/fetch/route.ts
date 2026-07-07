@@ -14,6 +14,52 @@ import {
   extractClaudeResponseText,
   getClaudeMessagesUrl,
 } from '@/lib/ai-gateway';
+import { getEnvProviders, type AiProviderConfig } from '@/lib/ai-providers';
+import {
+  extractResponsesStreamText,
+  extractResponsesText,
+  getOpenAiApiStyle,
+  getOpenAiEndpointUrl,
+  isResponsesStreamDone,
+} from '@/lib/openai-compatible';
+
+function getDefaultAiProvider() {
+  const envDefault = getEnvProviders().find(provider => provider.is_default);
+  if (envDefault) return envDefault;
+  return db.prepare('SELECT * FROM ai_providers WHERE is_default = 1 LIMIT 1').get() as AiProviderConfig | undefined;
+}
+
+async function readResponsesStreamText(upstreamBody: ReadableStream<Uint8Array>) {
+  const reader = upstreamBody.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  let text = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data: ')) continue;
+      const raw = trimmed.slice(6).trim();
+      if (!raw || raw === '[DONE]') continue;
+
+      try {
+        const parsed = JSON.parse(raw);
+        text += extractResponsesStreamText(parsed);
+        if (isResponsesStreamDone(parsed)) return text;
+      } catch {
+        // Ignore malformed SSE lines.
+      }
+    }
+  }
+
+  return text;
+}
 
 async function generateBriefWithSkill(
   skill: InvocableSkill,
@@ -21,7 +67,7 @@ async function generateBriefWithSkill(
   content: string,
 ): Promise<string> {
 
-  const provider = db.prepare('SELECT * FROM ai_providers WHERE is_default = 1 LIMIT 1').get() as any;
+  const provider = getDefaultAiProvider();
   if (!provider) {
     return 'No default AI provider configured. Go to Admin → AI Config.';
   }
@@ -38,6 +84,10 @@ async function generateBriefWithSkill(
     let reqUrl: string;
     let reqHeaders: Record<string, string>;
 
+    const openAiApiStyle = provider.api_type === 'openai'
+      ? getOpenAiApiStyle(provider)
+      : null;
+
     if (provider.api_type === 'anthropic') {
       reqUrl = getClaudeMessagesUrl(provider.api_url);
       reqHeaders = buildClaudeHeaders(provider.api_key);
@@ -48,6 +98,25 @@ async function generateBriefWithSkill(
         system: skill.system,
         messages: [{ role: 'user', content: userPrompt }],
       });
+    } else if (openAiApiStyle === 'responses') {
+      reqUrl = getOpenAiEndpointUrl(provider);
+      reqHeaders = {
+        'Authorization': `Bearer ${provider.api_key}`,
+        'content-type': 'application/json',
+      };
+      payload = {
+        model: provider.model,
+        max_output_tokens: 4096,
+        stream: true,
+        instructions: skill.system || undefined,
+        input: [
+          {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: userPrompt }],
+          },
+        ],
+      };
     } else {
       reqUrl = `${provider.api_url.replace(/\/$/, '')}/v1/chat/completions`;
       reqHeaders = {
@@ -77,10 +146,19 @@ async function generateBriefWithSkill(
       return `Brief generation failed: AI API returned ${response.status}`;
     }
 
-    const data = await response.json();
     if (provider.api_type === 'anthropic') {
+      const data = await response.json();
       return extractClaudeResponseText(data) || 'No brief generated';
+    } else if (openAiApiStyle === 'responses') {
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('text/event-stream') && response.body) {
+        return await readResponsesStreamText(response.body) || 'No brief generated';
+      }
+
+      const data = await response.json();
+      return extractResponsesText(data) || 'No brief generated';
     } else {
+      const data = await response.json();
       return data.choices?.[0]?.message?.content || 'No brief generated';
     }
   } catch (error: any) {
