@@ -1,0 +1,4 @@
+interface:
+  display_name: "API Blog Image Publisher"
+  short_description: "Prepare blog and image API calls"
+  default_prompt: "Use $api-blog-image-publisher to prepare API calls for publishing a blog post or sending images."

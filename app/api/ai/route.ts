@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getSkill, resolveSkillReference } from '@/lib/skills';
 import { rateLimitByIp } from '@/lib/rateLimit';
 import { isInvocableSkill } from '@/lib/skill-taxonomy';
-import { getEnvProviders, type AiProviderConfig } from '@/lib/ai-providers';
+import { getEnvProviderById, getEnvProviders, type AiProviderConfig } from '@/lib/ai-providers';
 import {
   buildClaudeHeaders,
   buildClaudeMessagesPayload,
@@ -21,6 +21,16 @@ import {
 
 function getDefaultProvider() {
   return getEnvProviders().find(provider => provider.is_default);
+}
+
+function readProviderId(value: unknown) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value === 'number' && Number.isInteger(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) ? parsed : NaN;
+  }
+  return NaN;
 }
 
 function buildAnthropicRequest(provider: AiProviderConfig, prompt: string, system?: string) {
@@ -111,9 +121,19 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: `Skill is not invocable: ${skillId}` }), { status: 400 });
   }
 
-  const provider = getDefaultProvider();
+  const requestedProviderId = readProviderId(body.provider_id);
+  if (Number.isNaN(requestedProviderId)) {
+    return new Response(JSON.stringify({ error: 'Invalid provider_id' }), { status: 400 });
+  }
+
+  const provider = requestedProviderId === null
+    ? getDefaultProvider()
+    : getEnvProviderById(requestedProviderId);
   if (!provider) {
-    return new Response(JSON.stringify({ error: 'No env AI provider configured' }), { status: 500 });
+    const message = requestedProviderId === null
+      ? 'No env AI provider configured'
+      : `AI provider not found: ${requestedProviderId}`;
+    return new Response(JSON.stringify({ error: message }), { status: requestedProviderId === null ? 500 : 404 });
   }
 
   const prompt = skill.prompt.replace('{{content}}', content);
@@ -134,7 +154,7 @@ export async function POST(req: Request) {
   });
 
   if (!upstream.ok) {
-    let msg = 'Claude API error';
+    let msg = 'AI provider error';
     try { const err = await upstream.json(); msg = err.error?.message ?? msg; } catch {}
     return new Response(JSON.stringify({ error: msg }), { status: 502 });
   }
@@ -147,7 +167,12 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       // First, send output type so client knows how to handle result
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ output: outputType })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+        output: outputType,
+        provider_id: provider.id,
+        provider: provider.name,
+        model: provider.model,
+      })}\n\n`));
 
       upstreamReader = upstreamBody.getReader();
       const decoder = new TextDecoder();

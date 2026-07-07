@@ -73,6 +73,32 @@ test('admin blog editor has a large markdown toolbar, preview toggle, and height
   await page.getByTestId('admin-blog-preview-toggle').click();
   await expect(page.getByTestId('admin-blog-editor-preview')).toBeVisible();
 
+  const providerSelect = page.getByTestId('admin-blog-skill-provider');
+  await expect(providerSelect).toBeVisible();
+  await expect(providerSelect).toHaveValue('-1');
+  await providerSelect.selectOption('-2');
+  await expect(providerSelect).toHaveValue('-2');
+
+  let aiRequestBody: any = null;
+  await page.route('**/api/ai', async route => {
+    aiRequestBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+      body: [
+        'data: {"output":"text","provider_id":-2,"model":"gpt-5.5"}',
+        '',
+        'data: {"text":"provider ok"}',
+        '',
+      ].join('\n'),
+    });
+  });
+
+  await page.getByTestId('admin-blog-skill-search').fill('api publishing');
+  await page.getByTestId('admin-blog-skill-list').getByRole('button').first().click();
+  await expect.poll(() => aiRequestBody?.provider_id).toBe(-2);
+  await expect(page.getByText('provider ok')).toBeVisible();
+
   const skillsListMaxHeight = await page.getByTestId('admin-blog-skill-list').evaluate(element => {
     return Number.parseFloat(window.getComputedStyle(element).maxHeight);
   });

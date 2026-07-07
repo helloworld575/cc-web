@@ -10,6 +10,13 @@ import {
   type InvocableSkillSummary,
 } from '@/lib/skill-taxonomy';
 
+interface AiProviderSummary {
+  id: number;
+  name: string;
+  model: string;
+  is_default: number;
+}
+
 export default function AdminBlogEditor() {
   const { slug } = useParams<{ slug: string }>();
   const { locale, t } = useLocale();
@@ -19,6 +26,8 @@ export default function AdminBlogEditor() {
   const [content, setContent] = useState('');
   const [saved, setSaved] = useState(false);
   const [skills, setSkills] = useState<InvocableSkillSummary[]>([]);
+  const [providers, setProviders] = useState<AiProviderSummary[]>([]);
+  const [selectedProviderId, setSelectedProviderId] = useState<number | null>(null);
   const [skillQuery, setSkillQuery] = useState('');
   const deferredSkillQuery = useDeferredValue(skillQuery);
   const [aiLoading, setAiLoading] = useState<string | null>(null);
@@ -41,6 +50,17 @@ export default function AdminBlogEditor() {
     fetch('/api/skills')
       .then(res => (res.ok ? res.json() : Promise.reject()))
       .then(setSkills)
+      .catch(() => {});
+
+    fetch('/api/ai-providers')
+      .then(res => (res.ok ? res.json() : Promise.reject()))
+      .then((items: AiProviderSummary[]) => {
+        setProviders(items);
+        setSelectedProviderId(current => {
+          if (current !== null && items.some(provider => provider.id === current)) return current;
+          return items.find(provider => provider.is_default)?.id ?? items[0]?.id ?? null;
+        });
+      })
       .catch(() => {});
   }, [slug]);
 
@@ -78,6 +98,7 @@ export default function AdminBlogEditor() {
         body: JSON.stringify({
           skill: skill.lookup.invoke,
           content,
+          provider_id: selectedProviderId ?? undefined,
         }),
       });
 
@@ -218,6 +239,25 @@ export default function AdminBlogEditor() {
             placeholder="Find by name, path, or keyword"
             className="mt-5 w-full rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
           />
+
+          {providers.length > 0 && (
+            <label className="mt-4 block">
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Provider</span>
+              <select
+                data-testid="admin-blog-skill-provider"
+                value={selectedProviderId ?? ''}
+                onChange={event => setSelectedProviderId(Number(event.target.value))}
+                disabled={!!aiLoading}
+                className="mt-2 w-full rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {providers.map(provider => (
+                  <option key={provider.id} value={provider.id}>
+                    {provider.name} - {provider.model}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           <div data-testid="admin-blog-skill-list" className="mt-5 max-h-[calc(100vh-260px)] min-h-[320px] space-y-4 overflow-y-auto pr-2">
             {skillGroups.map(group => (

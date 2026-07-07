@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-07T16:06:53.283Z",
+  "generatedAt": "2026-07-07T16:40:24.452Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -546,6 +546,16 @@
         "hasSystem": false,
         "hasPrompt": false,
         "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
+        "id": "api-blog-image-publisher",
+        "name": "api-blog-image-publisher",
+        "description": "Prepare API-ready plans for publishing blog posts and sending images.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "text",
         "hasScripts": false,
         "hasReferences": false
       },

@@ -109,6 +109,7 @@ const SKILL_DESCRIPTION_OVERRIDES = {
   'article-tags': 'Extract high-value tags and keywords for a post.',
   'article-title': 'Generate SEO-friendly headline or title options.',
   'article-translate-en': 'Translate Chinese article content into natural English.',
+  'api-blog-image-publisher': 'Prepare API-ready plans for publishing blog posts and sending images.',
   'bazi-fortune': 'BaZi / Four Pillars fortune analysis skill with helper scripts.',
   'blog-to-x': 'Convert long-form blog or diary content into X/Twitter posts or threads.',
   'liuyao-fortune': 'Liu Yao / I Ching divination skill with helper scripts.',

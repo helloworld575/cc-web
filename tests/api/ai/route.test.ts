@@ -103,6 +103,9 @@ describe('POST /api/ai', () => {
     ));
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+    const streamText = await res.text();
+    expect(streamText).toContain('"provider_id":-1');
+    expect(streamText).toContain('"model":"claude-sonnet-4-6"');
   });
 
   it('sends skill prompts to Claude with the right.codes messages request shape', async () => {
@@ -177,6 +180,61 @@ describe('POST /api/ai', () => {
     const { POST } = await import('@/app/api/ai/route');
     const res = await POST(postReq(
       { skill: 'test', content: 'hello' },
+      { 'x-forwarded-for': '1.2.3.4' },
+    ));
+
+    expect(res.status).toBe(200);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://www.right.codes/codex/v1/responses');
+    expect(init.headers.Authorization).toBe('Bearer test-right-code-key');
+    expect(JSON.parse(init.body)).toMatchObject({
+      model: 'gpt-5.5',
+      stream: true,
+      instructions: 'sys',
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: 'Polish: hello',
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('uses the requested env provider for skill execution when provider_id is supplied', async () => {
+    mockSession(true);
+    process.env.CLAUDE_API_KEY = 'test-claude-key';
+    process.env.CLAUDE_MODEL = 'claude-opus-4-8';
+    process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
+    process.env.RIGHT_CODE_GPT_API_STYLE = 'responses';
+    (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
+      id: 'test',
+      name: 'Test',
+      prompt: 'Polish: {{content}}',
+      output: 'markdown',
+      system: 'sys',
+      invocable: true,
+    });
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"hello"}\n\n'));
+        controller.enqueue(encoder.encode('data: {"type":"response.completed"}\n\n'));
+        controller.close();
+      },
+    });
+    mockFetch.mockResolvedValue(new Response(stream, { status: 200 }));
+
+    const { POST } = await import('@/app/api/ai/route');
+    const res = await POST(postReq(
+      { skill: 'test', content: 'hello', provider_id: -2 },
       { 'x-forwarded-for': '1.2.3.4' },
     ));
 

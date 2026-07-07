@@ -178,6 +178,10 @@ const child = spawn(
       SITE_UPLOADS_DIR: uploadsDir,
       E2E_MOCK_STREAMS: '1',
       CLAUDE_API_KEY: process.env.CLAUDE_API_KEY || 'e2e-mock-key',
+      RIGHT_CODE_GPT_API_KEY: process.env.RIGHT_CODE_GPT_API_KEY || 'e2e-right-code-key',
+      RIGHT_CODE_GPT_API_URL: process.env.RIGHT_CODE_GPT_API_URL || 'https://www.right.codes/codex',
+      RIGHT_CODE_GPT_MODEL: process.env.RIGHT_CODE_GPT_MODEL || 'gpt-5.5',
+      RIGHT_CODE_GPT_API_STYLE: process.env.RIGHT_CODE_GPT_API_STYLE || 'responses',
     },
     stdio: 'inherit',
   }

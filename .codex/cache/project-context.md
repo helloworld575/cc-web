@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-07-07T16:06:53.283Z
+Generated: 2026-07-07T16:40:24.452Z
 
 ## Snapshot
 
@@ -115,10 +115,11 @@ Generated: 2026-07-07T16:06:53.283Z
 - Simple migrations: `todos.deadline`, `files.album_id`
 - Prepared statements: `countFiles`, `listFiles`, `insertFile`, `listFortune`, `insertFortune`, `getFortune`, `deleteFortune`, `listProviders`, `getProvider`, `insertProvider`, `updateProvider`, `deleteProvider`, `clearDefaultProvider`, `listChats`, `listChatsByProvider`, `getChat`, `insertChat`, `updateChat`, `deleteChat`
 
-## AI Skills (51)
+## AI Skills (52)
 
 - `agent-browser`: >-
 - `agent-router`: >-
+- `api-blog-image-publisher`: Prepare API-ready plans for publishing blog posts and sending images.
 - `arming-thought`: >
 - `article-brief`: Generate a short excerpt or summary teaser for a blog post.
 - `article-faq`: Generate a reader-facing FAQ section for an article.
