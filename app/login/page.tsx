@@ -9,19 +9,32 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const { t } = useLocale();
 
+  async function waitForSession() {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await fetch('/api/auth/session', { cache: 'no-store' }).catch(() => null);
+      if (response?.ok) {
+        const session = await response.json().catch(() => null);
+        if (session?.user) return true;
+      }
+      await new Promise(resolve => window.setTimeout(resolve, 150));
+    }
+    return false;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
 
     setSubmitting(true);
     setError('');
+    const callbackUrl = `${window.location.origin}/admin/blog`;
     const res = await signIn('credentials', {
       password,
       redirect: false,
-      callbackUrl: '/admin/blog',
+      callbackUrl,
     });
 
-    if (res?.ok) {
+    if (res?.ok || await waitForSession()) {
       window.location.assign('/admin/blog');
       return;
     }
