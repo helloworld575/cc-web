@@ -17,6 +17,9 @@ export function verifyAdminPassword(candidate?: string | null, adminPassword = p
 }
 
 export const authOptions: NextAuthOptions = {
+  // The site is often used directly on the NAS LAN URL over HTTP.
+  // Secure-only auth cookies break that access path even when the password is correct.
+  useSecureCookies: false,
   providers: [
     CredentialsProvider({
       name: 'Password',

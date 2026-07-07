@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isWeakAdminPassword, verifyAdminPassword } from '@/lib/auth';
+import { authOptions, isWeakAdminPassword, verifyAdminPassword } from '@/lib/auth';
 
 describe('lib/auth', () => {
   it('flags missing and default admin passwords as weak', () => {
@@ -14,5 +14,9 @@ describe('lib/auth', () => {
     expect(verifyAdminPassword('secret-123', 'secret-124')).toBe(false);
     expect(verifyAdminPassword('short', 'much-longer')).toBe(false);
     expect(verifyAdminPassword(undefined, 'secret-123')).toBe(false);
+  });
+
+  it('allows auth cookies on LAN HTTP access as well as HTTPS domains', () => {
+    expect(authOptions.useSecureCookies).toBe(false);
   });
 });
