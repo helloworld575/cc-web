@@ -1,12 +1,14 @@
 'use client';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { startTransition, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLocale } from '@/components/useLocale';
 
 export default function Nav() {
   const { data: session, status } = useSession();
-  const { locale, toggle, t } = useLocale();
+  const router = useRouter();
+  const { locale, setLocale, t } = useLocale();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -15,6 +17,13 @@ export default function Nav() {
   const close = () => setOpen(false);
   const isAuthenticated = mounted && status === 'authenticated' && Boolean(session);
   const isLoadingSession = mounted && status === 'loading';
+  const switchLocale = () => {
+    setLocale(locale === 'en' ? 'zh' : 'en');
+    close();
+    startTransition(() => {
+      router.refresh();
+    });
+  };
 
   return (
     <nav className="relative z-50 border-b bg-white/85 px-4 py-3 backdrop-blur" suppressHydrationWarning>
@@ -56,7 +65,7 @@ export default function Nav() {
               </span>
             )}
           </div>
-          <button type="button" onClick={toggle} className="border rounded px-2 py-0.5 text-xs hover:bg-gray-100 transition-colors" suppressHydrationWarning>
+          <button type="button" onClick={switchLocale} className="border rounded px-2 py-0.5 text-xs hover:bg-gray-100 transition-colors" suppressHydrationWarning>
             {locale === 'en' ? '中文' : 'EN'}
           </button>
           {/* Hamburger */}

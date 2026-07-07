@@ -4,14 +4,18 @@ import { translations, type Locale, type TranslationKey } from '@/lib/i18n';
 
 const COOKIE = 'locale';
 
+function isLocale(value: string | undefined): value is Locale {
+  return value === 'en' || value === 'zh';
+}
+
 function getCookie(): Locale {
   if (typeof document === 'undefined') return 'en';
   const m = document.cookie.match(/(?:^|;\s*)locale=([^;]+)/);
-  return (m?.[1] as Locale) ?? 'en';
+  return isLocale(m?.[1]) ? m[1] : 'en';
 }
 
 function setCookie(locale: Locale) {
-  document.cookie = `${COOKIE}=${locale};path=/;max-age=31536000`;
+  document.cookie = `${COOKIE}=${locale};path=/;max-age=31536000;samesite=lax`;
 }
 
 function setDocumentLanguage(locale: Locale) {

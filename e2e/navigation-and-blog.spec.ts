@@ -1,6 +1,24 @@
 import { expect, test } from '@playwright/test';
 import { login } from './helpers';
 
+test('language toggle updates immediately and persists across reloads', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('button', { name: '中文' })).toBeVisible();
+
+  await page.getByRole('button', { name: '中文' }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+  await expect(page.getByRole('button', { name: 'EN' })).toBeVisible();
+
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+  await expect(page.getByRole('button', { name: 'EN' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'EN' }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('button', { name: '中文' })).toBeVisible();
+});
+
 test('public navigation and blog publishing flow work end to end', async ({ page }) => {
   await page.goto('/');
   const bodyLayout = await page.locator('body').evaluate((element) => {
