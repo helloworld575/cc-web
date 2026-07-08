@@ -202,6 +202,7 @@ export default function AIChatTool() {
     setStreamStage('dispatch');
     resetComposerHeight();
     setMessages([...outboundMessages, { role: 'assistant', content: '' }]);
+    let fullText = '';
 
     try {
       const controller = new AbortController();
@@ -240,7 +241,6 @@ export default function AIChatTool() {
 
       const decoder = new TextDecoder();
       let buffer = '';
-      let fullText = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -253,24 +253,29 @@ export default function AIChatTool() {
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
 
+          let parsed: any;
           try {
-            const parsed = JSON.parse(line.slice(6));
-            if (typeof parsed.chat_id === 'number') {
-              setCurrentChatId(parsed.chat_id);
-            }
-            if (!parsed.text) continue;
-
-            fullText += parsed.text;
-            setStreamStage('rendering');
-            startTransition(() => {
-              setMessages([
-                ...outboundMessages,
-                { role: 'assistant', content: fullText },
-              ]);
-            });
+            parsed = JSON.parse(line.slice(6));
           } catch {
             continue;
           }
+
+          if (typeof parsed.chat_id === 'number') {
+            setCurrentChatId(parsed.chat_id);
+          }
+          if (typeof parsed.error === 'string' && parsed.error.trim()) {
+            throw new Error(parsed.error.trim());
+          }
+          if (!parsed.text) continue;
+
+          fullText += parsed.text;
+          setStreamStage('rendering');
+          startTransition(() => {
+            setMessages([
+              ...outboundMessages,
+              { role: 'assistant', content: fullText },
+            ]);
+          });
         }
       }
 
@@ -281,8 +286,13 @@ export default function AIChatTool() {
       refreshHistory(selectedProvider);
     } catch (caught: unknown) {
       const errorLike = caught as { name?: string; message?: string };
+      const nextMessages = fullText
+        ? [...outboundMessages, { role: 'assistant' as const, content: fullText }]
+        : outboundMessages;
       if (errorLike?.name !== 'AbortError') {
         setError(errorLike?.message || 'Failed to send message.');
+        setMessages(nextMessages);
+      } else if (!fullText) {
         setMessages(outboundMessages);
       }
     } finally {

@@ -31,6 +31,22 @@ function mockResponsesStreamResponse() {
   mockFetch.mockResolvedValue(new Response(stream, { status: 200 }));
 }
 
+function mockBrokenResponsesStreamResponse() {
+  const encoder = new TextEncoder();
+  let reads = 0;
+  const stream = new ReadableStream({
+    pull(controller) {
+      reads += 1;
+      if (reads === 1) {
+        controller.enqueue(encoder.encode('data: {"type":"response.output_text.delta","delta":"hello"}\n\n'));
+        return;
+      }
+      throw new Error('rightcode stream aborted');
+    },
+  });
+  mockFetch.mockResolvedValue(new Response(stream, { status: 200 }));
+}
+
 function mockAnthropicStreamResponse() {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -161,6 +177,7 @@ describe('POST /api/ai-chat', () => {
       model: 'claude-opus-4-8',
       max_tokens: 32000,
       stream: true,
+      system: expect.stringContaining('rigorous technical assistant'),
       messages: [
         {
           role: 'user',
@@ -227,6 +244,7 @@ describe('POST /api/ai-chat', () => {
       model: 'gpt-5.5',
       max_output_tokens: 32000,
       stream: true,
+      instructions: expect.stringContaining('rigorous technical assistant'),
       input: [
         {
           type: 'message',
@@ -246,6 +264,33 @@ describe('POST /api/ai-chat', () => {
     }
     expect(text).toContain('"text":"hello"');
     expect(text).toContain('"text":" world"');
+  });
+
+  it('emits a catchable SSE error when a Right Code stream read fails', async () => {
+    mockSession(true);
+    process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
+    mockBrokenResponsesStreamResponse();
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: -2,
+      messages: [{ role: 'user', content: 'hi' }],
+    }));
+
+    expect(res.status).toBe(200);
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += decoder.decode(value);
+    }
+
+    expect(text).toContain('"text":"hello"');
+    expect(text).toContain('"error":"AI stream interrupted: rightcode stream aborted"');
   });
 
   it('injects the selected skill into AI chat requests', async () => {
@@ -319,9 +364,10 @@ describe('POST /api/ai-chat', () => {
     const [url, init] = mockFetch.mock.calls[0];
     expect(url).toBe('https://www.right.codes/codex/v1/responses');
     expect(init.headers.Authorization).toBe('Bearer saved-right-code-key');
-    expect(JSON.parse(init.body)).toMatchObject({
+    const body = JSON.parse(init.body);
+    expect(body).toMatchObject({
       model: 'gpt-5.5',
-      instructions: 'Be concise',
+      instructions: expect.stringContaining('Be concise'),
       max_output_tokens: 32000,
       stream: true,
       input: [
@@ -342,6 +388,7 @@ describe('POST /api/ai-chat', () => {
         },
       ],
     });
+    expect(body.instructions).toContain('rigorous technical assistant');
   });
 
   it('streams Anthropic response successfully', async () => {
@@ -446,7 +493,9 @@ describe('POST /api/ai-chat', () => {
     // Check the fetch call was made with system prompt included
     const fetchCall = mockFetch.mock.calls[0];
     const body = JSON.parse(fetchCall[1].body);
-    expect(body.messages[0]).toEqual({ role: 'system', content: 'You are a pirate' });
+    expect(body.messages[0].role).toBe('system');
+    expect(body.messages[0].content).toContain('rigorous technical assistant');
+    expect(body.messages[0].content).toContain('You are a pirate');
   });
 
   it('sends only recent chat context to the upstream provider while preserving the full transcript', async () => {
@@ -472,8 +521,10 @@ describe('POST /api/ai-chat', () => {
 
     const [, init] = mockFetch.mock.calls[0];
     const upstreamBody = JSON.parse(init.body);
-    expect(upstreamBody.messages).toHaveLength(12);
-    expect(upstreamBody.messages[0].content).toBe('message-8');
+    expect(upstreamBody.messages).toHaveLength(13);
+    expect(upstreamBody.messages[0].role).toBe('system');
+    expect(upstreamBody.messages[0].content).toContain('rigorous technical assistant');
+    expect(upstreamBody.messages[1].content).toBe('message-8');
     expect(upstreamBody.messages.at(-1).content).toBe('message-19');
     expect(run).toHaveBeenCalledWith(
       'message-0',

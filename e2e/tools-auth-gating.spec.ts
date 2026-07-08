@@ -52,3 +52,51 @@ test('authenticated tools show AI and subscription actions', async ({ page }) =>
   await expect(page.getByTestId('subscription-crawl-all')).toBeVisible();
   await expect(page.getByTestId('subscription-integrate-all')).toBeVisible();
 });
+
+test('subscription briefs are compact, paginated, and filterable', async ({ page }) => {
+  await page.route('**/api/subscriptions/briefs', async route => {
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Array.from({ length: 13 }, (_, index) => ({
+        id: index + 1,
+        source_id: index % 2,
+        source_name: index % 2 === 0 ? 'Source A' : 'Source B',
+        category: index % 2 === 0 ? 'ai' : 'infra',
+        title: `Brief ${index + 1}`,
+        url: `https://example.com/brief-${index + 1}`,
+        brief: `Stored subscription digest ${index + 1}. `.repeat(12),
+        fetched_at: '2026-07-08 09:00:00',
+      }))),
+    });
+  });
+
+  await page.goto('/tools');
+  await page.getByTestId('tools-tab-subscriptions').click();
+
+  await expect(page.getByTestId('subscription-brief-card')).toHaveCount(6);
+  await expect(page.getByText('Brief 1', { exact: true })).toBeVisible();
+  await expect(page.getByText('Brief 7', { exact: true })).toHaveCount(0);
+
+  const listMetrics = await page.getByTestId('subscription-briefs-list').evaluate(element => {
+    const style = window.getComputedStyle(element);
+    return {
+      overflowY: style.overflowY,
+      maxHeight: Number.parseFloat(style.maxHeight),
+    };
+  });
+  expect(['auto', 'scroll']).toContain(listMetrics.overflowY);
+  expect(listMetrics.maxHeight).toBeGreaterThan(0);
+
+  await page.getByTestId('subscription-pagination').getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByText('Brief 7', { exact: true })).toBeVisible();
+  await expect(page.getByText('Brief 1', { exact: true })).toHaveCount(0);
+
+  await page.getByTestId('subscription-category-filter').selectOption('ai');
+  await expect(page.getByText('Brief 1', { exact: true })).toBeVisible();
+  await expect(page.getByText('Brief 2', { exact: true })).toHaveCount(0);
+
+  await page.getByTestId('subscription-source-filter').selectOption('Source B');
+  await expect(page.getByText('Brief 1', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Brief 2', { exact: true })).toHaveCount(0);
+});

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Pagination from '@/components/Pagination';
 
 interface PostStats {
   slug: string;
@@ -39,11 +40,18 @@ interface AnalyticsData {
   recentComments: RecentComment[];
 }
 
+const POSTS_PAGE_SIZE = 10;
+const SIDE_PAGE_SIZE = 8;
+
 export default function AdminBlogAnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [postPage, setPostPage] = useState(1);
+  const [sourcePage, setSourcePage] = useState(1);
+  const [viewPage, setViewPage] = useState(1);
+  const [commentPage, setCommentPage] = useState(1);
 
   async function load() {
     setLoading(true);
@@ -55,6 +63,10 @@ export default function AdminBlogAnalyticsPage() {
       return;
     }
     setData(await response.json());
+    setPostPage(1);
+    setSourcePage(1);
+    setViewPage(1);
+    setCommentPage(1);
     setLoading(false);
   }
 
@@ -76,6 +88,10 @@ export default function AdminBlogAnalyticsPage() {
   }
 
   const totalComments = data?.posts.reduce((sum, post) => sum + post.comments, 0) ?? 0;
+  const pagedPosts = data?.posts.slice((postPage - 1) * POSTS_PAGE_SIZE, postPage * POSTS_PAGE_SIZE) ?? [];
+  const pagedSources = data?.sources.slice((sourcePage - 1) * SIDE_PAGE_SIZE, sourcePage * SIDE_PAGE_SIZE) ?? [];
+  const pagedViews = data?.recentViews.slice((viewPage - 1) * SIDE_PAGE_SIZE, viewPage * SIDE_PAGE_SIZE) ?? [];
+  const pagedComments = data?.recentComments.slice((commentPage - 1) * SIDE_PAGE_SIZE, commentPage * SIDE_PAGE_SIZE) ?? [];
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -109,10 +125,17 @@ export default function AdminBlogAnalyticsPage() {
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">Posts</h2>
-            <div className="mt-4 overflow-x-auto">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-slate-950">Posts</h2>
+              <span className="text-xs text-slate-400">{data.posts.length} posts</span>
+            </div>
+            <div
+              data-testid="admin-blog-posts-scroll"
+              className="mt-4 overflow-auto pr-1"
+              style={{ maxHeight: 'min(520px, calc(100vh - 220px))' }}
+            >
               <table className="min-w-full text-left text-sm">
-                <thead className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                <thead className="sticky top-0 bg-white text-xs uppercase tracking-[0.16em] text-slate-400">
                   <tr>
                     <th className="py-2 pr-4">Title</th>
                     <th className="py-2 pr-4">Views</th>
@@ -121,7 +144,7 @@ export default function AdminBlogAnalyticsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {data.posts.map(post => (
+                  {pagedPosts.map(post => (
                     <tr key={post.slug}>
                       <td className="py-3 pr-4">
                         <Link href={`/blog/${post.slug}`} className="font-medium text-slate-900 hover:text-sky-700">
@@ -139,29 +162,39 @@ export default function AdminBlogAnalyticsPage() {
                 </tbody>
               </table>
             </div>
+            <div data-testid="admin-blog-posts-pagination">
+              <Pagination total={data.posts.length} page={postPage} pageSize={POSTS_PAGE_SIZE} onPage={setPostPage} />
+            </div>
           </section>
 
           <section className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-950">Sources</h2>
-              <div className="mt-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-slate-950">Sources</h2>
+                <span className="text-xs text-slate-400">{data.sources.length} sources</span>
+              </div>
+              <div className="mt-4 max-h-80 space-y-2 overflow-y-auto pr-1">
                 {data.sources.length === 0 ? (
                   <p className="text-sm text-slate-400">No view sources yet.</p>
-                ) : data.sources.map(source => (
-                  <div key={source.source} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-3">
+                ) : pagedSources.map(source => (
+                  <div key={source.source} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
                     <span className="font-mono text-sm text-slate-700">{source.source}</span>
                     <span className="text-sm font-semibold text-slate-900">{source.views}</span>
                   </div>
                 ))}
               </div>
+              <Pagination total={data.sources.length} page={sourcePage} pageSize={SIDE_PAGE_SIZE} onPage={setSourcePage} />
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-950">Recent Views</h2>
-              <div className="mt-4 max-h-80 space-y-3 overflow-y-auto pr-1">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-slate-950">Recent Views</h2>
+                <span className="text-xs text-slate-400">{data.recentViews.length} rows</span>
+              </div>
+              <div className="mt-4 max-h-80 space-y-2 overflow-y-auto pr-1">
                 {data.recentViews.length === 0 ? (
                   <p className="text-sm text-slate-400">No recent views.</p>
-                ) : data.recentViews.map((view, index) => (
+                ) : pagedViews.map((view, index) => (
                   <div key={`${view.slug}-${view.created_at}-${index}`} className="rounded-xl bg-slate-50 px-3 py-3">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-mono text-xs text-slate-500">{view.slug}</span>
@@ -172,15 +205,19 @@ export default function AdminBlogAnalyticsPage() {
                   </div>
                 ))}
               </div>
+              <Pagination total={data.recentViews.length} page={viewPage} pageSize={SIDE_PAGE_SIZE} onPage={setViewPage} />
             </div>
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">Recent Comments</h2>
-            <div className="mt-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-slate-950">Recent Comments</h2>
+              <span className="text-xs text-slate-400">{data.recentComments.length} rows</span>
+            </div>
+            <div className="mt-4 max-h-[520px] space-y-3 overflow-y-auto pr-1">
               {data.recentComments.length === 0 ? (
                 <p className="text-sm text-slate-400">No comments yet.</p>
-              ) : data.recentComments.map(comment => (
+              ) : pagedComments.map(comment => (
                 <div key={comment.id} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-4">
                   <div className="mb-2 flex items-start justify-between gap-3">
                     <div>
@@ -199,6 +236,7 @@ export default function AdminBlogAnalyticsPage() {
                 </div>
               ))}
             </div>
+            <Pagination total={data.recentComments.length} page={commentPage} pageSize={SIDE_PAGE_SIZE} onPage={setCommentPage} />
           </section>
         </div>
       )}

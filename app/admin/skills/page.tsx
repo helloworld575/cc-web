@@ -236,7 +236,7 @@ export default function AdminSkillsPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Skill system</p>
             <h1 className="mt-2 font-display text-4xl text-slate-950">Hierarchical skills</h1>
             <p className="mt-3 text-sm leading-7 text-slate-600">
-              The list below is now a lightweight skill index. Domain, category, subcategory, aliases, and invoke path all live in metadata so callers can search and resolve the right skill without shipping every prompt to the client.
+              Compact index for finding, routing, and editing skill metadata.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -263,33 +263,36 @@ export default function AdminSkillsPage() {
 
           <div
             data-testid="admin-skills-list-scroll"
-            className="mt-5 space-y-4 pr-1"
+            className="mt-4 space-y-2 pr-1"
             style={{ height: '28rem', overflowY: 'auto' }}
           >
             {groups.map(group => (
-              <section key={group.key} className="rounded-[24px] border border-white/70 bg-white/90 px-4 py-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{group.label}</p>
-                <div className="mt-3 space-y-2">
+              <section key={group.key} className="rounded-[18px] border border-white/70 bg-white/90 px-3 py-3 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="truncate text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{group.label}</p>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                    {group.skills.length}
+                  </span>
+                </div>
+                <div className="mt-2 space-y-1.5">
                   {group.skills.map(skill => (
                     <button
                       key={skill.id}
+                      data-testid="admin-skill-list-item"
                       onClick={() => startEdit(skill)}
-                      className={`w-full rounded-[20px] border px-3 py-3 text-left transition ${
+                      className={`w-full rounded-[14px] border px-3 py-2 text-left transition ${
                         activeSkillId === skill.id
                           ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                           : 'border-slate-200 bg-slate-50 text-slate-700 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-sm'
                       }`}
                       >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold">{skill.name}</p>
-                          <p className={`mt-1 text-xs leading-5 ${activeSkillId === skill.id ? 'text-white/65' : 'text-slate-500'}`}>
-                            {skill.description}
-                          </p>
-                          <p className={`mt-2 text-[11px] font-medium uppercase tracking-[0.18em] ${activeSkillId === skill.id ? 'text-white/45' : 'text-slate-400'}`}>
+                          <p className={`mt-1 truncate text-[11px] font-medium uppercase tracking-[0.14em] ${activeSkillId === skill.id ? 'text-white/45' : 'text-slate-400'}`}>
                             {formatSkillPath(skill)}
                           </p>
-                          <div className="mt-2 flex flex-wrap gap-2">
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
                             <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                               activeSkillId === skill.id
                                 ? 'bg-white/10 text-white/75'
@@ -306,7 +309,7 @@ export default function AdminSkillsPage() {
                             </span>
                           </div>
                         </div>
-                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
                           activeSkillId === skill.id
                             ? 'bg-white/15 text-white/75'
                             : 'bg-slate-200 text-slate-500'

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-08T02:00:27.274Z",
+  "generatedAt": "2026-07-08T15:48:06.497Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -477,6 +477,7 @@
       "components/useLocale.ts"
     ],
     "lib": [
+      "lib/ai-chat-defaults.ts",
       "lib/ai-gateway.ts",
       "lib/ai-providers.ts",
       "lib/auth.ts",

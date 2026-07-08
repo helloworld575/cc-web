@@ -29,6 +29,14 @@ test('admin skills finder resolves grouped skill metadata', async ({ page }) => 
   });
   expect(detailPosition).toBe('sticky');
 
+  await expect(page.getByTestId('admin-skill-list-item').first()).toBeVisible();
+  const firstSkillMetrics = await page.getByTestId('admin-skill-list-item').first().evaluate((element) => ({
+    height: element.getBoundingClientRect().height,
+    descriptionCount: element.querySelectorAll('[data-testid="admin-skill-list-description"]').length,
+  }));
+  expect(firstSkillMetrics.height).toBeLessThan(96);
+  expect(firstSkillMetrics.descriptionCount).toBe(0);
+
   await page.getByTestId('admin-skills-search').fill('article faq');
   await expect(page.getByText('article-faq')).toBeVisible();
   await expect(page.getByText('content / article / faq')).toBeVisible();

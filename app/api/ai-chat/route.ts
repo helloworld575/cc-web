@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
 import { getEnvProviderById, type AiProviderConfig } from '@/lib/ai-providers';
+import { DEFAULT_AI_CHAT_SYSTEM_PROMPT, mergeAiChatSystemPrompts } from '@/lib/ai-chat-defaults';
 import { getSkill, resolveSkillReference, type Skill } from '@/lib/skills';
 import { isInvocableSkill } from '@/lib/skill-taxonomy';
 import {
@@ -112,11 +113,40 @@ function enqueueEvent(
   controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
 }
 
+function formatAiStreamError(caught: unknown) {
+  if (typeof caught === 'string' && caught.trim()) return caught.trim();
+  const errorLike = caught as { message?: unknown };
+  if (typeof errorLike?.message === 'string' && errorLike.message.trim()) {
+    return errorLike.message.trim();
+  }
+  return 'Unknown AI stream error';
+}
+
+function extractUpstreamStreamError(event: any) {
+  const candidates = [
+    event?.error,
+    event?.response?.error,
+    event?.message,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+    if (typeof candidate?.message === 'string' && candidate.message.trim()) {
+      return candidate.message.trim();
+    }
+  }
+
+  return '';
+}
+
 function buildAnthropicRequest(provider: AiProviderConfig, messages: ChatMessage[]) {
   const systemMessages = messages.filter(m => m.role === 'system');
   const chatMessages = messages.filter(m => m.role !== 'system');
-  const systemPrompt = [provider.system_prompt, ...systemMessages.map(m => m.content)]
-    .filter(Boolean).join('\n\n');
+  const systemPrompt = mergeAiChatSystemPrompts(
+    DEFAULT_AI_CHAT_SYSTEM_PROMPT,
+    provider.system_prompt,
+    ...systemMessages.map(m => m.content),
+  );
 
   const payload: Record<string, unknown> = {
     ...buildClaudeMessagesPayload({
@@ -137,8 +167,12 @@ function buildAnthropicRequest(provider: AiProviderConfig, messages: ChatMessage
 
 function buildOpenAIRequest(provider: AiProviderConfig, messages: ChatMessage[]) {
   const allMessages: ChatMessage[] = [];
-  if (provider.system_prompt) {
-    allMessages.push({ role: 'system', content: provider.system_prompt });
+  const systemPrompt = mergeAiChatSystemPrompts(
+    DEFAULT_AI_CHAT_SYSTEM_PROMPT,
+    provider.system_prompt,
+  );
+  if (systemPrompt) {
+    allMessages.push({ role: 'system', content: systemPrompt });
   }
   allMessages.push(...messages);
 
@@ -168,9 +202,11 @@ function buildOpenAIRequest(provider: AiProviderConfig, messages: ChatMessage[])
 function buildResponsesRequest(provider: AiProviderConfig, messages: ChatMessage[]) {
   const systemMessages = messages.filter(message => message.role === 'system');
   const chatMessages = messages.filter(message => message.role !== 'system');
-  const instructions = [provider.system_prompt, ...systemMessages.map(message => message.content)]
-    .filter(Boolean)
-    .join('\n\n');
+  const instructions = mergeAiChatSystemPrompts(
+    DEFAULT_AI_CHAT_SYSTEM_PROMPT,
+    provider.system_prompt,
+    ...systemMessages.map(message => message.content),
+  );
 
   const payload: Record<string, unknown> = {
     model: provider.model,
@@ -222,42 +258,59 @@ function createAnthropicStream(
     controller.close();
   }
 
+  function finishWithError(controller: ReadableStreamDefaultController<Uint8Array>, caught: unknown) {
+    if (!donePersisted) {
+      enqueueEvent(controller, { error: `AI stream interrupted: ${formatAiStreamError(caught)}` });
+      donePersisted = true;
+    }
+    try { controller.close(); } catch {}
+  }
+
   return new ReadableStream({
     async start(controller) {
-      if (options.chatId) {
-        enqueueEvent(controller, { chat_id: options.chatId });
-      }
-      upstreamReader = upstreamBody.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
+      try {
+        if (options.chatId) {
+          enqueueEvent(controller, { chat_id: options.chatId });
+        }
+        upstreamReader = upstreamBody.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
 
-      while (true) {
-        const { done, value } = await upstreamReader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop() ?? '';
+        while (true) {
+          const { done, value } = await upstreamReader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop() ?? '';
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const raw = line.slice(6).trim();
-            if (raw === '[DONE]') { finish(controller); return; }
-            try {
-              const parsed = JSON.parse(raw);
-              const text = extractClaudeStreamText(parsed);
-              if (text) {
-                options.onText?.(text);
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
-              }
-              if (isClaudeStreamDone(parsed)) {
-                finish(controller);
-                return;
-              }
-            } catch { /* skip malformed */ }
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const raw = line.slice(6).trim();
+              if (raw === '[DONE]') { finish(controller); return; }
+              try {
+                const parsed = JSON.parse(raw);
+                const upstreamError = extractUpstreamStreamError(parsed);
+                if (upstreamError) {
+                  finishWithError(controller, upstreamError);
+                  return;
+                }
+                const text = extractClaudeStreamText(parsed);
+                if (text) {
+                  options.onText?.(text);
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+                }
+                if (isClaudeStreamDone(parsed)) {
+                  finish(controller);
+                  return;
+                }
+              } catch { /* skip malformed */ }
+            }
           }
         }
+        finish(controller);
+      } catch (caught) {
+        finishWithError(controller, caught);
       }
-      finish(controller);
     },
     cancel() {
       if (!donePersisted) {
@@ -289,42 +342,59 @@ function createOpenAIStream(
     controller.close();
   }
 
+  function finishWithError(controller: ReadableStreamDefaultController<Uint8Array>, caught: unknown) {
+    if (!donePersisted) {
+      enqueueEvent(controller, { error: `AI stream interrupted: ${formatAiStreamError(caught)}` });
+      donePersisted = true;
+    }
+    try { controller.close(); } catch {}
+  }
+
   return new ReadableStream({
     async start(controller) {
-      if (options.chatId) {
-        enqueueEvent(controller, { chat_id: options.chatId });
-      }
-      upstreamReader = upstreamBody.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
+      try {
+        if (options.chatId) {
+          enqueueEvent(controller, { chat_id: options.chatId });
+        }
+        upstreamReader = upstreamBody.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
 
-      while (true) {
-        const { done, value } = await upstreamReader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop() ?? '';
+        while (true) {
+          const { done, value } = await upstreamReader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop() ?? '';
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const raw = line.slice(6).trim();
-            if (raw === '[DONE]') { finish(controller); return; }
-            try {
-              const parsed = JSON.parse(raw);
-              const delta = parsed.choices?.[0]?.delta?.content;
-              if (delta) {
-                options.onText?.(delta);
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
-              }
-              if (parsed.choices?.[0]?.finish_reason) {
-                finish(controller);
-                return;
-              }
-            } catch { /* skip malformed */ }
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const raw = line.slice(6).trim();
+              if (raw === '[DONE]') { finish(controller); return; }
+              try {
+                const parsed = JSON.parse(raw);
+                const upstreamError = extractUpstreamStreamError(parsed);
+                if (upstreamError) {
+                  finishWithError(controller, upstreamError);
+                  return;
+                }
+                const delta = parsed.choices?.[0]?.delta?.content;
+                if (delta) {
+                  options.onText?.(delta);
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
+                }
+                if (parsed.choices?.[0]?.finish_reason) {
+                  finish(controller);
+                  return;
+                }
+              } catch { /* skip malformed */ }
+            }
           }
         }
+        finish(controller);
+      } catch (caught) {
+        finishWithError(controller, caught);
       }
-      finish(controller);
     },
     cancel() {
       if (!donePersisted) {
@@ -356,42 +426,59 @@ function createResponsesStream(
     controller.close();
   }
 
+  function finishWithError(controller: ReadableStreamDefaultController<Uint8Array>, caught: unknown) {
+    if (!donePersisted) {
+      enqueueEvent(controller, { error: `AI stream interrupted: ${formatAiStreamError(caught)}` });
+      donePersisted = true;
+    }
+    try { controller.close(); } catch {}
+  }
+
   return new ReadableStream({
     async start(controller) {
-      if (options.chatId) {
-        enqueueEvent(controller, { chat_id: options.chatId });
-      }
-      upstreamReader = upstreamBody.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
+      try {
+        if (options.chatId) {
+          enqueueEvent(controller, { chat_id: options.chatId });
+        }
+        upstreamReader = upstreamBody.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
 
-      while (true) {
-        const { done, value } = await upstreamReader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop() ?? '';
+        while (true) {
+          const { done, value } = await upstreamReader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop() ?? '';
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const raw = line.slice(6).trim();
-            if (raw === '[DONE]') { finish(controller); return; }
-            try {
-              const parsed = JSON.parse(raw);
-              const text = extractResponsesStreamText(parsed);
-              if (text) {
-                options.onText?.(text);
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
-              }
-              if (isResponsesStreamDone(parsed)) {
-                finish(controller);
-                return;
-              }
-            } catch { /* skip malformed */ }
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const raw = line.slice(6).trim();
+              if (raw === '[DONE]') { finish(controller); return; }
+              try {
+                const parsed = JSON.parse(raw);
+                const upstreamError = extractUpstreamStreamError(parsed);
+                if (upstreamError) {
+                  finishWithError(controller, upstreamError);
+                  return;
+                }
+                const text = extractResponsesStreamText(parsed);
+                if (text) {
+                  options.onText?.(text);
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+                }
+                if (isResponsesStreamDone(parsed)) {
+                  finish(controller);
+                  return;
+                }
+              } catch { /* skip malformed */ }
+            }
           }
         }
+        finish(controller);
+      } catch (caught) {
+        finishWithError(controller, caught);
       }
-      finish(controller);
     },
     cancel() {
       if (!donePersisted) {

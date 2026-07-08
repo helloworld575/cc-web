@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import Pagination from '@/components/Pagination';
 import { useLocale } from '@/components/useLocale';
 
 interface Brief {
@@ -18,6 +19,8 @@ interface SubscriptionBriefsToolProps {
   canManage?: boolean;
 }
 
+const SUBSCRIPTION_PAGE_SIZE = 6;
+
 export default function SubscriptionBriefsTool({ canManage = false }: SubscriptionBriefsToolProps) {
   const { t } = useLocale();
   const [briefs, setBriefs] = useState<Brief[]>([]);
@@ -25,19 +28,22 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
   const [crawling, setCrawling] = useState(false);
   const [integrating, setIntegrating] = useState(false);
   const [filter, setFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
   const [categories, setCategories] = useState<string[]>([]);
 
   async function loadBriefs() {
     setLoading(true);
-    const res = await fetch('/api/subscriptions/briefs');
-    if (res.ok) {
-      const data = await res.json();
-      setBriefs(data);
-      // Extract unique categories
-      const cats = Array.from(new Set(data.map((b: Brief) => b.category)));
-      setCategories(cats as string[]);
+    try {
+      const res = await fetch('/api/subscriptions/briefs');
+      if (res.ok) {
+        const data = await res.json() as Brief[];
+        setBriefs(data);
+        setCategories(Array.from(new Set(data.map(brief => brief.category).filter(Boolean))));
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function crawlAll() {
@@ -70,42 +76,71 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
   async function deleteBrief(id: number) {
     if (!confirm(t('subscriptionDeleteConfirm'))) return;
     await fetch(`/api/subscriptions/briefs?id=${id}`, { method: 'DELETE' });
-    setBriefs(briefs.filter(b => b.id !== id));
+    setBriefs(current => current.filter(brief => brief.id !== id));
   }
 
   useEffect(() => { loadBriefs(); }, []);
 
-  const filteredBriefs = filter === 'all'
-    ? briefs
-    : briefs.filter(b => b.category === filter);
+  const sources = Array.from(new Set(briefs.map(brief => brief.source_name).filter(Boolean))).sort();
+  const categoryCounts = new Map<string, number>();
+  for (const brief of briefs) {
+    categoryCounts.set(brief.category, (categoryCounts.get(brief.category) || 0) + 1);
+  }
+  const filteredBriefs = briefs
+    .filter(brief => (filter === 'all' ? true : brief.category === filter))
+    .filter(brief => (sourceFilter === 'all' ? true : brief.source_name === sourceFilter));
+  const pagedBriefs = filteredBriefs.slice((page - 1) * SUBSCRIPTION_PAGE_SIZE, page * SUBSCRIPTION_PAGE_SIZE);
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-500">{t('loading')}</div>;
+    return <div className="py-12 text-center text-gray-500">{t('loading')}</div>;
   }
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <select value={filter} onChange={e => setFilter(e.target.value)}
-            className="border rounded px-2 py-1 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            data-testid="subscription-category-filter"
+            value={filter}
+            onChange={event => {
+              setFilter(event.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700"
+          >
             <option value="all">{t('all')}</option>
-            {categories.map(c => (
-              <option key={c} value={c}>{c}</option>
+            {categories.map(category => (
+              <option key={category} value={category}>
+                {category} ({categoryCounts.get(category) || 0})
+              </option>
+            ))}
+          </select>
+          <select
+            data-testid="subscription-source-filter"
+            value={sourceFilter}
+            onChange={event => {
+              setSourceFilter(event.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700"
+          >
+            <option value="all">All sources</option>
+            {sources.map(source => (
+              <option key={source} value={source}>{source}</option>
             ))}
           </select>
           <span className="text-xs text-gray-400">
             {filteredBriefs.length} {t('subscriptionBriefs')}
           </span>
         </div>
+
         {canManage && (
           <div className="flex items-center gap-2">
             <button
               data-testid="subscription-crawl-all"
               onClick={crawlAll}
               disabled={crawling || integrating}
-              className="border rounded px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50"
+              className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50"
             >
               {crawling ? t('subscriptionCrawling') : t('subscriptionCrawl')}
             </button>
@@ -113,7 +148,7 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
               data-testid="subscription-integrate-all"
               onClick={integrateAll}
               disabled={crawling || integrating}
-              className="border rounded px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50"
+              className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50"
             >
               {integrating ? t('subscriptionIntegrating') : t('subscriptionIntegrate')}
             </button>
@@ -121,58 +156,82 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
         )}
       </div>
 
-      {/* Briefs list */}
       {filteredBriefs.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="py-12 text-center text-gray-500">
           <p className="mb-2">{t('subscriptionNoBriefs')}</p>
           {canManage && (
-            <a href="/admin/subscriptions" className="text-blue-500 hover:underline text-sm">
+            <a href="/admin/subscriptions" className="text-sm text-blue-500 hover:underline">
               {t('subscriptionGoConfig')}
             </a>
           )}
         </div>
       ) : (
-        <div className="space-y-4">
-          {filteredBriefs.map(brief => (
-            <div key={brief.id} className="border rounded-lg px-4 py-4 hover:border-gray-400 transition-colors">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <a href={brief.url} target="_blank" rel="noopener noreferrer"
-                      className="font-medium text-base hover:text-blue-600 transition-colors">
-                      {brief.title}
-                    </a>
-                    <span className="bg-blue-50 text-blue-600 text-xs px-1.5 py-0.5 rounded">
-                      {brief.category}
-                    </span>
+        <>
+          <div
+            data-testid="subscription-briefs-list"
+            className="grid max-h-[min(620px,calc(100vh-220px))] gap-2 overflow-y-auto pr-1"
+          >
+            {pagedBriefs.map(brief => (
+              <div
+                key={brief.id}
+                data-testid="subscription-brief-card"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-3 transition-colors hover:border-slate-400"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex min-w-0 flex-wrap items-center gap-2">
+                      <a
+                        href={brief.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="truncate text-sm font-medium text-slate-900 transition-colors hover:text-blue-600"
+                      >
+                        {brief.title}
+                      </a>
+                      <span className="rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-600">
+                        {brief.category}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                      <span>{brief.source_name}</span>
+                      <a
+                        href={brief.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="max-w-[300px] truncate font-mono transition-colors hover:text-blue-500"
+                      >
+                        {brief.url}
+                      </a>
+                      <span>{new Date(brief.fetched_at).toLocaleString()}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <span>{brief.source_name}</span>
-                    <span>•</span>
-                    <a href={brief.url} target="_blank" rel="noopener noreferrer"
-                      className="font-mono truncate max-w-[300px] hover:text-blue-500 transition-colors">
-                      {brief.url}
-                    </a>
-                    <span>•</span>
-                    <span>{new Date(brief.fetched_at).toLocaleString()}</span>
-                  </div>
+
+                  {canManage && (
+                    <button
+                      data-testid="subscription-delete-brief"
+                      onClick={() => deleteBrief(brief.id)}
+                      className="flex-shrink-0 text-xs text-red-400 hover:text-red-600"
+                    >
+                      {t('delete')}
+                    </button>
+                  )}
                 </div>
-                {canManage && (
-                  <button
-                    data-testid="subscription-delete-brief"
-                    onClick={() => deleteBrief(brief.id)}
-                    className="text-red-400 hover:text-red-600 text-xs flex-shrink-0"
-                  >
-                    {t('delete')}
-                  </button>
-                )}
+
+                <article className="prose prose-sm mt-2 max-h-32 max-w-none overflow-y-auto text-gray-700">
+                  <ReactMarkdown>{brief.brief}</ReactMarkdown>
+                </article>
               </div>
-              <article className="prose prose-sm max-w-none text-gray-700">
-                <ReactMarkdown>{brief.brief}</ReactMarkdown>
-              </article>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          <div data-testid="subscription-pagination">
+            <Pagination
+              total={filteredBriefs.length}
+              page={page}
+              pageSize={SUBSCRIPTION_PAGE_SIZE}
+              onPage={setPage}
+            />
+          </div>
+        </>
       )}
     </div>
   );

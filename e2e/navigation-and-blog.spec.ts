@@ -149,8 +149,58 @@ test('admin blog editor has a large markdown toolbar, preview toggle, and height
 
 test('admin blog analytics page opens for authenticated users', async ({ page }) => {
   await login(page);
+  await page.route('**/api/admin/blog-analytics', async route => {
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        totalViews: 153,
+        posts: Array.from({ length: 14 }, (_, index) => ({
+          slug: `analytics-post-${index + 1}`,
+          title: `Analytics Post ${index + 1}`,
+          date: '2026-07-08',
+          views: 100 - index,
+          comments: index % 3,
+          latestViewedAt: '2026-07-08 10:00:00',
+        })),
+        sources: Array.from({ length: 9 }, (_, index) => ({
+          source: `source-${index + 1}`,
+          views: 20 - index,
+        })),
+        recentViews: Array.from({ length: 16 }, (_, index) => ({
+          slug: `analytics-post-${(index % 4) + 1}`,
+          source: `source-${(index % 3) + 1}`,
+          referrer: `https://example.com/ref-${index + 1}`,
+          created_at: '2026-07-08 10:00:00',
+        })),
+        recentComments: Array.from({ length: 12 }, (_, index) => ({
+          id: index + 1,
+          slug: `analytics-post-${(index % 4) + 1}`,
+          author: `Reader ${index + 1}`,
+          content: `Comment ${index + 1}`,
+          created_at: '2026-07-08 10:00:00',
+        })),
+      }),
+    });
+  });
 
   await page.goto('/admin/blog-analytics');
   await expect(page.getByTestId('admin-blog-analytics')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Blog Analytics' })).toBeVisible();
+  await expect(page.getByText('Analytics Post 1', { exact: true })).toBeVisible();
+  await expect(page.getByText('Analytics Post 11', { exact: true })).toHaveCount(0);
+
+  const postsScroll = await page.getByTestId('admin-blog-posts-scroll').evaluate(element => {
+    const style = window.getComputedStyle(element);
+    return {
+      overflowY: style.overflowY,
+      maxHeight: Number.parseFloat(style.maxHeight),
+    };
+  });
+  expect(['auto', 'scroll']).toContain(postsScroll.overflowY);
+  expect(postsScroll.maxHeight).toBeGreaterThan(0);
+
+  await page.getByTestId('admin-blog-posts-pagination').getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByText('Analytics Post 11', { exact: true })).toBeVisible();
+  await expect(page.getByText('Analytics Post 1', { exact: true })).toHaveCount(0);
 });

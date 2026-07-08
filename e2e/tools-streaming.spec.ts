@@ -158,6 +158,39 @@ test('ai chat does not auto-scroll while streaming a long message', async ({ pag
   expect(afterScrollTop).toBeLessThanOrEqual(beforeScrollTop + 4);
 });
 
+test('ai chat surfaces stream errors and unlocks the composer', async ({ page }) => {
+  await login(page);
+  await page.goto('/tools');
+  await page.getByTestId('tools-tab-ai-chat').click();
+  await expect(page.getByTestId('ai-chat-shell')).toBeVisible();
+
+  await page.route('**/api/ai-chat', async route => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+      body: [
+        'data: {"chat_id":777}',
+        '',
+        'data: {"error":"Right Code provider failed: 401"}',
+        '',
+      ].join('\n'),
+    });
+  });
+
+  await page.getByTestId('ai-chat-input').fill(`stream error e2e ${Date.now()}`);
+  await page.getByTestId('ai-chat-send').click();
+
+  await expect(page.getByText('Right Code provider failed: 401')).toBeVisible();
+  await expect(page.getByTestId('ai-chat-input')).toBeEnabled();
+  await page.getByTestId('ai-chat-input').fill('retry after stream error');
+  await expect(page.getByTestId('ai-chat-send')).toBeEnabled();
+});
+
 test('mobile drawer opens tools and tool tabs stay clickable', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);

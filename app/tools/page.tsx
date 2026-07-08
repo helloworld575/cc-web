@@ -67,7 +67,7 @@ const TOOLS_COPY = {
     skills: {
       catalog: 'Catalog',
       heading: 'Codex skills',
-      intro: 'Search by name, invoke path, alias, or keyword. App-invocable skills stay available to the web app, while guide skills remain lightweight references for Codex to load only when needed.',
+      intro: 'Search the skill index by name, path, alias, or keyword.',
       placeholder: 'Find by name, path, or keyword',
       catalogDesc: 'skills indexed from `.codex/skills`.',
       invocable: 'Invocable',
@@ -436,13 +436,13 @@ export default function ToolsPage() {
                       {group.skills.map((skill, index) => (
                         <article
                           key={skill.id}
-                          className="rounded-[16px] border border-slate-100 bg-slate-50/80 px-3 py-3 transition animate-slide-up"
+                          className="rounded-[14px] border border-slate-100 bg-slate-50/80 px-3 py-2 transition animate-slide-up"
                           style={{ animationDelay: `${index * 35}ms` }}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-slate-900">{skill.name}</p>
-                              <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{skill.description}</p>
+                              <p className="mt-1 line-clamp-1 text-xs leading-5 text-slate-500">{skill.description}</p>
                             </div>
                             <div className="flex shrink-0 flex-wrap justify-end gap-2">
                               <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
@@ -459,7 +459,7 @@ export default function ToolsPage() {
                               </span>
                             </div>
                           </div>
-                          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                             {formatSkillPath(skill)}
                           </p>
                           <div className="mt-2 rounded-[14px] bg-white px-3 py-2">
