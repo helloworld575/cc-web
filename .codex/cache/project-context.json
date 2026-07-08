@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-08T01:37:12.591Z",
+  "generatedAt": "2026-07-08T02:00:27.274Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -185,6 +185,11 @@
         "description": "Admin page for AI provider configuration."
       },
       {
+        "route": "/admin/blog-analytics",
+        "file": "app/admin/blog-analytics/page.tsx",
+        "description": "Page route in the Next.js App Router tree."
+      },
+      {
         "route": "/admin/blog/[slug]",
         "file": "app/admin/blog/[slug]/page.tsx",
         "description": "Admin editor for a single blog post."
@@ -262,6 +267,11 @@
     ],
     "api": [
       {
+        "route": "/api/admin/blog-analytics",
+        "file": "app/api/admin/blog-analytics/route.ts",
+        "description": "API route in the application backend."
+      },
+      {
         "route": "/api/ai-chat/[id]",
         "file": "app/api/ai-chat/[id]/route.ts",
         "description": "Read, update, or delete stored AI chat sessions."
@@ -317,9 +327,24 @@
         "description": "Specialized BaZi analysis endpoint."
       },
       {
+        "route": "/api/blog/[slug]/comments/[id]",
+        "file": "app/api/blog/[slug]/comments/[id]/route.ts",
+        "description": "API route in the application backend."
+      },
+      {
+        "route": "/api/blog/[slug]/comments",
+        "file": "app/api/blog/[slug]/comments/route.ts",
+        "description": "API route in the application backend."
+      },
+      {
         "route": "/api/blog/[slug]",
         "file": "app/api/blog/[slug]/route.ts",
         "description": "Read, update, or delete a single blog post."
+      },
+      {
+        "route": "/api/blog/[slug]/view",
+        "file": "app/api/blog/[slug]/view/route.ts",
+        "description": "API route in the application backend."
       },
       {
         "route": "/api/blog",
@@ -456,6 +481,7 @@
       "lib/ai-providers.ts",
       "lib/auth.ts",
       "lib/bazi.ts",
+      "lib/blog-analytics.ts",
       "lib/db.ts",
       "lib/fetchers.ts",
       "lib/i18n.ts",
@@ -492,7 +518,9 @@
       "ai_chat_history",
       "subscription_sources",
       "subscription_briefs",
-      "subscription_items"
+      "subscription_items",
+      "blog_comments",
+      "blog_view_events"
     ],
     "migrations": [
       {
@@ -1077,6 +1105,7 @@
   ],
   "tests": {
     "files": [
+      "tests/api/admin/blog-analytics.test.ts",
       "tests/api/ai-chat/id.test.ts",
       "tests/api/ai-chat/route.test.ts",
       "tests/api/ai-image/route.test.ts",
@@ -1085,8 +1114,10 @@
       "tests/api/ai-providers/test.test.ts",
       "tests/api/ai/route.test.ts",
       "tests/api/bazi/route.test.ts",
+      "tests/api/blog/comments.test.ts",
       "tests/api/blog/route.test.ts",
       "tests/api/blog/slug.test.ts",
+      "tests/api/blog/views.test.ts",
       "tests/api/claude-code/route.test.ts",
       "tests/api/diary/id.test.ts",
       "tests/api/diary/route.test.ts",
@@ -1116,6 +1147,6 @@
       "tests/lib/skill-taxonomy.test.ts",
       "tests/middleware.test.ts"
     ],
-    "count": 38
+    "count": 41
   }
 }

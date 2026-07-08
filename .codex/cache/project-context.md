@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-07-08T01:37:12.591Z
+Generated: 2026-07-08T02:00:27.274Z
 
 ## Snapshot
 
@@ -51,9 +51,10 @@ Generated: 2026-07-08T01:37:12.591Z
 - `app/api/fortune/route.ts`: Streaming fortune analysis route with history integration.
 - `app/api/bazi/route.ts`: Dedicated BaZi streaming route.
 
-## Page Routes (16)
+## Page Routes (17)
 
 - `/admin/ai-config` -> `app/admin/ai-config/page.tsx`: Admin page for AI provider configuration.
+- `/admin/blog-analytics` -> `app/admin/blog-analytics/page.tsx`: Page route in the Next.js App Router tree.
 - `/admin/blog/[slug]` -> `app/admin/blog/[slug]/page.tsx`: Admin editor for a single blog post.
 - `/admin/blog` -> `app/admin/blog/page.tsx`: Admin blog list/editor entry.
 - `/admin/claude-code` -> `app/admin/claude-code/page.tsx`: Page route in the Next.js App Router tree.
@@ -70,8 +71,9 @@ Generated: 2026-07-08T01:37:12.591Z
 - `/` -> `app/page.tsx`: Public homepage.
 - `/tools` -> `app/tools/page.tsx`: Main tool hub.
 
-## API Routes (34)
+## API Routes (38)
 
+- `/api/admin/blog-analytics` -> `app/api/admin/blog-analytics/route.ts`: API route in the application backend.
 - `/api/ai-chat/[id]` -> `app/api/ai-chat/[id]/route.ts`: Read, update, or delete stored AI chat sessions.
 - `/api/ai-chat` -> `app/api/ai-chat/route.ts`: Create and stream AI chat sessions.
 - `/api/ai-image` -> `app/api/ai-image/route.ts`: API route in the application backend.
@@ -83,7 +85,10 @@ Generated: 2026-07-08T01:37:12.591Z
 - `/api/albums` -> `app/api/albums/route.ts`: Album CRUD for uploaded files.
 - `/api/auth/[...nextauth]` -> `app/api/auth/[...nextauth]/route.ts`: NextAuth credentials endpoint.
 - `/api/bazi` -> `app/api/bazi/route.ts`: Specialized BaZi analysis endpoint.
+- `/api/blog/[slug]/comments/[id]` -> `app/api/blog/[slug]/comments/[id]/route.ts`: API route in the application backend.
+- `/api/blog/[slug]/comments` -> `app/api/blog/[slug]/comments/route.ts`: API route in the application backend.
 - `/api/blog/[slug]` -> `app/api/blog/[slug]/route.ts`: Read, update, or delete a single blog post.
+- `/api/blog/[slug]/view` -> `app/api/blog/[slug]/view/route.ts`: API route in the application backend.
 - `/api/blog` -> `app/api/blog/route.ts`: List or create blog content.
 - `/api/claude-code` -> `app/api/claude-code/route.ts`: API route in the application backend.
 - `/api/diary/[id]` -> `app/api/diary/[id]/route.ts`: Single diary entry operations.
@@ -110,7 +115,7 @@ Generated: 2026-07-08T01:37:12.591Z
 ## Database
 
 - File: `data/site.db`
-- Tables: `todos`, `files`, `albums`, `diary`, `fortune_history`, `ai_providers`, `ai_chat_history`, `subscription_sources`, `subscription_briefs`, `subscription_items`
+- Tables: `todos`, `files`, `albums`, `diary`, `fortune_history`, `ai_providers`, `ai_chat_history`, `subscription_sources`, `subscription_briefs`, `subscription_items`, `blog_comments`, `blog_view_events`
 - PRAGMA settings: `journal_mode = WAL`, `busy_timeout = 5000`, `synchronous = NORMAL`, `cache_size = -8000`, `temp_store = MEMORY`, `mmap_size = 67108864`, `page_size = 4096`
 - Simple migrations: `todos.deadline`, `files.album_id`
 - Prepared statements: `countFiles`, `listFiles`, `insertFile`, `listFortune`, `insertFortune`, `getFortune`, `deleteFortune`, `listProviders`, `getProvider`, `insertProvider`, `updateProvider`, `deleteProvider`, `clearDefaultProvider`, `listChats`, `listChatsByProvider`, `getChat`, `insertChat`, `updateChat`, `deleteChat`
@@ -178,8 +183,8 @@ Generated: 2026-07-08T01:37:12.591Z
 
 ## Tests
 
-- API and helper test files: 38
-- Examples: `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai-providers/test.test.ts`, `tests/api/ai/route.test.ts`, `tests/api/bazi/route.test.ts`
+- API and helper test files: 41
+- Examples: `tests/api/admin/blog-analytics.test.ts`, `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai-providers/test.test.ts`, `tests/api/ai/route.test.ts`
 
 ## Notes
 

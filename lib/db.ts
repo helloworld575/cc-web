@@ -116,6 +116,25 @@ db.exec(`
     fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS blog_comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL,
+    author TEXT NOT NULL,
+    content TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'visible',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS blog_view_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL,
+    referrer TEXT NOT NULL DEFAULT '',
+    source TEXT NOT NULL DEFAULT 'direct',
+    user_agent TEXT NOT NULL DEFAULT '',
+    ip_hash TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 // Migrate: add deadline column if not exists
@@ -172,6 +191,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_subscription_items_source ON subscription_items(source_id);
   CREATE INDEX IF NOT EXISTS idx_subscription_items_fetched ON subscription_items(fetched_at);
   CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_items_source_hash ON subscription_items(source_id, content_hash);
+  CREATE INDEX IF NOT EXISTS idx_blog_comments_slug_created ON blog_comments(slug, created_at);
+  CREATE INDEX IF NOT EXISTS idx_blog_comments_status ON blog_comments(status);
+  CREATE INDEX IF NOT EXISTS idx_blog_view_events_slug_created ON blog_view_events(slug, created_at);
+  CREATE INDEX IF NOT EXISTS idx_blog_view_events_source ON blog_view_events(source);
+  CREATE INDEX IF NOT EXISTS idx_blog_view_events_created ON blog_view_events(created_at);
 `);
 
 // Prepared statements for hot queries

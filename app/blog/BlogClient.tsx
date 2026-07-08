@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Pagination from '@/components/Pagination';
 import { useLocale } from '@/components/useLocale';
 
-interface PostMeta { slug: string; title: string; date: string; brief: string; }
+interface PostMeta { slug: string; title: string; date: string; brief: string; views?: number; }
 const PAGE_SIZE = 10;
 
 function fmtDate(d: string) {
@@ -17,7 +17,8 @@ function fmtDate(d: string) {
 export default function BlogClient({ posts }: { posts: PostMeta[] }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
+  const viewLabel = locale === 'zh' ? '次访问' : 'views';
 
   const filtered = posts.filter(p =>
     p.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -51,7 +52,12 @@ export default function BlogClient({ posts }: { posts: PostMeta[] }) {
       <ul className="divide-y">
         {paged.map((p, i) => (
           <li key={p.slug} className="group py-7 fade-in-up" style={{ animationDelay: `${i * 50}ms` }}>
-            <time className="text-xs font-medium text-gray-400 uppercase tracking-widest">{fmtDate(p.date)}</time>
+            <div className="flex flex-wrap items-center gap-3 text-xs font-medium uppercase tracking-widest text-gray-400">
+              <time>{fmtDate(p.date)}</time>
+              <span data-testid={`blog-post-views-${p.slug}`} className="rounded-full bg-gray-100 px-2 py-0.5 tracking-normal text-gray-500">
+                {p.views ?? 0} {viewLabel}
+              </span>
+            </div>
             <Link href={`/blog/${p.slug}`} className="block mt-1.5">
               <h2 className="text-xl font-bold leading-snug group-hover:text-gray-600 transition-colors">{p.title}</h2>
             </Link>

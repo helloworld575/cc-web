@@ -51,6 +51,7 @@ test('public navigation and blog publishing flow work end to end', async ({ page
   await page.getByTestId('admin-blog-create').click();
   await expect(page).toHaveURL(/\/admin\/blog\/.+/);
   await page.waitForLoadState('networkidle');
+  const slug = page.url().split('/').pop()!;
 
   await page.getByTestId('admin-blog-editor-title').fill(title);
   await page.getByTestId('admin-blog-editor-date').fill('2026-04-23');
@@ -78,7 +79,16 @@ test('public navigation and blog publishing flow work end to end', async ({ page
   await expect(page.getByTestId('blog-heading-nav')).toBeVisible();
   await expect(page.getByTestId('blog-heading-nav').getByRole('link', { name: 'Setup notes' })).toBeVisible();
   await expect(page.getByTestId('blog-heading-nav').getByRole('link', { name: 'Tiny detail' })).toBeVisible();
+  await expect(page.getByTestId('blog-post-view-count')).toContainText(/views|访问/);
+  await expect(page.getByTestId('blog-comments')).toBeVisible();
+  await page.getByPlaceholder('Name').fill('E2E Reader');
+  await page.getByPlaceholder('Comment').fill('Comment from public blog e2e.');
+  await page.getByRole('button', { name: 'Post comment' }).click();
+  await expect(page.getByText('Comment from public blog e2e.')).toBeVisible();
   await expect(page.getByText('This markdown was saved during the browser flow.')).toBeVisible();
+
+  await page.goto('/blog');
+  await expect(page.getByTestId(`blog-post-views-${slug}`)).toContainText(/views|访问/);
 });
 
 test('admin blog editor has a large markdown toolbar, preview toggle, and height-aware skills', async ({ page }) => {
@@ -135,4 +145,12 @@ test('admin blog editor has a large markdown toolbar, preview toggle, and height
   });
   const viewportHeight = page.viewportSize()?.height ?? 720;
   expect(skillsListMaxHeight).toBeLessThanOrEqual(viewportHeight - 180);
+});
+
+test('admin blog analytics page opens for authenticated users', async ({ page }) => {
+  await login(page);
+
+  await page.goto('/admin/blog-analytics');
+  await expect(page.getByTestId('admin-blog-analytics')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Blog Analytics' })).toBeVisible();
 });
