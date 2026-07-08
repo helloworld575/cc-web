@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-07-07T16:40:24.452Z
+Generated: 2026-07-08T01:37:12.591Z
 
 ## Snapshot
 
@@ -115,7 +115,7 @@ Generated: 2026-07-07T16:40:24.452Z
 - Simple migrations: `todos.deadline`, `files.album_id`
 - Prepared statements: `countFiles`, `listFiles`, `insertFile`, `listFortune`, `insertFortune`, `getFortune`, `deleteFortune`, `listProviders`, `getProvider`, `insertProvider`, `updateProvider`, `deleteProvider`, `clearDefaultProvider`, `listChats`, `listChatsByProvider`, `getChat`, `insertChat`, `updateChat`, `deleteChat`
 
-## AI Skills (52)
+## AI Skills (53)
 
 - `agent-browser`: >-
 - `agent-router`: >-
@@ -163,6 +163,7 @@ Generated: 2026-07-07T16:40:24.452Z
 - `strategy-router`: >-
 - `subscription`: Summarize the latest updates from subscribed sources such as blogs, GitHub, X, RSS, or Reddit. Includes scripts. Includes references.
 - `summarize`: >-
+- `technical-blog-writer`: >-
 - `tmux`: >- Includes scripts.
 - `validate-idea`: >-
 - `web-research-brief`: Summarize fetched web, RSS, search, or crawler output into a source-grounded research brief.
@@ -177,7 +178,7 @@ Generated: 2026-07-07T16:40:24.452Z
 
 ## Tests
 
-- API and helper test files: 36
+- API and helper test files: 38
 - Examples: `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai-providers/test.test.ts`, `tests/api/ai/route.test.ts`, `tests/api/bazi/route.test.ts`
 
 ## Notes

@@ -55,7 +55,17 @@ test('public navigation and blog publishing flow work end to end', async ({ page
   await page.getByTestId('admin-blog-editor-title').fill(title);
   await page.getByTestId('admin-blog-editor-date').fill('2026-04-23');
   await page.getByTestId('admin-blog-editor-brief').fill('Brief generated during Playwright e2e.');
-  await page.getByTestId('admin-blog-editor-content').last().fill('# E2E Content\n\nThis markdown was saved during the browser flow.');
+  await page.getByTestId('admin-blog-editor-content').last().fill([
+    '# E2E Content',
+    '',
+    '## Setup notes',
+    '',
+    'This markdown was saved during the browser flow.',
+    '',
+    '### Tiny detail',
+    '',
+    'Heading navigation should link here too.',
+  ].join('\n'));
   await page.getByTestId('admin-blog-save').click();
   await expect(page.getByTestId('admin-blog-saved')).toBeVisible();
 
@@ -65,6 +75,9 @@ test('public navigation and blog publishing flow work end to end', async ({ page
   await page.goto('/blog');
   await expect(page.getByText(title)).toBeVisible();
   await page.getByText(title).click();
+  await expect(page.getByTestId('blog-heading-nav')).toBeVisible();
+  await expect(page.getByTestId('blog-heading-nav').getByRole('link', { name: 'Setup notes' })).toBeVisible();
+  await expect(page.getByTestId('blog-heading-nav').getByRole('link', { name: 'Tiny detail' })).toBeVisible();
   await expect(page.getByText('This markdown was saved during the browser flow.')).toBeVisible();
 });
 

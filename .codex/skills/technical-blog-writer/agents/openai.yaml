@@ -1,0 +1,4 @@
+interface:
+  display_name: "Technical Blog Writer"
+  short_description: "Practical posts with sanitized code"
+  default_prompt: "Write a practical technical blog post about this implementation detail. Keep the scope narrow, include sanitized code snippets, and end with verification."

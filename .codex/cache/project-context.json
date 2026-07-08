@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-07T16:40:24.452Z",
+  "generatedAt": "2026-07-08T01:37:12.591Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -459,6 +459,7 @@
       "lib/db.ts",
       "lib/fetchers.ts",
       "lib/i18n.ts",
+      "lib/markdown-headings.ts",
       "lib/markdown.ts",
       "lib/openai-compatible.ts",
       "lib/rateLimit.ts",
@@ -990,6 +991,16 @@
         "hasReferences": false
       },
       {
+        "id": "technical-blog-writer",
+        "name": "technical-blog-writer",
+        "description": ">-",
+        "hasSystem": false,
+        "hasPrompt": true,
+        "output": null,
+        "hasScripts": false,
+        "hasReferences": false
+      },
+      {
         "id": "tmux",
         "name": "tmux",
         "description": ">-",
@@ -1100,9 +1111,11 @@
       "tests/config/dockerfile.test.ts",
       "tests/lib/auth.test.ts",
       "tests/lib/i18n.test.ts",
+      "tests/lib/markdown-headings.test.ts",
       "tests/lib/runtime-paths.test.ts",
-      "tests/lib/skill-taxonomy.test.ts"
+      "tests/lib/skill-taxonomy.test.ts",
+      "tests/middleware.test.ts"
     ],
-    "count": 36
+    "count": 38
   }
 }

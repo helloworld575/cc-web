@@ -52,6 +52,12 @@ orchestration:
         Use when the article needs section reordering, better flow, or stronger
         narrative structure.
       mode: direct
+    - skill: technical-blog-writer
+      when: >-
+        Use when drafting a practical technical blog, implementation note, build
+        diary, debugging post, or project case study that should include
+        concrete tips, sanitized code snippets, and verification details.
+      mode: direct
     - skill: article-polish
       when: >-
         Use when wording, clarity, rhythm, or readability needs improvement
@@ -81,6 +87,7 @@ Route to the most specific content leaf skill instead of doing several writing t
 
 - Reader support blocks: `article-faq`
 - Headline and packaging: `article-title`, `article-brief`, `article-tags`
+- Practical implementation posts: `technical-blog-writer`
 - Editorial improvements: `article-structure`, `article-polish`
 - Language change: `article-translate-en`
 - Distribution copy: `blog-to-x`

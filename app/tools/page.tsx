@@ -1,5 +1,6 @@
 'use client';
 import { useDeferredValue, useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import Pagination from '@/components/Pagination';
 import FortuneTool from '@/components/FortuneTool';
 import AIChatTool from '@/components/AIChatTool';
@@ -153,6 +154,8 @@ export default function ToolsPage() {
   const [todoPage, setTodoPage] = useState(1);
   const deferredSkillQuery = useDeferredValue(skillQuery);
   const { locale, t } = useLocale();
+  const { status } = useSession();
+  const isAuthenticated = status === 'authenticated';
   const copy = TOOLS_COPY[locale];
 
   useEffect(() => {
@@ -172,6 +175,27 @@ export default function ToolsPage() {
   const routerSkillCount = skills.filter(skill => skill.orchestration.role === 'router').length;
   const routedSkills = filteredSkills.filter(skill => skill.orchestration.children.length > 0);
   const tabMeta = copy.tabMeta as Partial<Record<ToolTab, { eyebrow: string; description: string }>>;
+  const tabs = [
+    ['todos', t('toolsTitle')],
+    ['bazi', t('bazi')],
+    ...(isAuthenticated
+      ? [
+          ['ai-chat', t('aiChat')],
+          ['image', 'Image'],
+        ] as const
+      : []),
+    ['subscriptions', t('subscriptions')],
+    ['skills', copy.tabLabels.skills],
+  ] as const;
+  const tabGridClassName = isAuthenticated
+    ? 'relative z-10 mb-6 grid gap-3 md:grid-cols-6'
+    : 'relative z-10 mb-6 grid gap-3 md:grid-cols-4';
+
+  useEffect(() => {
+    if (!isAuthenticated && (tab === 'ai-chat' || tab === 'image')) {
+      setTab('todos');
+    }
+  }, [isAuthenticated, tab]);
 
   return (
     <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
@@ -201,15 +225,8 @@ export default function ToolsPage() {
         </div>
       </section>
 
-      <div className="relative z-10 mb-6 grid gap-3 md:grid-cols-6">
-        {([
-          ['todos', t('toolsTitle')],
-          ['bazi', t('bazi')],
-          ['ai-chat', t('aiChat')],
-          ['image', 'Image'],
-          ['subscriptions', t('subscriptions')],
-          ['skills', copy.tabLabels.skills],
-        ] as const).map(([id, label], index) => {
+      <div className={tabGridClassName}>
+        {tabs.map(([id, label], index) => {
           const active = tab === id;
           const meta = tabMeta[id] ?? TOOLS_COPY.en.tabMeta[id];
 
@@ -320,7 +337,7 @@ export default function ToolsPage() {
 
         {tab === 'image' && <AIImageTool />}
 
-        {tab === 'subscriptions' && <SubscriptionBriefsTool />}
+        {tab === 'subscriptions' && <SubscriptionBriefsTool canManage={isAuthenticated} />}
 
         {tab === 'skills' && (
           <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">

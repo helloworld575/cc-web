@@ -14,7 +14,11 @@ interface Brief {
   fetched_at: string;
 }
 
-export default function SubscriptionBriefsTool() {
+interface SubscriptionBriefsToolProps {
+  canManage?: boolean;
+}
+
+export default function SubscriptionBriefsTool({ canManage = false }: SubscriptionBriefsToolProps) {
   const { t } = useLocale();
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [loading, setLoading] = useState(false);
@@ -95,25 +99,37 @@ export default function SubscriptionBriefsTool() {
             {filteredBriefs.length} {t('subscriptionBriefs')}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={crawlAll} disabled={crawling || integrating}
-            className="border rounded px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50">
-            {crawling ? t('subscriptionCrawling') : t('subscriptionCrawl')}
-          </button>
-          <button onClick={integrateAll} disabled={crawling || integrating}
-            className="border rounded px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50">
-            {integrating ? t('subscriptionIntegrating') : t('subscriptionIntegrate')}
-          </button>
-        </div>
+        {canManage && (
+          <div className="flex items-center gap-2">
+            <button
+              data-testid="subscription-crawl-all"
+              onClick={crawlAll}
+              disabled={crawling || integrating}
+              className="border rounded px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50"
+            >
+              {crawling ? t('subscriptionCrawling') : t('subscriptionCrawl')}
+            </button>
+            <button
+              data-testid="subscription-integrate-all"
+              onClick={integrateAll}
+              disabled={crawling || integrating}
+              className="border rounded px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50"
+            >
+              {integrating ? t('subscriptionIntegrating') : t('subscriptionIntegrate')}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Briefs list */}
       {filteredBriefs.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           <p className="mb-2">{t('subscriptionNoBriefs')}</p>
-          <a href="/admin/subscriptions" className="text-blue-500 hover:underline text-sm">
-            {t('subscriptionGoConfig')}
-          </a>
+          {canManage && (
+            <a href="/admin/subscriptions" className="text-blue-500 hover:underline text-sm">
+              {t('subscriptionGoConfig')}
+            </a>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -141,10 +157,15 @@ export default function SubscriptionBriefsTool() {
                     <span>{new Date(brief.fetched_at).toLocaleString()}</span>
                   </div>
                 </div>
-                <button onClick={() => deleteBrief(brief.id)}
-                  className="text-red-400 hover:text-red-600 text-xs flex-shrink-0">
-                  {t('delete')}
-                </button>
+                {canManage && (
+                  <button
+                    data-testid="subscription-delete-brief"
+                    onClick={() => deleteBrief(brief.id)}
+                    className="text-red-400 hover:text-red-600 text-xs flex-shrink-0"
+                  >
+                    {t('delete')}
+                  </button>
+                )}
               </div>
               <article className="prose prose-sm max-w-none text-gray-700">
                 <ReactMarkdown>{brief.brief}</ReactMarkdown>

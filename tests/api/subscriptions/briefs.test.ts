@@ -2,11 +2,22 @@ import { describe, it, expect, vi } from 'vitest';
 import { mockSession, mockDbStmt } from '../../helpers';
 
 describe('GET /api/subscriptions/briefs', () => {
-  it('returns 401 without session', async () => {
+  it('returns stored briefs without requiring a session', async () => {
     mockSession(false);
+    mockDbStmt({
+      all: vi.fn(() => [
+        {
+          id: 1, source_id: 1, source_name: 'My Blog', category: 'blog',
+          title: 'Public Brief', url: 'https://example.com/post', brief: 'Brief text',
+          fetched_at: '2024-01-01 00:00:00',
+        },
+      ]),
+    });
     const { GET } = await import('@/app/api/subscriptions/briefs/route');
     const res = await GET(new Request('http://localhost/api/subscriptions/briefs'));
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data[0].title).toBe('Public Brief');
   });
 
   it('returns all briefs', async () => {
