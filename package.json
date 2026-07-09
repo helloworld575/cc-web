@@ -49,5 +49,8 @@
     "typescript": "^5",
     "vite-tsconfig-paths": "^4.3.2",
     "vitest": "^2.1.9"
+  },
+  "overrides": {
+    "dompurify": "^3.4.11"
   }
 }
