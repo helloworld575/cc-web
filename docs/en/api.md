@@ -84,6 +84,11 @@ Upload an image. Uses `multipart/form-data` with field `file` and optional `albu
 
 Allowed extensions: `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`
 
+Response:
+```json
+{ "ok": true, "filename": "uuid.png", "url": "/uploads/uuid.png" }
+```
+
 ### `GET /api/uploads/<filename>`
 Public endpoint — serves the uploaded file with long-term caching.
 

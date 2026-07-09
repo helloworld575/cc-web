@@ -183,7 +183,6 @@ export default function AdminToolsPage() {
           minHeight={240}
           textareaTestId="todo-markdown-editor"
           previewTestId="todo-markdown-preview"
-          previewToggleTestId="todo-preview-toggle"
         />
       </section>
 

@@ -49,6 +49,7 @@ export default function AIChatTool() {
   const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const currentChatIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetch('/api/ai-providers')
@@ -107,6 +108,11 @@ export default function AIChatTool() {
     }
   }
 
+  function setActiveChatId(chatId: number | null) {
+    currentChatIdRef.current = chatId;
+    setCurrentChatId(chatId);
+  }
+
   async function readErrorResponse(response: Response) {
     try {
       const data = await response.clone().json();
@@ -143,7 +149,7 @@ export default function AIChatTool() {
       if (!response.ok) throw new Error(await readErrorResponse(response));
       const chat = await response.json() as ChatDetail;
       const providerId = Number(chat.provider_id);
-      setCurrentChatId(Number(chat.id));
+      setActiveChatId(Number(chat.id));
       if (selectedProvider !== providerId) {
         setSelectedProvider(providerId);
       }
@@ -158,7 +164,7 @@ export default function AIChatTool() {
   }
 
   function newChat() {
-    setCurrentChatId(null);
+    setActiveChatId(null);
     setMessages([]);
     setInput('');
     setError('');
@@ -180,7 +186,7 @@ export default function AIChatTool() {
 
       const chatId = Number(chat.id);
       setHistory(items => items.filter(item => Number(item.id) !== chatId));
-      if (currentChatId === chatId) {
+      if (currentChatIdRef.current === chatId) {
         newChat();
       }
     } catch (caught: unknown) {
@@ -261,7 +267,7 @@ export default function AIChatTool() {
           }
 
           if (typeof parsed.chat_id === 'number') {
-            setCurrentChatId(parsed.chat_id);
+            setActiveChatId(parsed.chat_id);
           }
           if (typeof parsed.error === 'string' && parsed.error.trim()) {
             throw new Error(parsed.error.trim());

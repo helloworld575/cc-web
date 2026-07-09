@@ -47,5 +47,11 @@ describe('POST /api/files', () => {
     const { POST } = await import('@/app/api/files/route');
     const res = await POST(new Request('http://localhost/api/files', { method: 'POST', body: form }));
     expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toMatchObject({
+      ok: true,
+      filename: expect.stringMatching(/\.jpg$/),
+      url: expect.stringMatching(/^\/uploads\/.+\.jpg$/),
+    });
   });
 });

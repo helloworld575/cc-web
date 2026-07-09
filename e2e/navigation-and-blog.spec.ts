@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 import { login } from './helpers';
 
 test('language toggle updates immediately and persists across reloads', async ({ page }) => {
@@ -91,7 +92,7 @@ test('public navigation and blog publishing flow work end to end', async ({ page
   await expect(page.getByTestId(`blog-post-views-${slug}`)).toContainText(/views|访问/);
 });
 
-test('admin blog editor has a large markdown toolbar, preview toggle, and height-aware skills', async ({ page }) => {
+test('admin blog editor uses TOAST UI markdown editing, image upload, and height-aware skills', async ({ page }, testInfo) => {
   await login(page);
 
   const title = `E2E Markdown Blog ${Date.now()}`;
@@ -102,17 +103,26 @@ test('admin blog editor has a large markdown toolbar, preview toggle, and height
 
   const editor = page.getByTestId('admin-blog-editor-content');
   await expect(editor).toBeVisible();
-  await expect(editor).toHaveCSS('min-height', '640px');
+  await expect(page.getByTestId('admin-blog-editor-content-root')).toHaveCSS('min-height', '640px');
 
-  await editor.fill('Blog markdown body');
-  await page.getByTestId('markdown-toolbar-heading').click();
-  await expect(editor).toHaveValue('### Blog markdown body');
+  await expect(page.getByRole('button', { name: 'Bold' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Insert image' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Insert table' })).toBeVisible();
 
+  await editor.fill('# Blog markdown body');
   await expect(page.getByTestId('admin-blog-editor-preview')).toContainText('Blog markdown body');
-  await page.getByTestId('admin-blog-preview-toggle').click();
-  await expect(page.getByTestId('admin-blog-editor-preview')).toBeHidden();
-  await page.getByTestId('admin-blog-preview-toggle').click();
-  await expect(page.getByTestId('admin-blog-editor-preview')).toBeVisible();
+
+  const uploadPath = testInfo.outputPath('editor-upload.png');
+  await writeFile(uploadPath, Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zx7cAAAAASUVORK5CYII=',
+    'base64'
+  ));
+  await page.getByRole('button', { name: 'Insert image' }).click();
+  await page.locator('.toastui-editor-popup-add-image input[type="file"]').setInputFiles(uploadPath);
+  const uploadResponse = page.waitForResponse(response => response.url().endsWith('/api/files') && response.request().method() === 'POST');
+  await page.locator('.toastui-editor-popup-add-image .toastui-editor-ok-button').click();
+  expect((await uploadResponse).ok()).toBeTruthy();
+  await expect(editor).toContainText(/\!\[editor-upload\]\(\/uploads\/.+\.png\)/);
 
   const providerSelect = page.getByTestId('admin-blog-skill-provider');
   await expect(providerSelect).toBeVisible();

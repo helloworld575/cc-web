@@ -10,7 +10,7 @@ How to set up, develop, and deploy this site.
 - **Auth**: NextAuth.js (credentials provider)
 - **Styling**: Tailwind CSS + `@tailwindcss/typography`
 - **Markdown**: `react-markdown` + `gray-matter` for frontmatter
-- **Editor**: `@uiw/react-md-editor`
+- **Editor**: `@toast-ui/editor`
 - **Testing**: Vitest with node env
 - **Deploy**: Docker + Cloudflared tunnel (for NAS)
 

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "@toast-ui/editor/dist/toastui-editor.css";
 import SessionProvider from "@/components/SessionProvider";
 import Nav from "@/components/Nav";
 import SiteFooter from "@/components/SiteFooter";

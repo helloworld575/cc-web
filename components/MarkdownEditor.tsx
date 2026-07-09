@@ -1,6 +1,7 @@
 'use client';
-import { useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+
+import { useEffect, useRef, useState } from 'react';
+import type ToastEditor from '@toast-ui/editor';
 import { useLocale } from '@/components/useLocale';
 
 interface Props {
@@ -9,164 +10,179 @@ interface Props {
   rows?: number;
   textareaTestId?: string;
   previewTestId?: string;
-  previewToggleTestId?: string;
   minHeight?: number;
 }
 
-export default function MarkdownEditor({ value, onChange, rows = 24, textareaTestId, previewTestId, previewToggleTestId, minHeight }: Props) {
+interface UploadResponse {
+  ok?: boolean;
+  filename?: string;
+  url?: string;
+  error?: string;
+}
+
+type ImageHookCallback = (url: string, text?: string) => void;
+
+function extensionForMime(type: string) {
+  if (type === 'image/jpeg') return 'jpg';
+  if (type === 'image/gif') return 'gif';
+  if (type === 'image/webp') return 'webp';
+  return 'png';
+}
+
+function fileFromBlob(blob: Blob | File) {
+  if (blob instanceof File && blob.name) return blob;
+  const type = blob.type || 'image/png';
+  return new File([blob], `markdown-image.${extensionForMime(type)}`, { type });
+}
+
+export default function MarkdownEditor({
+  value,
+  onChange,
+  rows = 24,
+  textareaTestId,
+  previewTestId,
+  minHeight,
+}: Props) {
+  const editorHostRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<ToastEditor | null>(null);
+  const latestValueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+  const [uploadError, setUploadError] = useState('');
+  const { locale, t } = useLocale();
   const height = Math.max(minHeight ?? 0, rows * 20);
-  const mobileTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const desktopTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const activeTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const [mobileTab, setMobileTab] = useState<'write' | 'preview'>('write');
-  const [previewEnabled, setPreviewEnabled] = useState(true);
-  const { t } = useLocale();
+  const language = locale === 'zh' ? 'zh-CN' : 'en-US';
+  const placeholder = t('markdownPlaceholder');
 
-  function getActiveTextarea() {
-    return activeTextareaRef.current ?? desktopTextareaRef.current ?? mobileTextareaRef.current;
-  }
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const el = e.currentTarget;
-      const start = el.selectionStart;
-      const end = el.selectionEnd;
-      const next = value.slice(0, start) + '  ' + value.slice(end);
-      onChange(next);
-      requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 2; });
+  useEffect(() => {
+    latestValueRef.current = value;
+    const editor = editorRef.current;
+    if (editor && editor.getMarkdown() !== value) {
+      editor.setMarkdown(value, false);
     }
-  }
+  }, [value]);
 
-  function replaceSelection(nextText: string, nextStart: number, nextEnd: number) {
-    onChange(nextText);
-    requestAnimationFrame(() => {
-      const el = getActiveTextarea();
-      if (!el) return;
-      el.focus();
-      el.selectionStart = nextStart;
-      el.selectionEnd = nextEnd;
-    });
-  }
+  useEffect(() => {
+    let disposed = false;
 
-  function wrapSelection(prefix: string, suffix = prefix, placeholder = 'text') {
-    const el = getActiveTextarea();
-    if (!el) return;
-    let start = el.selectionStart;
-    let end = el.selectionEnd;
-    if (start === end && value.trim()) {
-      start = 0;
-      end = value.length;
+    async function uploadImage(blob: Blob | File, callback: ImageHookCallback) {
+      const file = fileFromBlob(blob);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('/api/files', { method: 'POST', body: formData });
+        const data = (await response.json().catch(() => ({}))) as UploadResponse;
+
+        if (!response.ok || !data.url) {
+          throw new Error(data.error || 'Image upload failed');
+        }
+
+        setUploadError('');
+        callback(data.url, file.name.replace(/\.[^.]+$/, '') || data.filename || 'image');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Image upload failed';
+        setUploadError(message);
+      }
     }
-    const selected = value.slice(start, end) || placeholder;
-    const inserted = `${prefix}${selected}${suffix}`;
-    replaceSelection(value.slice(0, start) + inserted + value.slice(end), start + prefix.length, start + prefix.length + selected.length);
-  }
 
-  function prefixLines(prefix: string) {
-    const el = getActiveTextarea();
-    if (!el) return;
-    let start = el.selectionStart;
-    let end = el.selectionEnd;
-    if (start === end && value.trim()) {
-      start = 0;
-      end = value.length;
+    function applyTestIds(editor: ToastEditor) {
+      const host = editorHostRef.current;
+      if (!host) return;
+
+      const elements = editor.getEditorElements();
+      if (textareaTestId) {
+        host.querySelectorAll(`[data-testid="${textareaTestId}"]`).forEach(element => {
+          element.removeAttribute('data-testid');
+        });
+
+        const editable = host.querySelector(
+          '.toastui-editor-md-container [contenteditable="true"].toastui-editor-contents, .toastui-editor-md-container [contenteditable="true"], [contenteditable="true"].toastui-editor-contents, [contenteditable="true"]'
+        );
+        (editable ?? elements.mdEditor).setAttribute('data-testid', textareaTestId);
+      }
+      if (previewTestId) {
+        elements.mdPreview.setAttribute('data-testid', previewTestId);
+      }
     }
-    const selected = value.slice(start, end) || 'item';
-    const inserted = selected.split('\n').map(line => `${prefix}${line}`).join('\n');
-    replaceSelection(value.slice(0, start) + inserted + value.slice(end), start + prefix.length, start + inserted.length);
-  }
 
-  function insertLink() {
-    const el = getActiveTextarea();
-    if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const selected = value.slice(start, end) || 'link';
-    const inserted = `[${selected}](https://)`;
-    replaceSelection(value.slice(0, start) + inserted + value.slice(end), start + 1, start + 1 + selected.length);
-  }
+    async function createEditor() {
+      const host = editorHostRef.current;
+      if (!host) return;
 
-  function togglePreview() {
-    setPreviewEnabled(enabled => {
-      if (enabled) setMobileTab('write');
-      return !enabled;
-    });
-  }
+      const [{ default: Editor }] = await Promise.all([
+        import('@toast-ui/editor'),
+        language === 'zh-CN' ? import('@toast-ui/editor/dist/i18n/zh-cn') : Promise.resolve(),
+      ]);
+      if (disposed || !editorHostRef.current) return;
+
+      host.replaceChildren();
+
+      const editor = new Editor({
+        el: host,
+        height: `${height}px`,
+        minHeight: `${height}px`,
+        initialValue: latestValueRef.current,
+        initialEditType: 'markdown',
+        previewStyle: 'vertical',
+        language,
+        placeholder,
+        autofocus: false,
+        usageStatistics: false,
+        toolbarItems: [
+          ['heading', 'bold', 'italic', 'strike'],
+          ['hr', 'quote'],
+          ['ul', 'ol', 'task', 'indent', 'outdent'],
+          ['table', 'image', 'link'],
+          ['code', 'codeblock'],
+        ],
+        hooks: {
+          addImageBlobHook: (blob, callback) => {
+            void uploadImage(blob, callback);
+          },
+        },
+      });
+
+      editorRef.current = editor;
+      editor.on('change', () => {
+        const currentEditor = editorRef.current;
+        if (!currentEditor) return;
+        const nextValue = currentEditor.getMarkdown();
+        latestValueRef.current = nextValue;
+        onChangeRef.current(nextValue);
+      });
+      applyTestIds(editor);
+      window.requestAnimationFrame(() => applyTestIds(editor));
+    }
+
+    void createEditor();
+
+    return () => {
+      disposed = true;
+      editorRef.current?.destroy();
+      editorRef.current = null;
+    };
+  }, [height, language, placeholder, previewTestId, textareaTestId]);
 
   return (
-    <div className="border rounded overflow-hidden">
-      <div className="flex flex-wrap items-center gap-1 border-b bg-slate-50 px-2 py-2 text-sm">
-        <button data-testid="markdown-toolbar-bold" type="button" onClick={() => wrapSelection('**')} className="rounded border bg-white px-2 py-1 font-bold hover:bg-slate-100">B</button>
-        <button data-testid="markdown-toolbar-italic" type="button" onClick={() => wrapSelection('*')} className="rounded border bg-white px-2 py-1 italic hover:bg-slate-100">I</button>
-        <button data-testid="markdown-toolbar-heading" type="button" onClick={() => prefixLines('### ')} className="rounded border bg-white px-2 py-1 hover:bg-slate-100">H3</button>
-        <button data-testid="markdown-toolbar-list" type="button" onClick={() => prefixLines('- ')} className="rounded border bg-white px-2 py-1 hover:bg-slate-100">List</button>
-        <button data-testid="markdown-toolbar-check" type="button" onClick={() => prefixLines('- [ ] ')} className="rounded border bg-white px-2 py-1 hover:bg-slate-100">Task</button>
-        <button data-testid="markdown-toolbar-quote" type="button" onClick={() => prefixLines('> ')} className="rounded border bg-white px-2 py-1 hover:bg-slate-100">Quote</button>
-        <button data-testid="markdown-toolbar-code" type="button" onClick={() => wrapSelection('`')} className="rounded border bg-white px-2 py-1 font-mono hover:bg-slate-100">Code</button>
-        <button data-testid="markdown-toolbar-link" type="button" onClick={insertLink} className="rounded border bg-white px-2 py-1 hover:bg-slate-100">Link</button>
-        <button
-          data-testid={previewToggleTestId}
-          type="button"
-          onClick={togglePreview}
-          className={`ml-auto rounded border px-3 py-1 text-xs font-medium transition ${previewEnabled ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+    <div className="markdown-editor-shell">
+      <div
+        ref={editorHostRef}
+        className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+        data-testid={textareaTestId ? `${textareaTestId}-root` : undefined}
+        style={{ minHeight: height }}
+      />
+      {uploadError && (
+        <p
+          className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600"
+          data-testid={textareaTestId ? `${textareaTestId}-upload-error` : undefined}
         >
-          {previewEnabled ? t('previewOn') : t('previewOff')}
-        </button>
-      </div>
-
-      {/* Mobile tab bar */}
-      {previewEnabled && <div className="md:hidden flex border-b text-sm">
-        <button onClick={() => setMobileTab('write')}
-          className={`flex-1 py-2 font-medium transition-colors ${mobileTab === 'write' ? 'bg-white border-b-2 border-black' : 'bg-gray-50 text-gray-500'}`}>
-          {t('write')}
-        </button>
-        <button onClick={() => setMobileTab('preview')}
-          className={`flex-1 py-2 font-medium transition-colors ${mobileTab === 'preview' ? 'bg-white border-b-2 border-black' : 'bg-gray-50 text-gray-500'}`}>
-          {t('preview')}
-        </button>
-      </div>}
-
-      {/* Mobile: single pane */}
-      <div className="md:hidden" style={{ height }}>
-        {!previewEnabled || mobileTab === 'write' ? (
-          <textarea
-            data-testid={textareaTestId ? `${textareaTestId}-mobile` : undefined}
-            ref={mobileTextareaRef}
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            onFocus={e => { activeTextareaRef.current = e.currentTarget; }}
-            onKeyDown={handleKeyDown}
-            className="h-full w-full resize-none bg-white p-3 font-mono text-sm text-slate-800 focus:outline-none"
-            placeholder={t('markdownPlaceholder')}
-            spellCheck={false}
-            style={{ minHeight: height }}
-          />
-        ) : (
-          <div data-testid={previewTestId ? `${previewTestId}-mobile` : undefined} className="h-full overflow-y-auto p-4 prose prose-sm max-w-none dark:prose-invert">
-            <ReactMarkdown>{value}</ReactMarkdown>
-          </div>
-        )}
-      </div>
-
-      {/* Desktop: split pane */}
-      <div className="hidden md:flex" style={{ height }}>
-        <textarea
-          data-testid={textareaTestId}
-          ref={desktopTextareaRef}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          onFocus={e => { activeTextareaRef.current = e.currentTarget; }}
-          onKeyDown={handleKeyDown}
-          className={`${previewEnabled ? 'w-1/2 border-r' : 'w-full'} h-full resize-none bg-white p-3 font-mono text-sm text-slate-800 focus:outline-none`}
-          placeholder={t('markdownPlaceholder')}
-          spellCheck={false}
-          style={{ minHeight: height }}
-        />
-        {previewEnabled && <div data-testid={previewTestId} className="w-1/2 h-full overflow-y-auto p-4 prose prose-sm max-w-none dark:prose-invert">
-          <ReactMarkdown>{value}</ReactMarkdown>
-        </div>}
-      </div>
+          {uploadError}
+        </p>
+      )}
     </div>
   );
 }

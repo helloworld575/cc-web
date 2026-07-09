@@ -367,7 +367,6 @@ export default function AdminBlogEditor() {
             minHeight={640}
             textareaTestId="admin-blog-editor-content"
             previewTestId="admin-blog-editor-preview"
-            previewToggleTestId="admin-blog-preview-toggle"
           />
         </section>
       </section>

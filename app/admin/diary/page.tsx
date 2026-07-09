@@ -75,7 +75,13 @@ export default function AdminDiaryPage() {
         {editing && <button onClick={() => { setEditing(null); setContent(''); }} className="text-sm text-gray-500">Cancel</button>}
       </div>
       <div className="mb-6">
-        <MarkdownEditor value={content} onChange={setContent} rows={12} />
+        <MarkdownEditor
+          value={content}
+          onChange={setContent}
+          rows={12}
+          textareaTestId="diary-markdown-editor"
+          previewTestId="diary-markdown-preview"
+        />
       </div>
       <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search entries..."
         className="w-full border rounded px-3 py-2 mb-4 text-sm" />

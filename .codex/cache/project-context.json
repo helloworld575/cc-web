@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-09T01:37:12.495Z",
+  "generatedAt": "2026-07-09T17:39:46.996Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -494,6 +494,7 @@
       "lib/skill-taxonomy.ts",
       "lib/skills.ts",
       "lib/subscription-service.ts",
+      "lib/toast-ui-editor.d.ts",
       "lib/xapi.ts",
       "lib/yijing.ts",
       "lib/ziwei.ts"
@@ -1099,6 +1100,7 @@
     "docs/en/api.md",
     "docs/en/development.md",
     "docs/en/how-to-use.md",
+    "docs/open-source/markdown-editor.md",
     "docs/zh/API文档.md",
     "docs/zh/tdd-policy.md",
     "docs/zh/使用指南.md",

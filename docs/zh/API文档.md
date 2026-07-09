@@ -84,6 +84,11 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 
 允许后缀：`.jpg`、`.jpeg`、`.png`、`.gif`、`.webp`
 
+响应：
+```json
+{ "ok": true, "filename": "uuid.png", "url": "/uploads/uuid.png" }
+```
+
 ### `GET /api/uploads/<filename>`
 公开端点，返回文件内容，带长期缓存。
 

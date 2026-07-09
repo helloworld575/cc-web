@@ -81,5 +81,5 @@ export async function POST(req: Request) {
   const albumId = formData.get('album_id');
   stmts.insertFile.run(filename, file.name, mimeType, file.size, albumId ? Number(albumId) : null);
 
-  return NextResponse.json({ ok: true, filename });
+  return NextResponse.json({ ok: true, filename, url: `/uploads/${filename}` });
 }

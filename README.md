@@ -6,7 +6,7 @@ Personal blog & toolbox built with **Next.js 14** and **SQLite**.
 
 ## Features
 
-- 📝 **Blog** — Large Markdown editor with toolbar, optional preview, and AI-assisted editing
+- 📝 **Blog** — TOAST UI Markdown editor with preview, image uploads, and AI-assisted editing
 - 📒 **Diary** — Private date-based journal with markdown
 - ✅ **Todos** — Task list with deadlines
 - 🖼️ **Files** — Image uploads organized into albums
@@ -181,7 +181,7 @@ Managed logs are written to `log/automation/`.
 | Auth | NextAuth.js (credentials) |
 | Styling | Tailwind CSS |
 | Markdown | `react-markdown` + `gray-matter` |
-| Editor | `@uiw/react-md-editor` |
+| Editor | `@toast-ui/editor` |
 | Testing | Vitest |
 
 ## Project Layout

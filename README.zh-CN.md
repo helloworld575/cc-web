@@ -6,7 +6,7 @@
 
 ## 功能
 
-- 📝 **博客** — 大尺寸 Markdown 编辑器，支持工具栏、预览开关和 AI 辅助编辑
+- 📝 **博客** — TOAST UI Markdown 编辑器，支持预览、图片上传和 AI 辅助编辑
 - 📒 **日记** — 按日期记录的私人日记，支持 markdown
 - ✅ **待办** — 任务列表，支持截止日期
 - 🖼️ **文件** — 图片上传，按相册组织
@@ -161,7 +161,7 @@ node scripts/run-managed-command.mjs --label e2e-local --clear-port 3000 -- <你
 | 认证 | NextAuth.js（credentials）|
 | 样式 | Tailwind CSS |
 | Markdown | `react-markdown` + `gray-matter` |
-| 编辑器 | `@uiw/react-md-editor` |
+| 编辑器 | `@toast-ui/editor` |
 | 测试 | Vitest |
 
 ## 项目结构
