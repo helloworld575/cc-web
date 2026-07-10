@@ -1,8 +1,15 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { login } from './helpers';
 
 test('tools workspace covers seeded data and streaming mock flows', async ({ page }) => {
   const chatPrompt = `Render markdown for e2e ${Date.now()}`;
+  const fortuneKeyWarnings: string[] = [];
+
+  page.on('console', message => {
+    if (message.text().includes('Each child in a list should have a unique "key" prop')) {
+      fortuneKeyWarnings.push(message.text());
+    }
+  });
 
   await login(page);
   await page.goto('/blog');
@@ -134,7 +141,23 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   await expect(page.getByText('Saved to history.')).toBeVisible();
 
   await page.getByTestId('fortune-tab-history').click();
-  await expect(page.getByRole('button', { name: /BaZi/ }).first()).toBeVisible();
+  const historyEntry = page.getByRole('button', { name: /BaZi/ }).first();
+  await expect(historyEntry).toBeVisible();
+  await historyEntry.click();
+  await expect(page.getByText('Mock fortune analysis').last()).toBeVisible();
+  expect(fortuneKeyWarnings).toEqual([]);
+
+  page.once('dialog', async dialog => {
+    expect(dialog.message()).toBe('Delete this reading?');
+    await dialog.accept();
+  });
+  const fortuneDeleteResponsePromise = page.waitForResponse(response => (
+    /\/api\/fortune\/history\/\d+$/.test(response.url()) && response.request().method() === 'DELETE'
+  ));
+  await page.getByRole('button', { name: 'Delete' }).click();
+  const fortuneDeleteResponse = await fortuneDeleteResponsePromise;
+  expect(fortuneDeleteResponse.ok()).toBeTruthy();
+  await expect(page.getByRole('button', { name: /BaZi/ })).toHaveCount(0);
 });
 
 test('ai chat does not auto-scroll while streaming a long message', async ({ page }) => {

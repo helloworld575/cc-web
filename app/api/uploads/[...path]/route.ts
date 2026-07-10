@@ -9,8 +9,9 @@ const MIME: Record<string, string> = {
   '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
 };
 
-export async function GET(_: Request, { params }: { params: { path: string[] } }) {
-  const filename = params.path.join('/');
+export async function GET(_: Request, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path: routePath } = await params;
+  const filename = routePath.join('/');
   const { uploadsDir } = getRuntimePaths();
   const rootUploadsDir = path.resolve(uploadsDir);
   const resolved = path.resolve(rootUploadsDir, filename);

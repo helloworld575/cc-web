@@ -4,11 +4,12 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { stmts } from '@/lib/db';
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 
-  const id = Number(params.id);
+  const { id: routeId } = await params;
+  const id = Number(routeId);
   if (!Number.isInteger(id)) {
     return new Response(JSON.stringify({ error: 'Invalid ID' }), { status: 400 });
   }
@@ -23,11 +24,12 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   });
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 
-  const id = Number(params.id);
+  const { id: routeId } = await params;
+  const id = Number(routeId);
   if (!Number.isInteger(id)) {
     return new Response(JSON.stringify({ error: 'Invalid ID' }), { status: 400 });
   }

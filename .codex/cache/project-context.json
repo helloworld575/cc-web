@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-07-09T17:39:46.996Z",
+  "generatedAt": "2026-07-10T02:24:56.975Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
     "private": true,
     "packageManager": "npm",
-    "framework": "Next.js 14 App Router",
+    "framework": "Next.js 16 App Router",
     "language": "TypeScript",
     "database": "SQLite via better-sqlite3",
     "styling": "Tailwind CSS",
@@ -65,8 +65,8 @@
       "description": "Codex working guide for repository-specific workflow and constraints."
     },
     {
-      "file": "middleware.ts",
-      "description": "Edge middleware for admin auth protection and auth-route rate limiting."
+      "file": "proxy.ts",
+      "description": "Request proxy for admin auth protection and auth-route rate limiting."
     },
     {
       "file": "package.json",
@@ -467,6 +467,7 @@
       "components/DateRangeFilter.tsx",
       "components/DeadlineAlert.tsx",
       "components/FortuneTool.tsx",
+      "components/HydrationReady.tsx",
       "components/MarkdownEditor.tsx",
       "components/Nav.tsx",
       "components/Pagination.tsx",
@@ -474,6 +475,7 @@
       "components/SiteFooter.tsx",
       "components/StreamingMarkdown.tsx",
       "components/SubscriptionBriefsTool.tsx",
+      "components/fortune/FortuneVisuals.tsx",
       "components/useLocale.ts"
     ],
     "lib": [
@@ -1143,13 +1145,14 @@
       "tests/api/x-post/route.test.ts",
       "tests/config/claude-worker.test.ts",
       "tests/config/dockerfile.test.ts",
+      "tests/config/platform-modernization.test.ts",
       "tests/lib/auth.test.ts",
       "tests/lib/i18n.test.ts",
       "tests/lib/markdown-headings.test.ts",
       "tests/lib/runtime-paths.test.ts",
       "tests/lib/skill-taxonomy.test.ts",
-      "tests/middleware.test.ts"
+      "tests/proxy.test.ts"
     ],
-    "count": 41
+    "count": 42
   }
 }

@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { File as NodeFile } from 'node:buffer';
 
-// Polyfill File for Node 18 (globally available from Node 20+)
+// Keep a fallback for Node runtimes where File is not exposed globally.
 if (typeof globalThis.File === 'undefined') {
   (globalThis as unknown as Record<string, unknown>).File = NodeFile;
 }
@@ -14,7 +14,10 @@ vi.mock('better-sqlite3', () => {
     pragma: vi.fn(),
     exec: vi.fn(),
   };
-  return { default: vi.fn(() => db) };
+  const Database = vi.fn(function Database() {
+    return db;
+  });
+  return { default: Database };
 });
 
 // Mock next-auth getServerSession

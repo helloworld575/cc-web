@@ -168,7 +168,7 @@ include_files = [
     "README.zh-CN.md",
     "deploy-to-nas.sh",
     compose_file_name,
-    "middleware.ts",
+    "proxy.ts",
     "next-env.d.ts",
     "next.config.mjs",
     "package-lock.json",

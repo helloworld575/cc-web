@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { E2E_ADMIN_PASSWORD, nextE2EIp } from './helpers';
 
 test('admin routes redirect anonymous users and login rejects bad credentials', async ({ page }) => {

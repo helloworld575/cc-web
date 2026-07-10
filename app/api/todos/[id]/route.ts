@@ -4,31 +4,34 @@ import db from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const todo = db.prepare('SELECT * FROM todos WHERE id = ?').get(params.id);
+  const { id } = await params;
+  const todo = db.prepare('SELECT * FROM todos WHERE id = ?').get(id);
   if (!todo) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json(todo);
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
-  const existing = db.prepare('SELECT * FROM todos WHERE id = ?').get(params.id) as any;
+  const { id } = await params;
+  const existing = db.prepare('SELECT * FROM todos WHERE id = ?').get(id) as any;
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const text = body.text ?? existing.text;
   const done = body.done !== undefined ? (body.done ? 1 : 0) : existing.done;
   const deadline = body.deadline !== undefined ? (body.deadline || null) : existing.deadline;
-  db.prepare('UPDATE todos SET text = ?, done = ?, deadline = ? WHERE id = ?').run(text, done, deadline, params.id);
+  db.prepare('UPDATE todos SET text = ?, done = ?, deadline = ? WHERE id = ?').run(text, done, deadline, id);
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  db.prepare('DELETE FROM todos WHERE id = ?').run(params.id);
+  const { id } = await params;
+  db.prepare('DELETE FROM todos WHERE id = ?').run(id);
   return NextResponse.json({ ok: true });
 }

@@ -1,28 +1,40 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "================================"
 echo "  ThomasLee Blog - Setup"
 echo "================================"
 echo
 
-# ── Check prerequisites ──────────────────────────────────────────────────────
 check() {
-  if ! command -v "$1" &>/dev/null; then
+  if ! command -v "$1" >/dev/null 2>&1; then
     echo "ERROR: $1 is not installed."
     echo "  $2"
     exit 1
   fi
 }
 
-check node   "Install from https://nodejs.org (>= 18)"
-check npm    "Comes with Node.js"
-check docker "Install from https://www.docker.com/get-started"
+check node "Install Node.js 20.19.0 or newer from https://nodejs.org"
+check npm "npm is bundled with Node.js"
+check openssl "Install OpenSSL so setup can generate secure secrets"
 
-echo "[ok] node $(node -v), npm $(npm -v), docker found"
+MIN_NODE_VERSION="20.19.0"
+if ! node -e '
+const current = process.versions.node.split(".").map(Number);
+const required = process.argv[1].split(".").map(Number);
+for (let index = 0; index < required.length; index += 1) {
+  if ((current[index] ?? 0) > required[index]) process.exit(0);
+  if ((current[index] ?? 0) < required[index]) process.exit(1);
+}
+' "$MIN_NODE_VERSION"; then
+  echo "ERROR: Node.js $MIN_NODE_VERSION or newer is required; found $(node -v)."
+  exit 1
+fi
+
+echo "[ok] node $(node -v) and npm $(npm -v)"
 echo
 
-# ── Collect env values ────────────────────────────────────────────────────────
+SKIP_ENV=0
 if [ -f .env.local ]; then
   echo ".env.local already exists."
   read -rp "Overwrite? (y/N): " overwrite
@@ -32,7 +44,7 @@ if [ -f .env.local ]; then
   fi
 fi
 
-if [ -z "$SKIP_ENV" ]; then
+if [ "$SKIP_ENV" -eq 0 ]; then
   GENERATED_ADMIN_PASSWORD=$(openssl rand -base64 24 | tr -d '=+/' | cut -c1-24)
   read -rp "Admin password (leave blank to generate a strong password): " ADMIN_PASSWORD
   if [ -z "$ADMIN_PASSWORD" ]; then
@@ -40,30 +52,28 @@ if [ -z "$SKIP_ENV" ]; then
     echo "[info] Generated a strong admin password and saved it to .env.local"
   fi
 
-  read -rp "Claude API Key (required): " CLAUDE_API_KEY
-  while [ -z "$CLAUDE_API_KEY" ]; do
-    echo "  API key cannot be empty. Get one at https://console.anthropic.com"
-    read -rp "Claude API Key: " CLAUDE_API_KEY
-  done
-
-  read -rp "Claude model [claude-sonnet-4-6]: " CLAUDE_MODEL
-  CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-6}
-
+  read -rp "Claude API Key (optional): " CLAUDE_API_KEY
+  read -rp "Claude model [claude-opus-4-8]: " CLAUDE_MODEL
+  CLAUDE_MODEL=${CLAUDE_MODEL:-claude-opus-4-8}
   read -rp "Claude API host (press Enter for default): " CLAUDE_API_HOST
 
   NEXTAUTH_SECRET=$(openssl rand -base64 32)
 
-  # Write .env.local
   cat > .env.local <<EOF
 # Auth
 ADMIN_PASSWORD=$ADMIN_PASSWORD
 NEXTAUTH_SECRET=$NEXTAUTH_SECRET
 NEXTAUTH_URL=http://localhost:3000
+EOF
+
+  if [ -n "$CLAUDE_API_KEY" ]; then
+    cat >> .env.local <<EOF
 
 # Claude AI
 CLAUDE_API_KEY=$CLAUDE_API_KEY
 CLAUDE_MODEL=$CLAUDE_MODEL
 EOF
+  fi
 
   if [ -n "$CLAUDE_API_HOST" ]; then
     echo "CLAUDE_API_HOST=$CLAUDE_API_HOST" >> .env.local
@@ -73,26 +83,18 @@ EOF
   echo "[ok] .env.local created"
 fi
 
-# ── Install dependencies ──────────────────────────────────────────────────────
 echo
 echo "Installing npm dependencies..."
-npm install --silent
+if [ -f package-lock.json ]; then
+  npm ci --no-audit --no-fund
+else
+  npm install --no-audit --no-fund
+fi
 echo "[ok] dependencies installed"
 
-# ── Create directories ────────────────────────────────────────────────────────
 mkdir -p content/posts uploads data
-echo "[ok] data directories ready"
+echo "[ok] SQLite, content, and upload directories are ready"
 
-# ── Start MongoDB ─────────────────────────────────────────────────────────────
-echo
-echo "Starting MongoDB via Docker..."
-if docker compose up -d 2>/dev/null; then
-  echo "[ok] MongoDB running on port 27017"
-else
-  echo "[warn] Docker failed. MongoDB is optional — the app will work without history."
-fi
-
-# ── Done ──────────────────────────────────────────────────────────────────────
 echo
 echo "================================"
 echo "  Setup complete!"
@@ -101,4 +103,5 @@ echo
 echo "  Start dev server:  npm run dev"
 echo "  Then open:         http://localhost:3000"
 echo "  Admin login:       http://localhost:3000/login"
+echo "  Optional Docker:   docker compose up -d"
 echo

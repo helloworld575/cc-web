@@ -21,7 +21,7 @@ export default function FilesPage() {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [activeAlbum, setActiveAlbum] = useState<string>('');
   const { t } = useLocale();
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetch('/api/albums').then(r => r.json()).then(d => setAlbums(d.albums ?? [])).catch(() => {});
@@ -40,7 +40,7 @@ export default function FilesPage() {
 
   function onSearch(v: string) {
     setSearch(v);
-    clearTimeout(debounceRef.current);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => { setDebouncedSearch(v); setPage(1); }, 300);
   }
   function onFrom(v: string) { setFrom(v); setPage(1); }

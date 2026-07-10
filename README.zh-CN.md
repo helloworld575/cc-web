@@ -1,6 +1,6 @@
 # ThomasLee 的博客
 
-基于 **Next.js 14** 和 **SQLite** 的个人博客与工具箱。
+基于 **Next.js 16** 和 **SQLite** 的个人博客与工具箱。
 
 📖 [English](./README.md) · 📚 [完整文档](./docs/zh/)
 
@@ -17,7 +17,7 @@
 
 ## 安装
 
-**需要 Node.js 18+**。
+**需要 Node.js 20.19+**。
 
 ```bash
 git clone <仓库地址>
@@ -29,7 +29,8 @@ cd my-site
 - 检查 Node.js 版本
 - 询问管理员密码和 Claude API key（可选）
 - 生成 `.env.local`
-- 安装 npm 依赖
+- 使用 `npm ci` 安装锁定版本的 npm 依赖
+- 创建 SQLite、博客内容和上传目录
 
 启动开发服务器：
 
@@ -124,10 +125,12 @@ docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```bash
 npm test          # 跑一次
 npm run test:managed
+npm run e2e
+npm run e2e:headed
 npm run test:watch
 ```
 
-152+ 测试覆盖所有 API 路由、认证、频率限制、流式响应。
+当前包含 42 个文件中的 238 项 Vitest 测试，以及 23 条 Playwright e2e 流程，覆盖 API、认证、频率限制、流式响应、编辑器、上传和工具工作台。
 
 如果本地命令可能留下监听端口或子进程，优先使用受控执行入口：
 
@@ -155,7 +158,7 @@ node scripts/run-managed-command.mjs --label e2e-local --clear-port 3000 -- <你
 
 | 分层 | 选型 |
 |------|------|
-| 框架 | Next.js 14（App Router）|
+| 框架 | Next.js 16（App Router）|
 | 语言 | TypeScript |
 | 数据库 | SQLite（`better-sqlite3`）|
 | 认证 | NextAuth.js（credentials）|

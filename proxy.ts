@@ -2,27 +2,23 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-// Note: middleware runs in Edge runtime, cannot import lib/rateLimit (Node.js)
-// Keep a lightweight inline Map for auth rate limiting only
+// Keep request-boundary state lightweight and isolated from SQLite/server auth config.
 const authHits = new Map<string, { count: number; reset: number }>();
 const MAX_AUTH_ENTRIES = 500;
 
-// Cleanup stale entries periodically (inline since Edge can't use setInterval reliably)
 function cleanupIfNeeded() {
   if (authHits.size < MAX_AUTH_ENTRIES) return;
   const now = Date.now();
   authHits.forEach((entry, key) => {
     if (now > entry.reset) authHits.delete(key);
   });
-  // If still over limit after cleanup, evict oldest
   if (authHits.size >= MAX_AUTH_ENTRIES) {
     const firstKey = authHits.keys().next().value;
     if (firstKey !== undefined) authHits.delete(firstKey);
   }
 }
 
-export async function middleware(req: NextRequest) {
-  // Rate limit auth POST
+export async function proxy(req: NextRequest) {
   if (req.nextUrl.pathname.startsWith('/api/auth') && req.method === 'POST') {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
     const key = `auth:${ip}`;
@@ -39,7 +35,6 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // Protect admin routes
   if (req.nextUrl.pathname.startsWith('/admin')) {
     // Keep this aligned with authOptions.useSecureCookies for NAS LAN HTTP access.
     const token = await getToken({

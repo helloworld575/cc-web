@@ -13,9 +13,10 @@ function cleanText(value: unknown, maxLength: number) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
 
-export async function GET(_: Request, { params }: { params: { slug: string } }) {
-  if (!validSlug(params.slug)) return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
-  if (!getPost(params.slug)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+export async function GET(_: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  if (!validSlug(slug)) return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
+  if (!getPost(slug)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const comments = db.prepare(`
     SELECT id, author, content, created_at
@@ -23,14 +24,15 @@ export async function GET(_: Request, { params }: { params: { slug: string } }) 
     WHERE slug = ? AND status = 'visible'
     ORDER BY created_at ASC, id ASC
     LIMIT 100
-  `).all(params.slug);
+  `).all(slug);
 
   return NextResponse.json(comments);
 }
 
-export async function POST(req: Request, { params }: { params: { slug: string } }) {
-  if (!validSlug(params.slug)) return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
-  if (!getPost(params.slug)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  if (!validSlug(slug)) return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
+  if (!getPost(slug)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const rl = rateLimitByIp(req, 'blog-comments', 10);
   if (rl) return rl;
@@ -53,7 +55,7 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
   const result = db.prepare(`
     INSERT INTO blog_comments (slug, author, content, status)
     VALUES (?, ?, ?, 'visible')
-  `).run(params.slug, author, content);
+  `).run(slug, author, content);
 
   const comment = db.prepare(`
     SELECT id, author, content, created_at
@@ -61,6 +63,6 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
     WHERE id = ?
   `).get(result.lastInsertRowid);
 
-  revalidatePath(`/blog/${params.slug}`);
+  revalidatePath(`/blog/${slug}`);
   return NextResponse.json(comment);
 }

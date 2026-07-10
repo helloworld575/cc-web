@@ -382,10 +382,14 @@ async function main() {
     if (resolvedCommand !== parsed.command[0]) {
       logger.write('INFO', `Resolved executable: ${resolvedCommand}`);
     }
+    const childEnv = { ...process.env };
+    if (parsed.command.some(part => part.toLowerCase().includes('playwright'))) {
+      delete childEnv.NO_COLOR;
+    }
     child = spawn(resolvedCommand, parsed.command.slice(1), {
       argv0: parsed.command[0],
       cwd: parsed.cwd,
-      env: process.env,
+      env: childEnv,
       stdio: ['inherit', 'pipe', 'pipe'],
       shell: false,
       detached: process.platform !== 'win32',

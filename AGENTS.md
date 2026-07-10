@@ -10,14 +10,14 @@ Load the larger cache files only when the task needs that detail:
 - `.codex/cache/project-context.json`: machine-readable inventory for scripted or exact lookups.
 - `.codex/cache/legacy-summary.md`: Claude, Kiro, or IDE migration provenance.
 
-This repository is a Next.js 14 App Router application backed by SQLite. It mixes a personal blog with internal tools: diary, todos, file albums, AI chat, subscriptions, X posting, and Chinese fortune workflows.
+This repository is a Next.js 16 App Router application backed by SQLite. It mixes a personal blog with internal tools: diary, todos, file albums, AI chat, subscriptions, X posting, and Chinese fortune workflows.
 
 ## Source Of Truth
 
 - Runtime AI skills now live in `.codex/skills/` and are loaded by `lib/skills.ts`.
 - `npm run codex:skills` normalizes `.codex/skills/` metadata and prompt contracts in place.
 - Database schema, migrations, and prepared statements live in `lib/db.ts`.
-- Auth and admin protection are split between `lib/auth.ts` and `middleware.ts`.
+- Auth and admin protection are split between `lib/auth.ts` and `proxy.ts`.
 - Tests under `tests/api/` are the expected safety net for API changes.
 
 ## Codex Cache
@@ -42,6 +42,7 @@ This repository is a Next.js 14 App Router application backed by SQLite. It mixe
 - Keep `.codex/skills/` as the single source of truth for both runtime and Codex discovery.
 - When `.codex/skills/` changes structurally, rerun `npm run codex:skills` to normalize metadata and prompt contracts.
 - Routes that touch SQLite, filesystem, or streaming should stay on `runtime = 'nodejs'`.
+- Keep `proxy.ts` isolated from `lib/db`, `lib/auth`, filesystem modules, and `better-sqlite3`.
 - Styling is Tailwind-first; do not introduce CSS modules unless the repo direction changes.
 - Keep architecture checks executable in `scripts/check-architecture.mjs`; do not rely only on prose rules when a boundary can be checked in code.
 - New or changed API routes should be covered by Vitest tests in `tests/api/`.

@@ -4,22 +4,24 @@ import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const source = db.prepare('SELECT * FROM subscription_sources WHERE id = ?').get(params.id);
+  const { id } = await params;
+  const source = db.prepare('SELECT * FROM subscription_sources WHERE id = ?').get(id);
   if (!source) return Response.json({ error: 'Not found' }, { status: 404 });
   return Response.json(source);
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   const rl = rateLimitByIp(req, 'subscriptions', 20);
   if (rl) return rl;
 
-  const existing = db.prepare('SELECT * FROM subscription_sources WHERE id = ?').get(params.id);
+  const { id } = await params;
+  const existing = db.prepare('SELECT * FROM subscription_sources WHERE id = ?').get(id);
   if (!existing) return Response.json({ error: 'Not found' }, { status: 404 });
 
   let body: any;
@@ -41,15 +43,16 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
   db.prepare(
     "UPDATE subscription_sources SET name=?, url=?, category=?, enabled=?, fetch_interval=?, updated_at=datetime('now') WHERE id=?"
-  ).run(name, url, category || 'other', enabled !== undefined ? (enabled ? 1 : 0) : 1, fetch_interval || 3600, params.id);
+  ).run(name, url, category || 'other', enabled !== undefined ? (enabled ? 1 : 0) : 1, fetch_interval || 3600, id);
 
   return Response.json({ ok: true });
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  db.prepare('DELETE FROM subscription_sources WHERE id = ?').run(params.id);
+  const { id } = await params;
+  db.prepare('DELETE FROM subscription_sources WHERE id = ?').run(id);
   return Response.json({ ok: true });
 }

@@ -55,16 +55,16 @@ function assertNodeRuntimeForServerRoutes(files) {
   }
 }
 
-function assertMiddlewareIsEdgeSafe(files) {
-  const middleware = files.find(file => file === 'middleware.ts');
-  if (!middleware) return;
-  const source = readText(middleware);
+function assertRequestBoundaryIsIsolated(files) {
+  const requestBoundary = files.find(file => file === 'proxy.ts') ?? files.find(file => file === 'middleware.ts');
+  if (!requestBoundary) return;
+  const source = readText(requestBoundary);
   const forbidden = [
     { pattern: /from ['"](@\/lib\/db|better-sqlite3|fs|fs\/promises|path)['"]/, label: 'Node-only imports' },
     { pattern: /from ['"]@\/lib\/auth['"]/, label: 'NextAuth server config imports' },
   ];
   for (const rule of forbidden) {
-    if (rule.pattern.test(source)) report(middleware, `${rule.label} are not allowed in Edge middleware.`);
+    if (rule.pattern.test(source)) report(requestBoundary, `${rule.label} are not allowed in the request proxy.`);
   }
 }
 
@@ -114,11 +114,30 @@ function assertCodexSourceOfTruth() {
 }
 
 function assertNoLargeClientFiles(files) {
-  const largeFileLimit = 1000;
+  const largeFileLimit = 900;
   for (const file of files.filter(item => item.endsWith('.tsx') && (item.startsWith('app/') || item.startsWith('components/')))) {
     const lines = readText(file).split('\n').length;
     if (lines > largeFileLimit) {
       report(file, `React file has ${lines} lines; split large UI/state modules before extending further.`);
+    }
+  }
+}
+
+function assertToolTabCodeSplitting() {
+  const toolsPage = 'app/tools/page.tsx';
+  if (!existsSync(path.join(root, toolsPage))) return;
+  const source = readText(toolsPage);
+  const heavyToolImports = [
+    'AIChatTool',
+    'AIImageTool',
+    'FortuneTool',
+    'SubscriptionBriefsTool',
+  ];
+
+  for (const component of heavyToolImports) {
+    const staticImport = new RegExp(`import\\s+${component}\\s+from\\s+['\"]@/components/${component}['\"]`);
+    if (staticImport.test(source)) {
+      report(toolsPage, `${component} must be loaded with next/dynamic so inactive tool tabs stay out of the initial bundle.`);
     }
   }
 }
@@ -133,11 +152,12 @@ function assertPackageScripts() {
 
 const files = walk('.');
 assertNodeRuntimeForServerRoutes(files);
-assertMiddlewareIsEdgeSafe(files);
+assertRequestBoundaryIsIsolated(files);
 assertLayerBoundaries(files);
 assertStyleBoundaries(files);
 assertCodexSourceOfTruth();
 assertNoLargeClientFiles(files);
+assertToolTabCodeSplitting();
 assertPackageScripts();
 
 if (failures.length > 0) {

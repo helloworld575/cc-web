@@ -18,7 +18,7 @@ const DIRECTORY_DESCRIPTIONS = {
 
 const KEY_FILE_DESCRIPTIONS = {
   'AGENTS.md': 'Codex working guide for repository-specific workflow and constraints.',
-  'middleware.ts': 'Edge middleware for admin auth protection and auth-route rate limiting.',
+  'proxy.ts': 'Request proxy for admin auth protection and auth-route rate limiting.',
   'package.json': 'Project metadata and npm scripts for Next.js, Vitest, and Codex cache refresh.',
   'next.config.mjs': 'Next.js configuration.',
   'tailwind.config.ts': 'Tailwind theme configuration.',
@@ -290,7 +290,7 @@ const cache = {
     version: pkg.version,
     private: pkg.private,
     packageManager: fs.existsSync(path.join(root, 'package-lock.json')) ? 'npm' : 'unknown',
-    framework: 'Next.js 14 App Router',
+    framework: 'Next.js 16 App Router',
     language: 'TypeScript',
     database: 'SQLite via better-sqlite3',
     styling: 'Tailwind CSS',
@@ -333,8 +333,8 @@ Generated: ${generatedAt}
 ## Snapshot
 
 - App: \`${cache.project.name}\` (${cache.project.framework}, ${cache.project.language})
-- Data/auth: SQLite via \`lib/db.ts\`; auth in \`lib/auth.ts\` and \`middleware.ts\`
-- UI: Tailwind CSS in a Next.js 14 App Router app
+- Data/auth: SQLite via \`lib/db.ts\`; auth in \`lib/auth.ts\` and \`proxy.ts\`
+- UI: Tailwind CSS in a Next.js 16 App Router app
 - Tests: Vitest under \`tests/\`; e2e via Playwright
 - Runtime skills: \`.codex/skills/*/SKILL.md\` loaded by \`lib/skills.ts\`
 
@@ -368,7 +368,7 @@ Generated: ${generatedAt}
 ## Snapshot
 
 - Name: \`${cache.project.name}\`
-- Stack: Next.js 14 App Router, TypeScript, SQLite, Tailwind CSS, Vitest
+- Stack: Next.js 16 App Router, TypeScript, SQLite, Tailwind CSS, Vitest
 - Package manager: \`${cache.project.packageManager}\`
 - Primary runtime skill source: \`.codex/skills\`
 - Cache refresh command: \`npm run codex:cache\`

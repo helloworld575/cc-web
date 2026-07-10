@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { login } from './helpers';
 
 test('public tools hide AI actions while keeping subscription briefs visible', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { login } from './helpers';
 
 test('admin todos can be created, filtered, completed, and deleted', async ({ page }) => {

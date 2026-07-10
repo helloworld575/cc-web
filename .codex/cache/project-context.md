@@ -1,11 +1,11 @@
 # Codex Project Context
 
-Generated: 2026-07-09T17:39:46.996Z
+Generated: 2026-07-10T02:24:56.975Z
 
 ## Snapshot
 
 - Name: `my-site`
-- Stack: Next.js 14 App Router, TypeScript, SQLite, Tailwind CSS, Vitest
+- Stack: Next.js 16 App Router, TypeScript, SQLite, Tailwind CSS, Vitest
 - Package manager: `npm`
 - Primary runtime skill source: `.codex/skills`
 - Cache refresh command: `npm run codex:cache`
@@ -22,7 +22,7 @@ Generated: 2026-07-09T17:39:46.996Z
 ## Key Files
 
 - `AGENTS.md`: Codex working guide for repository-specific workflow and constraints.
-- `middleware.ts`: Edge middleware for admin auth protection and auth-route rate limiting.
+- `proxy.ts`: Request proxy for admin auth protection and auth-route rate limiting.
 - `package.json`: Project metadata and npm scripts for Next.js, Vitest, and Codex cache refresh.
 - `next.config.mjs`: Next.js configuration.
 - `tailwind.config.ts`: Tailwind theme configuration.
@@ -183,7 +183,7 @@ Generated: 2026-07-09T17:39:46.996Z
 
 ## Tests
 
-- API and helper test files: 41
+- API and helper test files: 42
 - Examples: `tests/api/admin/blog-analytics.test.ts`, `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai-providers/test.test.ts`, `tests/api/ai/route.test.ts`
 
 ## Notes

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { login } from './helpers';
 
 test('admin Claude Code page exposes the worker prompt UI', async ({ page }) => {

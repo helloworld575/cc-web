@@ -1,13 +1,25 @@
 'use client';
+import dynamic from 'next/dynamic';
 import { useDeferredValue, useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Pagination from '@/components/Pagination';
-import FortuneTool from '@/components/FortuneTool';
-import AIChatTool from '@/components/AIChatTool';
-import AIImageTool from '@/components/AIImageTool';
-import SubscriptionBriefsTool from '@/components/SubscriptionBriefsTool';
 import { useLocale } from '@/components/useLocale';
 import { formatSkillPath, groupSkillSummaries, matchSkillSummary, type SkillSummary } from '@/lib/skill-taxonomy';
+
+function ToolPanelLoading() {
+  return (
+    <div className="flex min-h-[420px] items-center justify-center rounded-[28px] border border-white/70 bg-white/90 text-sm text-slate-500 shadow-sm">
+      Loading tool...
+    </div>
+  );
+}
+
+const FortuneTool = dynamic(() => import('@/components/FortuneTool'), { loading: ToolPanelLoading });
+const AIChatTool = dynamic(() => import('@/components/AIChatTool'), { loading: ToolPanelLoading });
+const AIImageTool = dynamic(() => import('@/components/AIImageTool'), { loading: ToolPanelLoading });
+const SubscriptionBriefsTool = dynamic(() => import('@/components/SubscriptionBriefsTool'), {
+  loading: ToolPanelLoading,
+});
 
 interface Todo {
   id: number;

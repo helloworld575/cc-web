@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { NextRequest } from 'next/server';
-import { middleware } from '@/middleware';
+import { proxy } from '@/proxy';
 import { getToken } from 'next-auth/jwt';
 
 vi.mock('next-auth/jwt', () => ({
@@ -17,12 +17,12 @@ function request(pathname: string, init: Partial<NextRequest> = {}) {
   } as NextRequest;
 }
 
-describe('middleware', () => {
+describe('request proxy', () => {
   it('reads admin auth tokens from non-secure NAS LAN cookies', async () => {
     process.env.NEXTAUTH_SECRET = 'test-secret';
     vi.mocked(getToken).mockResolvedValue({ name: 'Admin' });
 
-    const response = await middleware(request('/admin/blog'));
+    const response = await proxy(request('/admin/blog'));
 
     expect(getToken).toHaveBeenCalledWith({
       req: expect.anything(),

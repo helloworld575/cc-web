@@ -4,9 +4,9 @@ import "@toast-ui/editor/dist/toastui-editor.css";
 import SessionProvider from "@/components/SessionProvider";
 import Nav from "@/components/Nav";
 import SiteFooter from "@/components/SiteFooter";
-import dynamic from 'next/dynamic';
+import DeadlineAlert from '@/components/DeadlineAlert';
+import HydrationReady from '@/components/HydrationReady';
 
-const DeadlineAlert = dynamic(() => import('@/components/DeadlineAlert'), { ssr: false });
 const siteUrl = 'https://thomaslee.site';
 const currentYear = new Date().getFullYear();
 
@@ -44,8 +44,9 @@ export const viewport: Viewport = { width: 'device-width', initialScale: 1 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen flex flex-col antialiased">
+      <body inert className="min-h-screen flex flex-col antialiased">
         <SessionProvider>
+          <HydrationReady />
           <Nav />
           <DeadlineAlert />
           <div className="flex-1">

@@ -1,12 +1,12 @@
 # Codex Project Brief
 
-Generated: 2026-07-09T17:39:46.996Z
+Generated: 2026-07-10T02:24:56.975Z
 
 ## Snapshot
 
-- App: `my-site` (Next.js 14 App Router, TypeScript)
-- Data/auth: SQLite via `lib/db.ts`; auth in `lib/auth.ts` and `middleware.ts`
-- UI: Tailwind CSS in a Next.js 14 App Router app
+- App: `my-site` (Next.js 16 App Router, TypeScript)
+- Data/auth: SQLite via `lib/db.ts`; auth in `lib/auth.ts` and `proxy.ts`
+- UI: Tailwind CSS in a Next.js 16 App Router app
 - Tests: Vitest under `tests/`; e2e via Playwright
 - Runtime skills: `.codex/skills/*/SKILL.md` loaded by `lib/skills.ts`
 

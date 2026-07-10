@@ -1,19 +1,20 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { type BaziResult, ELEMENT_COLOR } from '@/lib/bazi';
+import { type BaziResult } from '@/lib/bazi';
 import { type ZiweiResult } from '@/lib/ziwei';
-import { type HexagramResult, TRIGRAMS } from '@/lib/yijing';
+import { type HexagramResult } from '@/lib/yijing';
 import StreamingMarkdown from '@/components/StreamingMarkdown';
+import { BirthInputs, ElementBar, HexagramDisplay, PillarCard } from '@/components/fortune/FortuneVisuals';
 
 type Method = 'bazi' | 'ziwei' | 'liuyao' | 'meihua';
 
 interface HistoryEntry {
-  _id: string;
+  id: number;
   method: Method;
   input: Record<string, unknown>;
   preflight: Record<string, unknown>;
   analysis: string;
-  createdAt: string;
+  created_at: string;
 }
 
 const METHOD_META: Record<Method, { label: string; icon: string; description: string }> = {
@@ -42,170 +43,6 @@ const METHOD_META: Record<Method, { label: string; icon: string; description: st
 const BAZI_ASPECTS = ['性格特质', '事业财运', '婚恋感情', '健康养生', '流年运势'];
 const ZIWEI_ASPECTS = ['性格命格', '事业官禄', '婚姻夫妻', '财富走势', '大限流年'];
 
-const HOURS = Array.from({ length: 24 }, (_, hour) => ({
-  value: hour,
-  label: `${String(hour).padStart(2, '0')}:00`,
-}));
-
-function PillarCard({
-  title,
-  pillar,
-  accent,
-}: {
-  title: string;
-  pillar: BaziResult['year'];
-  accent?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-[24px] border px-4 py-4 text-center shadow-sm ${
-        accent
-          ? 'border-slate-900 bg-slate-900 text-white'
-          : 'border-white/80 bg-white/95 text-slate-800'
-      }`}
-    >
-      <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${accent ? 'text-white/50' : 'text-slate-400'}`}>
-        {title}
-      </p>
-      <div className="mt-3 text-3xl font-semibold">{pillar.stem}</div>
-      <div className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs ${ELEMENT_COLOR[pillar.stemElement] || 'border-slate-200 bg-slate-50 text-slate-600'}`}>
-        {pillar.stemElement}
-      </div>
-      <div className={`mx-auto my-4 h-px w-full ${accent ? 'bg-white/15' : 'bg-slate-100'}`} />
-      <div className="text-3xl font-semibold">{pillar.branch}</div>
-      <div className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs ${ELEMENT_COLOR[pillar.branchElement] || 'border-slate-200 bg-slate-50 text-slate-600'}`}>
-        {pillar.branchElement}
-      </div>
-    </div>
-  );
-}
-
-function ElementBar({ elements }: { elements: Record<string, number> }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {Object.entries(elements).map(([element, count]) => (
-        <span
-          key={element}
-          className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${ELEMENT_COLOR[element] || 'border-slate-200 bg-slate-50 text-slate-600'}`}
-        >
-          {element} x {count}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function BirthInputs({
-  year,
-  month,
-  day,
-  hour,
-  onYear,
-  onMonth,
-  onDay,
-  onHour,
-}: {
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  onYear: (value: number) => void;
-  onMonth: (value: number) => void;
-  onDay: (value: number) => void;
-  onHour: (value: number) => void;
-}) {
-  const inputClassName =
-    'w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-amber-300 focus:ring-4 focus:ring-amber-100';
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <label className="block">
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Year</span>
-        <input
-          type="number"
-          value={year}
-          onChange={event => onYear(Number(event.target.value))}
-          className={inputClassName}
-          min={1900}
-          max={new Date().getFullYear()}
-        />
-      </label>
-      <label className="block">
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Month</span>
-        <select value={month} onChange={event => onMonth(Number(event.target.value))} className={inputClassName}>
-          {Array.from({ length: 12 }, (_, index) => index + 1).map(value => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="block">
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Day</span>
-        <select value={day} onChange={event => onDay(Number(event.target.value))} className={inputClassName}>
-          {Array.from({ length: 31 }, (_, index) => index + 1).map(value => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="block">
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Hour</span>
-        <select value={hour} onChange={event => onHour(Number(event.target.value))} className={inputClassName}>
-          {HOURS.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-    </div>
-  );
-}
-
-function HexagramDisplay({ result }: { result: HexagramResult }) {
-  const upper = TRIGRAMS[result.upperBinary];
-  const lower = TRIGRAMS[result.lowerBinary];
-
-  return (
-    <section className="rounded-[30px] border border-white/70 bg-white/95 px-5 py-5 shadow-sm animate-slide-up">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Hexagram</p>
-          <h3 className="mt-2 font-display text-3xl text-slate-900">{result.hexagram.fullName}</h3>
-          <p className="mt-2 text-sm text-slate-500">
-            上卦 {upper.name} / {upper.element}，下卦 {lower.name} / {lower.element}
-          </p>
-          {result.transformed && (
-            <p className="mt-3 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-              变卦 {result.transformed.fullName}
-            </p>
-          )}
-        </div>
-
-        <div className="grid gap-2">
-          {result.lines.slice().reverse().map((line, index) => {
-            const lineIndex = result.lines.length - index - 1;
-            const changing = result.changingLines.includes(lineIndex);
-            const isYang = line === 7 || line === 9;
-
-            return (
-              <div key={`${line}-${lineIndex}`} className="flex items-center gap-3 text-sm">
-                <span className="w-12 text-xs uppercase tracking-[0.18em] text-slate-400">L{lineIndex + 1}</span>
-                <div className={`flex items-center gap-2 ${changing ? 'text-rose-600' : 'text-slate-800'}`}>
-                  <span className={`hex-line ${isYang ? 'hex-line-yang' : 'hex-line-yin'}`} />
-                  {changing && <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">changing</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export default function FortuneTool() {
   const [tab, setTab] = useState<'fortune' | 'history'>('fortune');
   const [method, setMethod] = useState<Method>('bazi');
@@ -232,7 +69,7 @@ export default function FortuneTool() {
   const [error, setError] = useState('');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [savedToHistory, setSavedToHistory] = useState(false);
 
   useEffect(() => {
@@ -278,13 +115,13 @@ export default function FortuneTool() {
     }
   }
 
-  async function deleteEntry(id: string) {
+  async function deleteEntry(id: number) {
     if (!confirm('Delete this reading?')) return;
 
     const response = await fetch(`/api/fortune/history/${id}`, { method: 'DELETE' });
     if (!response.ok) return;
 
-    setHistory(current => current.filter(entry => entry._id !== id));
+    setHistory(current => current.filter(entry => entry.id !== id));
     if (expandedId === id) setExpandedId(null);
   }
 
@@ -733,12 +570,12 @@ export default function FortuneTool() {
               <div className="space-y-3">
                 {history.map((entry, index) => (
                   <div
-                    key={entry._id}
+                    key={entry.id}
                     className="rounded-[26px] border border-white/70 bg-white/92 shadow-sm animate-slide-up"
                     style={{ animationDelay: `${index * 45}ms` }}
                   >
                     <button
-                      onClick={() => setExpandedId(current => (current === entry._id ? null : entry._id))}
+                      onClick={() => setExpandedId(current => (current === entry.id ? null : entry.id))}
                       className="flex w-full items-start gap-4 px-4 py-4 text-left"
                     >
                       <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold tracking-[0.2em] text-white">
@@ -747,21 +584,21 @@ export default function FortuneTool() {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-slate-900">{METHOD_META[entry.method].label}</p>
                         <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-                          {new Date(entry.createdAt).toLocaleString()}
+                          {new Date(entry.created_at).toLocaleString()}
                         </p>
                         <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">{entry.analysis}</p>
                       </div>
-                      <span className={`mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 transition ${expandedId === entry._id ? 'rotate-180' : ''}`}>
+                      <span className={`mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 transition ${expandedId === entry.id ? 'rotate-180' : ''}`}>
                         open
                       </span>
                     </button>
 
-                    {expandedId === entry._id && (
+                    {expandedId === entry.id && (
                       <div className="border-t border-slate-100 px-4 py-4">
                         <StreamingMarkdown content={entry.analysis} />
                         <div className="mt-4 flex justify-end">
                           <button
-                            onClick={() => deleteEntry(entry._id)}
+                            onClick={() => deleteEntry(entry.id)}
                             className="rounded-full border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-600 transition hover:bg-red-50"
                           >
                             Delete

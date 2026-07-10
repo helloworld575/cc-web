@@ -24,7 +24,7 @@ Read these first:
 - For large changes, require `npm run verify:large`.
 - For API/interface changes, require focused `tests/api/` coverage.
 - Confirm SQLite, filesystem, and streaming API routes use `export const runtime = 'nodejs'`.
-- Confirm middleware remains Edge-safe and does not import `lib/db`, `lib/auth`, `fs`, `path`, or `better-sqlite3`.
+- Confirm `proxy.ts` remains isolated and does not import `lib/db`, `lib/auth`, `fs`, `path`, or `better-sqlite3`.
 - Confirm UI/components do not import the database layer directly.
 - Confirm styles remain Tailwind-first; reject CSS modules and ad hoc styling systems.
 - Confirm runtime skills stay under `.codex/skills/` and structural skill changes are normalized with `npm run codex:skills`.

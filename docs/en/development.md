@@ -4,7 +4,7 @@ How to set up, develop, and deploy this site.
 
 ## Tech Stack
 
-- **Framework**: Next.js 14.2 (App Router)
+- **Framework**: Next.js 16.2 (App Router)
 - **Language**: TypeScript
 - **Database**: SQLite via `better-sqlite3`
 - **Auth**: NextAuth.js (credentials provider)
@@ -20,7 +20,7 @@ How to set up, develop, and deploy this site.
 my-site/
 ├── app/                     # Next.js App Router
 │   ├── api/                 # API routes
-│   ├── admin/               # Admin pages (gated by middleware)
+│   ├── admin/               # Admin pages (gated by the request proxy)
 │   ├── blog/                # Public blog pages
 │   ├── tools/               # Tools page (todos, diary, fortune, chat, subs)
 │   └── layout.tsx
@@ -37,15 +37,17 @@ my-site/
 ├── uploads/                 # User-uploaded images
 ├── data/site.db             # SQLite database
 ├── tests/                   # Vitest tests
-└── middleware.ts            # Auth + rate limit middleware
+└── proxy.ts                 # Auth + rate limit request proxy
 ```
 
 ## Setup
 
+Requires Node.js 20.19 or newer.
+
 1. Clone the repo
 2. Install dependencies:
    ```bash
-   npm install
+   npm ci
    ```
 3. Copy env template and fill in values:
    ```bash
@@ -102,7 +104,7 @@ Rules:
   npm run verify        # lint + Vitest + production build
   npm run verify:large  # verify + full Playwright e2e suite
   ```
-- `npm run lint:architecture` enforces executable project boundaries, including Node runtime declarations for SQLite/filesystem/streaming routes, Edge-safe middleware, Tailwind-first styling, and `.codex/skills/` as the skill source of truth.
+- `npm run lint:architecture` enforces executable project boundaries, including Node runtime declarations for SQLite/filesystem/streaming routes, an isolated request proxy, lazy-loaded heavy tool tabs, React file-size limits, Tailwind-first styling, and `.codex/skills/` as the skill source of truth.
 - Use `.codex/agents/architecture-reviewer.md` for dedicated architecture/style audits and context cleanup.
 - Reserve `./deploy-to-nas.sh` for large or release-worthy changes. Small changes usually stop after Git push.
 - Long-running local test and smoke flows should use the managed runner so logs are captured and cleanup is enforced:
@@ -280,7 +282,8 @@ It also writes a timestamped deploy log to `log/deploy/`, removes the remote sta
 
 ## Common Gotchas
 
-- `better-sqlite3` is native — can only be used in Node runtime, not Edge middleware
+- `better-sqlite3` is native and must stay in Node-runtime routes; keep `proxy.ts` isolated from the database and server auth configuration
+- Next.js 16 dynamic route `params` are promises and must be awaited in pages and route handlers
 - `useLocale` hook uses cookies — wrap locale-dependent UI in `suppressHydrationWarning` to avoid SSR mismatches
 - API routes that use streaming (`text/event-stream`) need `runtime = 'nodejs'` and proper ReadableStream handling
 - The `.codex/skills/` directory is used by both the web app (`lib/skills.ts`) and Codex skill discovery — keep skills compatible with both

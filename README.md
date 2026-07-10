@@ -1,6 +1,6 @@
 # ThomasLee's Blog
 
-Personal blog & toolbox built with **Next.js 14** and **SQLite**.
+Personal blog & toolbox built with **Next.js 16** and **SQLite**.
 
 📖 [中文版](./README.zh-CN.md) · 📚 [Full docs](./docs/en/)
 
@@ -18,7 +18,7 @@ Personal blog & toolbox built with **Next.js 14** and **SQLite**.
 
 ## Setup
 
-**Requires Node.js 18+**.
+**Requires Node.js 20.19+**.
 
 ```bash
 git clone <your-repo-url>
@@ -30,7 +30,8 @@ The setup script will:
 - Check Node.js version
 - Prompt for admin password and (optional) Claude API key
 - Generate `.env.local`
-- Install npm dependencies
+- Install locked npm dependencies with `npm ci`
+- Create the SQLite, content, and upload directories
 
 Start the dev server:
 
@@ -146,7 +147,7 @@ npm run e2e:headed
 npm run test:watch
 ```
 
-152+ tests covering all API routes, auth, rate limiting, and streaming responses.
+The current suite contains 238 Vitest tests across 42 files plus 23 Playwright e2e flows covering API routes, auth, rate limiting, streaming responses, editors, uploads, and the tools workspace.
 The Playwright suite runs against `.tmp/e2e-runtime`, uses mock streaming for AI chat and fortune flows, and always goes through the managed runner so port `3001`, child processes, and temp artifacts are cleaned up after each run.
 
 Use the managed runner when a command may leave ports or child processes behind:
@@ -175,7 +176,7 @@ Managed logs are written to `log/automation/`.
 
 | Layer | Choice |
 |-------|--------|
-| Framework | Next.js 14 (App Router) |
+| Framework | Next.js 16 (App Router) |
 | Language | TypeScript |
 | Database | SQLite (`better-sqlite3`) |
 | Auth | NextAuth.js (credentials) |
