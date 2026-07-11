@@ -15,7 +15,10 @@ function mockOpenAIStreamResponse() {
       controller.close();
     },
   });
-  mockFetch.mockResolvedValue(new Response(stream, { status: 200 }));
+  mockFetch.mockResolvedValue(new Response(stream, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  }));
 }
 
 function mockResponsesStreamResponse() {
@@ -28,7 +31,10 @@ function mockResponsesStreamResponse() {
       controller.close();
     },
   });
-  mockFetch.mockResolvedValue(new Response(stream, { status: 200 }));
+  mockFetch.mockResolvedValue(new Response(stream, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  }));
 }
 
 function mockBrokenResponsesStreamResponse() {
@@ -44,7 +50,10 @@ function mockBrokenResponsesStreamResponse() {
       throw new Error('rightcode stream aborted');
     },
   });
-  mockFetch.mockResolvedValue(new Response(stream, { status: 200 }));
+  mockFetch.mockResolvedValue(new Response(stream, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  }));
 }
 
 function mockAnthropicStreamResponse() {
@@ -56,7 +65,10 @@ function mockAnthropicStreamResponse() {
       controller.close();
     },
   });
-  mockFetch.mockResolvedValue(new Response(stream, { status: 200 }));
+  mockFetch.mockResolvedValue(new Response(stream, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  }));
 }
 
 function makePostReq(body: unknown) {
@@ -67,12 +79,31 @@ function makePostReq(body: unknown) {
   });
 }
 
+function configureEnvOpenAiChatProvider() {
+  process.env.RIGHT_CODE_GPT_API_KEY = 'test-openai-key';
+  process.env.RIGHT_CODE_GPT_API_URL = 'https://api.openai.com';
+  process.env.RIGHT_CODE_GPT_MODEL = 'gpt-4o';
+  process.env.RIGHT_CODE_GPT_MAX_TOKENS = '4096';
+  process.env.RIGHT_CODE_GPT_API_STYLE = 'chat_completions';
+  return -2;
+}
+
+function configureEnvClaudeProvider() {
+  process.env.CLAUDE_API_KEY = 'test-claude-key';
+  process.env.CLAUDE_MODEL = 'claude-opus-4-8';
+  process.env.CLAUDE_API_HOST = 'https://claude-proxy.example';
+  return -1;
+}
+
 describe('POST /api/ai-chat', () => {
   beforeEach(() => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
     (getSkill as ReturnType<typeof vi.fn>).mockReturnValue(null);
     (resolveSkillReference as ReturnType<typeof vi.fn>).mockReturnValue(null);
     mockFetch.mockReset();
+    delete process.env.E2E_MOCK_STREAMS;
+    delete process.env.RIGHT_CODE_GPT_API_STYLE;
+    delete process.env.RIGHT_CODE_GPT_MAX_TOKENS;
   });
 
   it('returns 401 without session', async () => {
@@ -123,15 +154,32 @@ describe('POST /api/ai-chat', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 404 when provider not found', async () => {
+  it('rejects legacy database provider ids without reading or calling them', async () => {
     mockSession(true);
-    mockDbStmt({ get: vi.fn(() => undefined) });
+    const statement = mockDbStmt({
+      get: vi.fn(() => ({
+        id: 999,
+        name: 'Legacy provider',
+        api_type: 'openai',
+        api_url: 'https://internal-ai.example',
+        api_key: 'legacy-key',
+        model: 'legacy-model',
+        system_prompt: '',
+        max_tokens: 4096,
+      })),
+    });
     const { POST } = await import('@/app/api/ai-chat/route');
     const res = await POST(makePostReq({
       provider_id: 999,
       messages: [{ role: 'user', content: 'hi' }],
     }));
     expect(res.status).toBe(404);
+    await expect(res.json()).resolves.toEqual({
+      code: 'provider_not_found',
+      error: 'AI provider not found.',
+    });
+    expect(statement.get).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('uses the env-backed Claude provider when provider_id is -1', async () => {
@@ -195,16 +243,12 @@ describe('POST /api/ai-chat', () => {
 
   it('streams OpenAI response successfully', async () => {
     mockSession(true);
-    mockDbStmt({
-      get: vi.fn(() => ({
-        id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
-        api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
-      })),
-    });
+    const providerId = configureEnvOpenAiChatProvider();
+    mockDbStmt();
     mockOpenAIStreamResponse();
     const { POST } = await import('@/app/api/ai-chat/route');
     const res = await POST(makePostReq({
-      provider_id: 1,
+      provider_id: providerId,
       messages: [{ role: 'user', content: 'hi' }],
     }));
     expect(res.status).toBe(200);
@@ -290,7 +334,9 @@ describe('POST /api/ai-chat', () => {
     }
 
     expect(text).toContain('"text":"hello"');
-    expect(text).toContain('"error":"AI stream interrupted: rightcode stream aborted"');
+    expect(text).toContain('"code":"upstream_unavailable"');
+    expect(text).toContain('"error":"Unable to reach AI provider."');
+    expect(text).not.toContain('rightcode stream aborted');
   });
 
   it('injects the selected skill into AI chat requests', async () => {
@@ -334,76 +380,14 @@ describe('POST /api/ai-chat', () => {
     ]);
   });
 
-  it('streams saved Right Code GPT-5.5 presets through the Responses API', async () => {
-    mockSession(true);
-    mockDbStmt({
-      get: vi.fn(() => ({
-        id: 7,
-        name: 'Right Code GPT-5.5',
-        api_type: 'openai',
-        api_url: 'https://www.right.codes/codex',
-        api_key: 'saved-right-code-key',
-        model: 'gpt-5.5',
-        system_prompt: 'Be concise',
-        max_tokens: 32000,
-      })),
-    });
-    mockResponsesStreamResponse();
-
-    const { POST } = await import('@/app/api/ai-chat/route');
-    const res = await POST(makePostReq({
-      provider_id: 7,
-      messages: [
-        { role: 'user', content: 'hi' },
-        { role: 'assistant', content: 'hello' },
-        { role: 'user', content: 'again' },
-      ],
-    }));
-
-    expect(res.status).toBe(200);
-    const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/codex/v1/responses');
-    expect(init.headers.Authorization).toBe('Bearer saved-right-code-key');
-    const body = JSON.parse(init.body);
-    expect(body).toMatchObject({
-      model: 'gpt-5.5',
-      instructions: expect.stringContaining('Be concise'),
-      max_output_tokens: 32000,
-      stream: true,
-      input: [
-        {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text: 'hi' }],
-        },
-        {
-          type: 'message',
-          role: 'assistant',
-          content: [{ type: 'output_text', text: 'hello' }],
-        },
-        {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text: 'again' }],
-        },
-      ],
-    });
-    expect(body.instructions).toContain('rigorous technical assistant');
-  });
-
   it('streams Anthropic response successfully', async () => {
     mockSession(true);
-    mockDbStmt({
-      get: vi.fn(() => ({
-        id: 2, name: 'Claude', api_type: 'anthropic', api_url: 'https://api.anthropic.com',
-        api_key: 'sk-ant-123', model: 'claude-sonnet-4-6', system_prompt: 'You are helpful',
-        max_tokens: 4096,
-      })),
-    });
+    const providerId = configureEnvClaudeProvider();
+    mockDbStmt();
     mockAnthropicStreamResponse();
     const { POST } = await import('@/app/api/ai-chat/route');
     const res = await POST(makePostReq({
-      provider_id: 2,
+      provider_id: providerId,
       messages: [{ role: 'user', content: 'hi' }],
     }));
     expect(res.status).toBe(200);
@@ -412,81 +396,159 @@ describe('POST /api/ai-chat', () => {
 
   it('returns 502 when upstream API fails', async () => {
     mockSession(true);
-    mockDbStmt({
-      get: vi.fn(() => ({
-        id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
-        api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
-      })),
-    });
+    const providerId = configureEnvClaudeProvider();
+    mockDbStmt();
     mockFetch.mockResolvedValue(new Response(
-      JSON.stringify({ error: { message: 'Invalid API key' } }),
-      { status: 401 },
+      JSON.stringify({ error: 'API Key is not allowed to access this channel' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
     ));
     const { POST } = await import('@/app/api/ai-chat/route');
     const res = await POST(makePostReq({
-      provider_id: 1,
+      provider_id: providerId,
       messages: [{ role: 'user', content: 'hi' }],
     }));
     expect(res.status).toBe(502);
     const data = await res.json();
-    expect(data.error).toContain('Invalid API key');
+    expect(data).toEqual({
+      code: 'upstream_forbidden',
+      error: 'AI provider rejected the credentials or channel access.',
+      retryable: false,
+    });
+    expect(JSON.stringify(data)).not.toContain('API Key');
   });
 
-  it('returns 502 with provider network error details', async () => {
+  it('rejects successful HTML responses before creating chat history', async () => {
     mockSession(true);
-    mockDbStmt({
-      get: vi.fn(() => ({
-        id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
-        api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
-      })),
-    });
-    mockFetch.mockRejectedValue(new Error('connect ECONNREFUSED'));
+    const providerId = configureEnvClaudeProvider();
+    const run = vi.fn(() => ({ lastInsertRowid: 1, changes: 1 }));
+    mockDbStmt({ run });
+    mockFetch.mockResolvedValue(new Response('<!doctype html><html>proxy login</html>', {
+      status: 200,
+      headers: { 'Content-Type': 'text/html' },
+    }));
+
     const { POST } = await import('@/app/api/ai-chat/route');
     const res = await POST(makePostReq({
-      provider_id: 1,
+      provider_id: providerId,
+      messages: [{ role: 'user', content: 'hi' }],
+    }));
+
+    expect(res.status).toBe(502);
+    const data = await res.json();
+    expect(data).toEqual({
+      code: 'upstream_invalid_response',
+      error: 'AI provider returned an invalid response.',
+      retryable: true,
+    });
+    expect(JSON.stringify(data)).not.toMatch(/proxy login|doctype|<html/i);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('rejects empty provider response bodies before creating chat history', async () => {
+    mockSession(true);
+    const providerId = configureEnvClaudeProvider();
+    const run = vi.fn(() => ({ lastInsertRowid: 1, changes: 1 }));
+    mockDbStmt({ run });
+    mockFetch.mockResolvedValue(new Response(null, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: providerId,
+      messages: [{ role: 'user', content: 'hi' }],
+    }));
+
+    expect(res.status).toBe(502);
+    await expect(res.json()).resolves.toEqual({
+      code: 'upstream_empty_response',
+      error: 'AI provider returned an empty response.',
+      retryable: true,
+    });
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('emits a safe structured stream error for malformed SSE without exposing HTML', async () => {
+    mockSession(true);
+    const providerId = configureEnvClaudeProvider();
+    const run = vi.fn(() => ({ lastInsertRowid: 41, changes: 1 }));
+    mockDbStmt({ run });
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: <!doctype html><html>proxy login</html>\n\n'));
+        controller.close();
+      },
+    });
+    mockFetch.mockResolvedValue(new Response(stream, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: providerId,
+      messages: [{ role: 'user', content: 'hi' }],
+    }));
+    const text = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(text).toContain('"code":"upstream_invalid_response"');
+    expect(text).toContain('"error":"AI provider returned an invalid response."');
+    expect(text).not.toMatch(/proxy login|doctype|<html/i);
+    expect(run).not.toHaveBeenCalledWith(
+      'hi',
+      expect.stringContaining('"role":"assistant"'),
+      expect.any(Number),
+    );
+  });
+
+  it('returns 502 without provider network error details', async () => {
+    mockSession(true);
+    const providerId = configureEnvClaudeProvider();
+    mockDbStmt();
+    mockFetch.mockRejectedValue(new Error('connect ECONNREFUSED internal-ai.example'));
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: providerId,
       messages: [{ role: 'user', content: 'hi' }],
     }));
     expect(res.status).toBe(502);
     const data = await res.json();
-    expect(data.error).toContain('connect ECONNREFUSED');
+    expect(data).toEqual({
+      code: 'upstream_unavailable',
+      error: 'Unable to reach AI provider.',
+      retryable: true,
+    });
+    expect(JSON.stringify(data)).not.toMatch(/ECONNREFUSED|internal-ai/i);
   });
 
   it('does not save chat history when upstream API fails before streaming', async () => {
     mockSession(true);
+    const providerId = configureEnvClaudeProvider();
     const run = vi.fn(() => ({ lastInsertRowid: 1, changes: 1 }));
-    mockDbStmt({
-      get: vi.fn(() => ({
-        id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
-        api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
-      })),
-      run,
-    });
+    mockDbStmt({ run });
     mockFetch.mockResolvedValue(new Response(
-      JSON.stringify({ error: { message: 'Invalid API key' } }),
-      { status: 401 },
+      JSON.stringify({ error: 'API Key is not allowed to access this channel' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
     ));
     const { POST } = await import('@/app/api/ai-chat/route');
     await POST(makePostReq({
-      provider_id: 1,
+      provider_id: providerId,
       messages: [{ role: 'user', content: 'hi' }],
     }));
 
     expect(run).not.toHaveBeenCalled();
   });
 
-  it('sends system prompt with OpenAI request', async () => {
+  it('sends the default system prompt with env OpenAI requests', async () => {
     mockSession(true);
-    mockDbStmt({
-      get: vi.fn(() => ({
-        id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
-        api_key: 'sk-123', model: 'gpt-4o', system_prompt: 'You are a pirate',
-        max_tokens: 4096,
-      })),
-    });
+    const providerId = configureEnvOpenAiChatProvider();
+    mockDbStmt();
     mockOpenAIStreamResponse();
     const { POST } = await import('@/app/api/ai-chat/route');
     await POST(makePostReq({
-      provider_id: 1,
+      provider_id: providerId,
       messages: [{ role: 'user', content: 'hi' }],
     }));
 
@@ -495,19 +557,13 @@ describe('POST /api/ai-chat', () => {
     const body = JSON.parse(fetchCall[1].body);
     expect(body.messages[0].role).toBe('system');
     expect(body.messages[0].content).toContain('rigorous technical assistant');
-    expect(body.messages[0].content).toContain('You are a pirate');
   });
 
   it('sends only recent chat context to the upstream provider while preserving the full transcript', async () => {
     mockSession(true);
+    const providerId = configureEnvOpenAiChatProvider();
     const run = vi.fn(() => ({ lastInsertRowid: 99, changes: 1 }));
-    mockDbStmt({
-      get: vi.fn(() => ({
-        id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
-        api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
-      })),
-      run,
-    });
+    mockDbStmt({ run });
     mockOpenAIStreamResponse();
     const messages = Array.from({ length: 20 }, (_, index) => ({
       role: index % 2 === 0 ? 'user' as const : 'assistant' as const,
@@ -515,7 +571,7 @@ describe('POST /api/ai-chat', () => {
     }));
 
     const { POST } = await import('@/app/api/ai-chat/route');
-    const res = await POST(makePostReq({ provider_id: 1, messages }));
+    const res = await POST(makePostReq({ provider_id: providerId, messages }));
     const reader = res.body!.getReader();
     while (!(await reader.read()).done) {}
 
@@ -535,16 +591,13 @@ describe('POST /api/ai-chat', () => {
 
   it('stores a completed chat transcript after streaming OpenAI response', async () => {
     mockSession(true);
-    const get = vi.fn(() => ({
-      id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
-      api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
-    }));
+    const providerId = configureEnvOpenAiChatProvider();
     const run = vi.fn(() => ({ lastInsertRowid: 42, changes: 1 }));
-    mockDbStmt({ get, run });
+    mockDbStmt({ run });
     mockOpenAIStreamResponse();
     const { POST } = await import('@/app/api/ai-chat/route');
     const res = await POST(makePostReq({
-      provider_id: 1,
+      provider_id: providerId,
       messages: [{ role: 'user', content: 'hi there' }],
     }));
 
@@ -552,7 +605,7 @@ describe('POST /api/ai-chat', () => {
     while (!(await reader.read()).done) {}
 
     expect(run).toHaveBeenCalledWith(
-      1,
+      providerId,
       'hi there',
       JSON.stringify([{ role: 'user', content: 'hi there' }]),
     );
@@ -568,24 +621,20 @@ describe('POST /api/ai-chat', () => {
 
   it('updates an existing chat transcript after streaming response', async () => {
     mockSession(true);
-    const get = vi.fn()
-      .mockReturnValueOnce({
-        id: 1, name: 'GPT', api_type: 'openai', api_url: 'https://api.openai.com',
-        api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
-      })
-      .mockReturnValueOnce({
-        id: 9,
-        provider_id: 1,
-        title: 'Previous title',
-        messages: '[]',
-      });
+    const providerId = configureEnvOpenAiChatProvider();
+    const get = vi.fn(() => ({
+      id: 9,
+      provider_id: providerId,
+      title: 'Previous title',
+      messages: '[]',
+    }));
     const run = vi.fn(() => ({ lastInsertRowid: 9, changes: 1 }));
     mockDbStmt({ get, run });
     mockOpenAIStreamResponse();
     const { POST } = await import('@/app/api/ai-chat/route');
     const res = await POST(makePostReq({
       chat_id: 9,
-      provider_id: 1,
+      provider_id: providerId,
       messages: [{ role: 'user', content: 'continue' }],
     }));
 
@@ -605,16 +654,12 @@ describe('POST /api/ai-chat', () => {
   it('streams deterministic markdown without upstream calls when E2E_MOCK_STREAMS is enabled', async () => {
     process.env.E2E_MOCK_STREAMS = '1';
     mockSession(true);
-    mockDbStmt({
-      get: vi.fn(() => ({
-        id: 1, name: 'Mock GPT', api_type: 'openai', api_url: 'https://api.openai.com',
-        api_key: 'sk-123', model: 'gpt-4o', system_prompt: '', max_tokens: 4096,
-      })),
-    });
+    const providerId = configureEnvOpenAiChatProvider();
+    mockDbStmt();
 
     const { POST } = await import('@/app/api/ai-chat/route');
     const res = await POST(makePostReq({
-      provider_id: 1,
+      provider_id: providerId,
       messages: [{ role: 'user', content: 'Render markdown' }],
     }));
 

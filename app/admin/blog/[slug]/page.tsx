@@ -183,8 +183,8 @@ export default function AdminBlogEditor() {
       <section className="glass-panel rounded-[32px] px-6 py-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Editor</p>
-            <h1 className="mt-2 font-display text-4xl text-slate-950">Blog workspace</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{t('adminEditor')}</p>
+            <h1 className="mt-2 font-display text-4xl text-slate-950">{t('adminBlogWorkspace')}</h1>
             <p className="mt-3 text-sm leading-7 text-slate-600">
               Skill prompts stay on the server; the editor only pulls a lightweight skill index and resolves the final tool by invoke path.
             </p>
@@ -227,7 +227,7 @@ export default function AdminBlogEditor() {
       <section className="mt-6 grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
         <aside className="glass-panel rounded-[32px] px-5 py-5">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{t('aiTools')}</p>
-          <h2 className="mt-2 font-display text-3xl text-slate-950">Skill finder</h2>
+          <h2 className="mt-2 font-display text-3xl text-slate-950">{t('adminSkillFinder')}</h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">
             Browse by hierarchy or type a capability, then invoke the resolved skill path without loading every prompt into the client.
           </p>
@@ -242,7 +242,7 @@ export default function AdminBlogEditor() {
 
           {providers.length > 0 && (
             <label className="mt-4 block">
-              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Provider</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('aiChatProvider')}</span>
               <select
                 data-testid="admin-blog-skill-provider"
                 value={selectedProviderId ?? ''}

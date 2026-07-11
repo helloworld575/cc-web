@@ -25,6 +25,18 @@ describe('GET /api/uploads/[...path]', () => {
     const res = await GET(new Request('http://localhost'), params(['photo.png']));
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('image/png');
+    expect(res.headers.get('CDN-Cache-Control')).toContain('max-age=31536000');
+    expect(res.headers.get('Accept-Ranges')).toBe('bytes');
+  });
+
+  it('returns 304 when the ETag matches', async () => {
+    (existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    const request = new Request('http://localhost/uploads/photo.png', {
+      headers: { 'If-None-Match': '"64-18bcfe56800"' },
+    });
+    const { GET } = await import('@/app/api/uploads/[...path]/route');
+    const res = await GET(request, params(['photo.png']));
+    expect(res.status).toBe(304);
   });
 
   it('returns CSP header for SVG', async () => {

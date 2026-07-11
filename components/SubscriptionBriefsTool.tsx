@@ -124,7 +124,7 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
             }}
             className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700"
           >
-            <option value="all">All sources</option>
+            <option value="all">{t('allSources')}</option>
             {sources.map(source => (
               <option key={source} value={source}>{source}</option>
             ))}

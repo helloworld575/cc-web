@@ -119,6 +119,10 @@ const TOOLS_COPY = {
         eyebrow: '对话',
         description: '独立的流式聊天工作区，支持 Markdown 实时渲染。',
       },
+      image: {
+        eyebrow: '创作',
+        description: '通过已配置的生图服务生成图片，并在统一工作台中查看结果。',
+      },
       subscriptions: {
         eyebrow: '订阅',
         description: '在统一的视觉语言下集中查看订阅摘要与更新。',
@@ -441,7 +445,7 @@ export default function ToolsPage() {
                         <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{group.label}</span>
                         <span className="mt-1 block text-sm text-slate-500">{group.skills.length} {copy.skills.laneSuffix}</span>
                       </span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Open</span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{t('open')}</span>
                     </summary>
 
                     <div className="mt-3 grid gap-2">

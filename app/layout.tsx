@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from 'next/headers';
 import "./globals.css";
 import "@toast-ui/editor/dist/toastui-editor.css";
 import SessionProvider from "@/components/SessionProvider";
@@ -6,6 +7,8 @@ import Nav from "@/components/Nav";
 import SiteFooter from "@/components/SiteFooter";
 import DeadlineAlert from '@/components/DeadlineAlert';
 import HydrationReady from '@/components/HydrationReady';
+import LocaleProvider from '@/components/LocaleProvider';
+import { localeToHtmlLang, resolveLocale } from '@/lib/i18n';
 
 const siteUrl = 'https://thomaslee.site';
 const currentYear = new Date().getFullYear();
@@ -41,19 +44,24 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const locale = resolveLocale(cookieStore.get('locale')?.value);
+
   return (
-    <html lang="en">
+    <html lang={localeToHtmlLang(locale)}>
       <body inert className="min-h-screen flex flex-col antialiased">
-        <SessionProvider>
-          <HydrationReady />
-          <Nav />
-          <DeadlineAlert />
-          <div className="flex-1">
-            {children}
-          </div>
-          <SiteFooter />
-        </SessionProvider>
+        <LocaleProvider initialLocale={locale}>
+          <SessionProvider>
+            <HydrationReady />
+            <Nav />
+            <DeadlineAlert />
+            <div className="flex-1">
+              {children}
+            </div>
+            <SiteFooter />
+          </SessionProvider>
+        </LocaleProvider>
       </body>
     </html>
   );

@@ -2,9 +2,46 @@
 import type { ChangeEvent } from 'react';
 import { useState } from 'react';
 import { useLocale } from '@/components/useLocale';
+import { apiErrorTranslationKey, readSafeApiError } from '@/lib/client-api-error';
 
 const MAX_REFERENCE_IMAGE_BYTES = 6 * 1024 * 1024;
+const MAX_REFERENCE_IMAGE_DIMENSION = 1600;
+const REFERENCE_WEBP_QUALITY = 0.82;
 const REFERENCE_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+
+function readFileAsDataUrl(file: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function compressReferenceImage(file: File) {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, MAX_REFERENCE_IMAGE_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { alpha: true });
+    if (!context) throw new Error('Canvas is unavailable');
+    context.drawImage(bitmap, 0, 0, width, height);
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        result => result ? resolve(result) : reject(new Error('Image compression failed')),
+        'image/webp',
+        REFERENCE_WEBP_QUALITY,
+      );
+    });
+    return readFileAsDataUrl(blob);
+  } finally {
+    bitmap.close();
+  }
+}
 
 export default function AIImageTool() {
   const [prompt, setPrompt] = useState('');
@@ -14,31 +51,6 @@ export default function AIImageTool() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { t } = useLocale();
-
-  async function readErrorResponse(response: Response) {
-    try {
-      const data = await response.clone().json();
-      const detail = typeof data?.detail === 'string' && data.detail.trim()
-        ? ` ${data.detail.trim()}`
-        : '';
-      if (typeof data?.error === 'string' && data.error.trim()) {
-        return `${data.error}${detail}`;
-      }
-    } catch {
-      const text = await response.text().catch(() => '');
-      if (text.trim()) return text.trim();
-    }
-    return `HTTP ${response.status}`;
-  }
-
-  function readFileAsDataUrl(file: File) {
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
-  }
 
   async function handleReferenceImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -52,10 +64,14 @@ export default function AIImageTool() {
 
     try {
       setError('');
-      setReferenceImage(await readFileAsDataUrl(file));
-    } catch (caught: unknown) {
-      const errorLike = caught as { message?: string };
-      setError(errorLike.message || t('imageReferenceInvalid'));
+      try {
+        setReferenceImage(await compressReferenceImage(file));
+      } catch {
+        // Keep valid images usable when a browser codec cannot re-encode them.
+        setReferenceImage(await readFileAsDataUrl(file));
+      }
+    } catch {
+      setError(t('imageReferenceInvalid'));
     }
   }
 
@@ -74,15 +90,22 @@ export default function AIImageTool() {
         body: JSON.stringify({ prompt, reference_image: referenceImage || undefined }),
       });
       if (!response.ok) {
-        setError(await readErrorResponse(response));
+        const safe = await readSafeApiError(response, t('apiErrorGeneric'));
+        const translationKey = safe.code?.includes('FORBIDDEN') || safe.code?.includes('UNAUTHORIZED')
+          ? 'apiErrorImagePermission'
+          : apiErrorTranslationKey(safe.code, 'apiErrorGeneric');
+        setError(t(translationKey));
         return;
       }
-      const data = await response.json();
+      const data = await response.json() as { image?: unknown; revised_prompt?: unknown };
+      if (typeof data.image !== 'string' || !data.image.trim()) {
+        setError(t('imageInvalidResponse'));
+        return;
+      }
       setImage(data.image);
-      setRevisedPrompt(data.revised_prompt || '');
-    } catch (caught: unknown) {
-      const errorLike = caught as { message?: string };
-      setError(errorLike.message || t('imageFailed'));
+      setRevisedPrompt(typeof data.revised_prompt === 'string' ? data.revised_prompt : '');
+    } catch {
+      setError(t('imageFailed'));
     } finally {
       setLoading(false);
     }

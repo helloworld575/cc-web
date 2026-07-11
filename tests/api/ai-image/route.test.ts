@@ -54,6 +54,19 @@ describe('POST /api/ai-image', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects image prompts that exceed the server limit', async () => {
+    mockSession(true);
+    const { POST } = await import('@/app/api/ai-image/route');
+    const res = await POST(makePostReq({ prompt: 'x'.repeat(4001) }));
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({
+      code: 'invalid_prompt',
+      error: expect.any(String),
+    });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it('generates an image through the streaming chat image endpoint', async () => {
     mockSession(true);
     process.env.GPT_IMAGE_API_MODE = 'chat';
@@ -171,6 +184,24 @@ describe('POST /api/ai-image', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
+  it('rejects reference images that exceed the server byte limit', async () => {
+    mockSession(true);
+    const referenceImage = `data:image/png;base64,${Buffer.alloc(6 * 1024 * 1024 + 1).toString('base64')}`;
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    const res = await POST(makePostReq({
+      prompt: 'use this style',
+      reference_image: referenceImage,
+    }));
+
+    expect(res.status).toBe(413);
+    await expect(res.json()).resolves.toMatchObject({
+      code: 'reference_image_too_large',
+      error: expect.any(String),
+    });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it('does not double-prefix /gpt when the configured URL already includes it', async () => {
     mockSession(true);
     process.env.GPT_IMAGE_API_MODE = 'chat';
@@ -246,8 +277,52 @@ describe('POST /api/ai-image', () => {
 
     expect(res.status).toBe(502);
     const data = await res.json();
-    expect(data.error).toContain('Image API error (404)');
-    expect(data.detail).toContain('upstream refused request');
+    expect(data).toEqual({
+      code: 'upstream_not_found',
+      error: 'Image provider rejected the request.',
+      retryable: false,
+    });
+    expect(JSON.stringify(data)).not.toContain('upstream refused request');
+  });
+
+  it('extracts bounded JSON string errors without returning provider response details', async () => {
+    mockSession(true);
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({
+      error: 'API Key is not allowed to access this channel',
+    }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    const res = await POST(makePostReq({ prompt: 'a tiny robot' }));
+
+    expect(res.status).toBe(502);
+    const data = await res.json();
+    expect(data).toEqual({
+      code: 'upstream_forbidden',
+      error: 'Image provider rejected the credentials or channel access.',
+      retryable: false,
+    });
+    expect(JSON.stringify(data)).not.toContain('API Key');
+  });
+
+  it('maps image provider network failures without exposing internal hosts', async () => {
+    mockSession(true);
+    process.env.GPT_IMAGE_API_URL = 'https://internal-image.example';
+    mockFetch.mockRejectedValue(new Error('connect ECONNREFUSED internal-image.example'));
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    const res = await POST(makePostReq({ prompt: 'a tiny robot' }));
+
+    expect(res.status).toBe(502);
+    const data = await res.json();
+    expect(data).toEqual({
+      code: 'upstream_unavailable',
+      error: 'Unable to reach image provider.',
+      retryable: true,
+    });
+    expect(JSON.stringify(data)).not.toMatch(/ECONNREFUSED|internal-image/i);
   });
 
   it('returns a JSON error when the image API returns HTML with a successful status', async () => {
@@ -263,8 +338,12 @@ describe('POST /api/ai-image', () => {
 
     expect(res.status).toBe(502);
     const data = await res.json();
-    expect(data.error).toBe('Image API returned a non-JSON response');
-    expect(data.detail).toContain('proxy login');
+    expect(data).toEqual({
+      code: 'upstream_invalid_response',
+      error: 'Image provider returned an invalid response.',
+      retryable: true,
+    });
+    expect(JSON.stringify(data)).not.toMatch(/proxy login|doctype|<html/i);
   });
 
   it('returns a JSON error when the image API JSON cannot be parsed', async () => {
@@ -280,7 +359,61 @@ describe('POST /api/ai-image', () => {
 
     expect(res.status).toBe(502);
     const data = await res.json();
-    expect(data.error).toBe('Image API returned invalid JSON');
+    expect(data).toEqual({
+      code: 'upstream_invalid_response',
+      error: 'Image provider returned an invalid response.',
+      retryable: true,
+    });
+    expect(JSON.stringify(data)).not.toContain('{not json');
+  });
+
+  it('returns a safe error when the image provider returns an empty body', async () => {
+    mockSession(true);
+    mockFetch.mockResolvedValue(new Response(null, {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    const res = await POST(makePostReq({ prompt: 'a tiny robot' }));
+
+    expect(res.status).toBe(502);
+    await expect(res.json()).resolves.toEqual({
+      code: 'upstream_empty_response',
+      error: 'Image provider returned an empty response.',
+      retryable: true,
+    });
+  });
+
+  it('returns a bounded error when an image stream exceeds the response limit', async () => {
+    mockSession(true);
+    process.env.GPT_IMAGE_API_MODE = 'chat';
+    const encoder = new TextEncoder();
+    const oversizedChunk = `data: ${JSON.stringify({
+      choices: [{ delta: { content: 'x'.repeat(1024 * 1024) } }],
+    })}\n\n`;
+    const stream = new ReadableStream({
+      start(controller) {
+        for (let index = 0; index < 17; index += 1) {
+          controller.enqueue(encoder.encode(oversizedChunk));
+        }
+        controller.close();
+      },
+    });
+    mockFetch.mockResolvedValue(new Response(stream, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-image/route');
+    const res = await POST(makePostReq({ prompt: 'a tiny robot' }));
+
+    expect(res.status).toBe(502);
+    await expect(res.json()).resolves.toEqual({
+      code: 'upstream_response_too_large',
+      error: 'Image provider response exceeded the allowed size.',
+      retryable: true,
+    });
   });
 
   it('returns deterministic mock image when e2e streams are mocked', async () => {

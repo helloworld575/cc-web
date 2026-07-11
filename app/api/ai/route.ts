@@ -6,6 +6,15 @@ import { rateLimitByIp } from '@/lib/rateLimit';
 import { isInvocableSkill } from '@/lib/skill-taxonomy';
 import { getEnvProviderById, getEnvProviders, type AiProviderConfig } from '@/lib/ai-providers';
 import {
+  readUpstreamFailure,
+  safeFetchError,
+  safeUpstreamResponse,
+  timeoutSignal,
+  upstreamEmptyResponseError,
+  upstreamInvalidResponseError,
+  validateUpstreamSse,
+} from '@/lib/ai-upstream';
+import {
   buildClaudeHeaders,
   buildClaudeMessagesPayload,
   extractClaudeStreamText,
@@ -147,21 +156,30 @@ export async function POST(req: Request) {
       ? buildResponsesRequest(provider, prompt, skill.system)
       : buildOpenAIRequest(provider, prompt, skill.system);
 
-  const upstream = await fetch(requestConfig.url, {
-    method: 'POST',
-    headers: requestConfig.headers,
-    body: requestConfig.body,
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetch(requestConfig.url, {
+      method: 'POST',
+      headers: requestConfig.headers,
+      body: requestConfig.body,
+      signal: timeoutSignal(120000),
+    });
+  } catch (caught: unknown) {
+    return safeUpstreamResponse(safeFetchError(caught));
+  }
 
   if (!upstream.ok) {
-    let msg = 'AI provider error';
-    try { const err = await upstream.json(); msg = err.error?.message ?? msg; } catch {}
-    return new Response(JSON.stringify({ error: msg }), { status: 502 });
+    const failure = await readUpstreamFailure(upstream);
+    console.warn('[api-ai]', failure.logDetail);
+    return safeUpstreamResponse(failure.payload);
   }
+
+  const validated = await validateUpstreamSse(upstream);
+  if (!validated.ok) return safeUpstreamResponse(validated.payload);
 
   const outputType = skill.output;
   const encoder = new TextEncoder();
-  const upstreamBody = upstream.body!;
+  const upstreamBody = validated.body;
   let upstreamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
   const stream = new ReadableStream({
@@ -174,44 +192,59 @@ export async function POST(req: Request) {
         model: provider.model,
       })}\n\n`));
 
-      upstreamReader = upstreamBody.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
+      try {
+        upstreamReader = upstreamBody.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let sawEvent = false;
 
-      while (true) {
-        const { done, value } = await upstreamReader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop() ?? '';
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const raw = line.slice(6).trim();
-            if (raw === '[DONE]') { controller.close(); return; }
-            try {
-              const parsed = JSON.parse(raw);
-              const text = provider.api_type === 'anthropic'
-                ? extractClaudeStreamText(parsed)
-                : openAiApiStyle === 'responses'
-                  ? extractResponsesStreamText(parsed)
-                  : extractOpenAIChatStreamText(parsed);
-              if (text) {
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
-              }
-              const doneEvent = provider.api_type === 'anthropic'
-                ? isClaudeStreamDone(parsed)
-                : openAiApiStyle === 'responses'
-                  ? isResponsesStreamDone(parsed)
-                  : isOpenAIChatStreamDone(parsed);
-              if (doneEvent) {
+        while (true) {
+          const { done, value } = await upstreamReader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop() ?? '';
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const raw = line.slice(6).trim();
+              if (raw === '[DONE]') { controller.close(); return; }
+              try {
+                const parsed = JSON.parse(raw);
+                sawEvent = true;
+                const text = provider.api_type === 'anthropic'
+                  ? extractClaudeStreamText(parsed)
+                  : openAiApiStyle === 'responses'
+                    ? extractResponsesStreamText(parsed)
+                    : extractOpenAIChatStreamText(parsed);
+                if (text) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+                }
+                const doneEvent = provider.api_type === 'anthropic'
+                  ? isClaudeStreamDone(parsed)
+                  : openAiApiStyle === 'responses'
+                    ? isResponsesStreamDone(parsed)
+                    : isOpenAIChatStreamDone(parsed);
+                if (doneEvent) {
+                  controller.close();
+                  return;
+                }
+              } catch {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(upstreamInvalidResponseError())}\n\n`));
                 controller.close();
                 return;
               }
-            } catch { /* skip malformed lines */ }
+            }
           }
         }
+        const streamError = sawEvent
+          ? upstreamInvalidResponseError()
+          : upstreamEmptyResponseError();
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(streamError)}\n\n`));
+        controller.close();
+      } catch (caught: unknown) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(safeFetchError(caught))}\n\n`));
+        controller.close();
       }
-      controller.close();
     },
     cancel() { upstreamReader?.cancel(); },
   });

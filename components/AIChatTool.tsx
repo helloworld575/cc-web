@@ -3,6 +3,7 @@ import { startTransition, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocale } from '@/components/useLocale';
 import StreamingMarkdown from '@/components/StreamingMarkdown';
+import { apiErrorTranslationKey, readSafeApiError } from '@/lib/client-api-error';
 import type { InvocableSkillSummary } from '@/lib/skill-taxonomy';
 
 interface Provider {
@@ -113,17 +114,9 @@ export default function AIChatTool() {
     setCurrentChatId(chatId);
   }
 
-  async function readErrorResponse(response: Response) {
-    try {
-      const data = await response.clone().json();
-      if (typeof data?.error === 'string' && data.error.trim()) {
-        return data.error;
-      }
-    } catch {
-      const text = await response.text().catch(() => '');
-      if (text.trim()) return text.trim();
-    }
-    return `Request failed with HTTP ${response.status}`;
+  async function localizedError(response: Response) {
+    const safe = await readSafeApiError(response, t('apiErrorGeneric'));
+    return t(apiErrorTranslationKey(safe.code, 'apiErrorGeneric'));
   }
 
   async function refreshHistory(providerId = selectedProvider) {
@@ -131,11 +124,10 @@ export default function AIChatTool() {
 
     try {
       const response = await fetch(`/api/ai-chat?provider_id=${providerId}`);
-      if (!response.ok) throw new Error(await readErrorResponse(response));
+      if (!response.ok) throw new Error(await localizedError(response));
       setHistory(await response.json());
-    } catch (caught: unknown) {
-      const errorLike = caught as { message?: string };
-      setError(errorLike?.message || 'Failed to load chat history.');
+    } catch {
+      setError(t('aiChatLoadHistoryFailed'));
     }
   }
 
@@ -146,7 +138,7 @@ export default function AIChatTool() {
     setError('');
     try {
       const response = await fetch(`/api/ai-chat/${chatId}`);
-      if (!response.ok) throw new Error(await readErrorResponse(response));
+      if (!response.ok) throw new Error(await localizedError(response));
       const chat = await response.json() as ChatDetail;
       const providerId = Number(chat.provider_id);
       setActiveChatId(Number(chat.id));
@@ -155,9 +147,8 @@ export default function AIChatTool() {
       }
       setMessages(chat.messages);
       resetComposerHeight();
-    } catch (caught: unknown) {
-      const errorLike = caught as { message?: string };
-      setError(errorLike?.message || 'Failed to load chat.');
+    } catch {
+      setError(t('aiChatLoadFailed'));
     } finally {
       setLoadingHistory(false);
     }
@@ -182,16 +173,15 @@ export default function AIChatTool() {
     setError('');
     try {
       const response = await fetch(`/api/ai-chat/${chat.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error(await readErrorResponse(response));
+      if (!response.ok) throw new Error(await localizedError(response));
 
       const chatId = Number(chat.id);
       setHistory(items => items.filter(item => Number(item.id) !== chatId));
       if (currentChatIdRef.current === chatId) {
         newChat();
       }
-    } catch (caught: unknown) {
-      const errorLike = caught as { message?: string };
-      setError(errorLike?.message || t('aiChatDeleteFailed'));
+    } catch {
+      setError(t('aiChatDeleteFailed'));
     } finally {
       setDeletingChatId(null);
     }
@@ -227,7 +217,7 @@ export default function AIChatTool() {
       });
 
       if (!response.ok) {
-        setError(await readErrorResponse(response));
+        setError(await localizedError(response));
         setMessages(outboundMessages);
         setStreamStage('ready');
         setStreaming(false);
@@ -238,7 +228,7 @@ export default function AIChatTool() {
 
       const reader = response.body?.getReader();
       if (!reader) {
-        setError('Stream is unavailable.');
+        setError(t('aiChatStreamUnavailable'));
         setMessages(outboundMessages);
         setStreamStage('ready');
         setStreaming(false);
@@ -270,7 +260,8 @@ export default function AIChatTool() {
             setActiveChatId(parsed.chat_id);
           }
           if (typeof parsed.error === 'string' && parsed.error.trim()) {
-            throw new Error(parsed.error.trim());
+            const code = typeof parsed.code === 'string' ? parsed.code : null;
+            throw new Error(t(apiErrorTranslationKey(code, 'apiErrorGeneric')));
           }
           if (!parsed.text) continue;
 
@@ -296,7 +287,7 @@ export default function AIChatTool() {
         ? [...outboundMessages, { role: 'assistant' as const, content: fullText }]
         : outboundMessages;
       if (errorLike?.name !== 'AbortError') {
-        setError(errorLike?.message || 'Failed to send message.');
+        setError(errorLike?.message || t('aiChatSendFailed'));
         setMessages(nextMessages);
       } else if (!fullText) {
         setMessages(outboundMessages);
@@ -334,7 +325,7 @@ export default function AIChatTool() {
       <div className="rounded-[28px] border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center text-slate-500 shadow-sm backdrop-blur">
         <p className="mb-2 text-base font-medium text-slate-700">{t('aiChatNoProvider')}</p>
         <p className="text-sm text-slate-500">
-          Configure CLAUDE_API_KEY and RIGHT_CODE_GPT_API_KEY in .env.local, then redeploy.
+          {t('aiChatConfigHint')}
         </p>
       </div>
     );
@@ -343,10 +334,10 @@ export default function AIChatTool() {
   const activeProvider = providers.find(provider => provider.id === selectedProvider);
   const activeSkill = skills.find(skill => skill.lookup.invoke === selectedSkill || skill.id === selectedSkill);
   const stageLabel = {
-    ready: 'Ready',
-    dispatch: 'Dispatching',
-    thinking: 'Thinking',
-    rendering: 'Streaming markdown',
+    ready: t('aiChatReady'),
+    dispatch: t('aiChatDispatching'),
+    thinking: t('aiChatThinking'),
+    rendering: t('aiChatRendering'),
   }[streamStage];
   const shellClassName = isFullscreen
     ? 'fixed inset-0 z-[9999] grid h-dvh min-h-0 gap-4 overflow-hidden bg-slate-100 p-3 sm:p-4 lg:grid-cols-[300px_minmax(0,1fr)]'
@@ -362,16 +353,16 @@ export default function AIChatTool() {
     <div data-testid="ai-chat-shell" data-fullscreen={isFullscreen ? 'true' : 'false'} className={shellClassName}>
       <aside className={asideClassName}>
         <div className="mb-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Chat Studio</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{t('aiChatStudio')}</p>
           <h2 className="mt-2 font-display text-3xl text-slate-900">{t('aiChat')}</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Live markdown rendering, gentler motion, and a clearer generation state for every response.
+            {t('aiChatStudioDesc')}
           </p>
         </div>
 
         <div className="space-y-4">
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Provider</span>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('aiChatProvider')}</span>
             <select
               data-testid="ai-chat-provider"
               value={selectedProvider ?? ''}
@@ -390,7 +381,7 @@ export default function AIChatTool() {
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Skill</span>
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('aiChatSkill')}</span>
             <select
               data-testid="ai-chat-skill"
               value={selectedSkill}
@@ -398,7 +389,7 @@ export default function AIChatTool() {
               disabled={streaming}
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <option value="">No skill</option>
+              <option value="">{t('aiChatNoSkill')}</option>
               {skills.map(skill => (
                 <option key={skill.id} value={skill.lookup.invoke}>
                   {skill.name} ({skill.output})
@@ -428,9 +419,9 @@ export default function AIChatTool() {
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
               {[
-                ['Ask', 'Prompt and queue'],
-                ['Stream', 'Render markdown'],
-                ['Refine', 'Stop when ready'],
+                [t('aiChatAsk'), t('aiChatAskDesc')],
+                [t('aiChatStream'), t('aiChatStreamDesc')],
+                [t('aiChatRefine'), t('aiChatRefineDesc')],
               ].map(([title, description], index) => (
                 <div
                   key={title}
@@ -483,7 +474,7 @@ export default function AIChatTool() {
                   >
                     <button
                       type="button"
-                      aria-label={`Open chat ${chat.title}`}
+                      aria-label={`${t('aiChatOpen')} ${chat.title}`}
                       onClick={() => loadChat(chat.id)}
                       disabled={streaming}
                       className="min-w-0 flex-1 rounded-xl px-3 py-3 text-left disabled:cursor-not-allowed"
@@ -497,7 +488,7 @@ export default function AIChatTool() {
                     </button>
                     <button
                       type="button"
-                      aria-label={`Delete chat ${chat.title}`}
+                      aria-label={`${t('aiChatDelete')} ${chat.title}`}
                       title={t('aiChatDelete')}
                       onClick={() => deleteChat(chat)}
                       disabled={streaming || deletingChatId === chat.id}
@@ -526,7 +517,7 @@ export default function AIChatTool() {
       <section className={chatPanelClassName}>
         <div className="mb-4 flex shrink-0 items-center justify-between gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.95),rgba(241,245,249,0.88))] px-4 py-4 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Session</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{t('aiChatSession')}</p>
             <h3 className="mt-1 text-lg font-semibold text-slate-900">
               {messages.length === 0 ? t('aiChatWelcome') : `${messages.length} ${t('aiChatMessages')}`}
             </h3>
@@ -541,8 +532,8 @@ export default function AIChatTool() {
             </div>
             <button
               type="button"
-              aria-label={isFullscreen ? 'Exit fullscreen chat' : 'Enter fullscreen chat'}
-              title={isFullscreen ? 'Exit fullscreen chat' : 'Enter fullscreen chat'}
+              aria-label={isFullscreen ? t('aiChatExitFullscreen') : t('aiChatEnterFullscreen')}
+              title={isFullscreen ? t('aiChatExitFullscreen') : t('aiChatEnterFullscreen')}
               onClick={() => setIsFullscreen(value => !value)}
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-900 hover:shadow-md"
             >
@@ -605,7 +596,9 @@ export default function AIChatTool() {
                         {isAssistant ? t('aiChatAssistant') : t('aiChatUser')}
                       </span>
                       <span className={isAssistant ? 'text-slate-400' : 'text-white/65'}>
-                        {isAssistant && isStreamingMessage ? stageLabel : message.role}
+                        {isAssistant && isStreamingMessage
+                          ? stageLabel
+                          : isAssistant ? t('aiChatAssistant') : t('aiChatUser')}
                       </span>
                     </div>
 
@@ -670,7 +663,7 @@ export default function AIChatTool() {
           </div>
           <div className="mt-3 flex items-center justify-between gap-3 px-1 text-xs text-slate-400">
             <span>{streaming ? t('aiChatMarkdownRendering') : t('aiChatMarkdownSupport')}</span>
-            <span>{input.length} chars</span>
+            <span>{input.length} {t('aiChatCharacters')}</span>
           </div>
         </div>
       </section>

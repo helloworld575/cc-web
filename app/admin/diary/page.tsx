@@ -4,11 +4,13 @@ import ReactMarkdown from 'react-markdown';
 import MarkdownEditor from '@/components/MarkdownEditor';
 import Pagination from '@/components/Pagination';
 import DateRangeFilter from '@/components/DateRangeFilter';
+import { useLocale } from '@/components/useLocale';
 
 interface DiaryEntry { id: number; date: string; content: string; }
 const PAGE_SIZE = 10;
 
 export default function AdminDiaryPage() {
+  const { t } = useLocale();
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [content, setContent] = useState('');
@@ -27,7 +29,7 @@ export default function AdminDiaryPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date, content }),
       });
-      if (!res.ok) { alert('Save failed'); return; }
+      if (!res.ok) { alert(t('adminDiarySaveFailed')); return; }
       setEntries(entries.map(e => e.id === editing.id ? { ...e, date, content } : e));
       setEditing(null);
     } else {
@@ -36,7 +38,7 @@ export default function AdminDiaryPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date, content }),
       });
-      if (!res.ok) { alert('Save failed'); return; }
+      if (!res.ok) { alert(t('adminDiarySaveFailed')); return; }
       const { id } = await res.json();
       setEntries([{ id, date, content }, ...entries]);
     }
@@ -53,7 +55,7 @@ export default function AdminDiaryPage() {
 
   async function deleteEntry(id: number) {
     const res = await fetch(`/api/diary/${id}`, { method: 'DELETE' });
-    if (!res.ok) { alert('Delete failed'); return; }
+    if (!res.ok) { alert(t('adminDiaryDeleteFailed')); return; }
     setEntries(entries.filter(e => e.id !== id));
   }
 
@@ -68,11 +70,11 @@ export default function AdminDiaryPage() {
 
   return (
     <main className="max-w-3xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold mb-6">Admin — Diary</h1>
+      <h1 className="text-3xl font-bold mb-6">{t('adminDiaryTitle')}</h1>
       <div className="mb-2 flex gap-2 items-center">
         <input type="date" value={date} onChange={e => setDate(e.target.value)} className="border rounded px-2 py-1" />
-        <button onClick={save} className="bg-black text-white px-4 py-1 rounded text-sm">{editing ? 'Update' : 'Add'}</button>
-        {editing && <button onClick={() => { setEditing(null); setContent(''); }} className="text-sm text-gray-500">Cancel</button>}
+        <button onClick={save} className="bg-black text-white px-4 py-1 rounded text-sm">{editing ? t('adminDiaryUpdate') : t('add')}</button>
+        {editing && <button onClick={() => { setEditing(null); setContent(''); }} className="text-sm text-gray-500">{t('cancel')}</button>}
       </div>
       <div className="mb-6">
         <MarkdownEditor
@@ -83,7 +85,7 @@ export default function AdminDiaryPage() {
           previewTestId="diary-markdown-preview"
         />
       </div>
-      <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search entries..."
+      <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder={t('adminDiarySearch')}
         className="w-full border rounded px-3 py-2 mb-4 text-sm" />
       <DateRangeFilter from={from} to={to} onFrom={v => { setFrom(v); setPage(1); }} onTo={v => { setTo(v); setPage(1); }} onReset={() => { setFrom(''); setTo(''); setPage(1); }} />
       <ul className="space-y-4">
@@ -91,8 +93,8 @@ export default function AdminDiaryPage() {
           <li key={e.id} className="border rounded px-4 py-3">
             <div className="flex items-center gap-3 mb-2">
               <span className="font-semibold">{e.date}</span>
-              <button onClick={() => startEdit(e)} className="text-sm underline">Edit</button>
-              <button onClick={() => deleteEntry(e.id)} className="text-sm text-red-500">Delete</button>
+              <button onClick={() => startEdit(e)} className="text-sm underline">{t('edit')}</button>
+              <button onClick={() => deleteEntry(e.id)} className="text-sm text-red-500">{t('delete')}</button>
             </div>
             <article className="prose prose-sm max-w-none">
               <ReactMarkdown>{e.content}</ReactMarkdown>

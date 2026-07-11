@@ -5,6 +5,9 @@ import { type ZiweiResult } from '@/lib/ziwei';
 import { type HexagramResult } from '@/lib/yijing';
 import StreamingMarkdown from '@/components/StreamingMarkdown';
 import { BirthInputs, ElementBar, HexagramDisplay, PillarCard } from '@/components/fortune/FortuneVisuals';
+import { useLocale } from '@/components/useLocale';
+import { apiErrorTranslationKey, readSafeApiError } from '@/lib/client-api-error';
+import type { TranslationKey } from '@/lib/i18n';
 
 type Method = 'bazi' | 'ziwei' | 'liuyao' | 'meihua';
 
@@ -17,33 +20,46 @@ interface HistoryEntry {
   created_at: string;
 }
 
-const METHOD_META: Record<Method, { label: string; icon: string; description: string }> = {
+const METHOD_META: Record<Method, { label: string; icon: string; description: TranslationKey }> = {
   bazi: {
     label: 'BaZi',
     icon: 'BZ',
-    description: '八字排盘先出骨架，再逐段生成分析。',
+    description: 'fortuneBaziDesc',
   },
   ziwei: {
     label: 'Ziwei',
     icon: 'ZW',
-    description: '命宫、身宫与宫位分布先显影，再展开解释。',
+    description: 'fortuneZiweiDesc',
   },
   liuyao: {
     label: 'Liuyao',
     icon: 'LY',
-    description: '卦象与动爻先落地，再进入占断文本。',
+    description: 'fortuneLiuyaoDesc',
   },
   meihua: {
     label: 'Meihua',
     icon: 'MH',
-    description: '体用关系先建立，再生成趋势判断。',
+    description: 'fortuneMeihuaDesc',
   },
 };
 
-const BAZI_ASPECTS = ['性格特质', '事业财运', '婚恋感情', '健康养生', '流年运势'];
-const ZIWEI_ASPECTS = ['性格命格', '事业官禄', '婚姻夫妻', '财富走势', '大限流年'];
+const BAZI_ASPECTS = [
+  { value: '性格特质', label: 'fortuneAspectPersonality' },
+  { value: '事业财运', label: 'fortuneAspectCareer' },
+  { value: '婚恋感情', label: 'fortuneAspectRomance' },
+  { value: '健康养生', label: 'fortuneAspectHealth' },
+  { value: '流年运势', label: 'fortuneAspectAnnual' },
+] as const satisfies ReadonlyArray<{ value: string; label: TranslationKey }>;
+const ZIWEI_ASPECTS = [
+  { value: '性格命格', label: 'fortuneAspectDestiny' },
+  { value: '事业官禄', label: 'fortuneAspectOffice' },
+  { value: '婚姻夫妻', label: 'fortuneAspectMarriage' },
+  { value: '财富走势', label: 'fortuneAspectWealth' },
+  { value: '大限流年', label: 'fortuneAspectDecade' },
+] as const satisfies ReadonlyArray<{ value: string; label: TranslationKey }>;
 
 export default function FortuneTool() {
+  const { t } = useLocale();
   const [tab, setTab] = useState<'fortune' | 'history'>('fortune');
   const [method, setMethod] = useState<Method>('bazi');
 
@@ -52,8 +68,8 @@ export default function FortuneTool() {
   const [birthDay, setBirthDay] = useState(15);
   const [birthHour, setBirthHour] = useState(8);
   const [gender, setGender] = useState<'male' | 'female'>('male');
-  const [baziAspect, setBaziAspect] = useState(BAZI_ASPECTS[0]);
-  const [ziweiAspect, setZiweiAspect] = useState(ZIWEI_ASPECTS[0]);
+  const [baziAspect, setBaziAspect] = useState<string>(BAZI_ASPECTS[0].value);
+  const [ziweiAspect, setZiweiAspect] = useState<string>(ZIWEI_ASPECTS[0].value);
   const [liuyaoMethod, setLiuyaoMethod] = useState<'random' | 'time'>('random');
   const [liuyaoQuestion, setLiuyaoQuestion] = useState('');
   const [meihuaMethod, setMeihuaMethod] = useState<'random' | 'time' | 'number'>('random');
@@ -116,7 +132,7 @@ export default function FortuneTool() {
   }
 
   async function deleteEntry(id: number) {
-    if (!confirm('Delete this reading?')) return;
+    if (!confirm(t('fortuneDeleteConfirm'))) return;
 
     const response = await fetch(`/api/fortune/history/${id}`, { method: 'DELETE' });
     if (!response.ok) return;
@@ -202,15 +218,15 @@ export default function FortuneTool() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        setError(data.error ?? 'Request failed.');
+        const safe = await readSafeApiError(response, t('fortuneRequestFailed'));
+        setError(t(apiErrorTranslationKey(safe.code, 'fortuneRequestFailed')));
         setLoading(false);
         return;
       }
 
       const reader = response.body?.getReader();
       if (!reader) {
-        setError('Stream is unavailable.');
+        setError(t('fortuneStreamUnavailable'));
         setLoading(false);
         return;
       }
@@ -233,7 +249,8 @@ export default function FortuneTool() {
           try {
             const payload = JSON.parse(line.slice(6));
             if (payload.error) {
-              setError(payload.error);
+              const code = typeof payload.code === 'string' ? payload.code : null;
+              setError(t(apiErrorTranslationKey(code, 'fortuneRequestFailed')));
               continue;
             }
 
@@ -269,7 +286,7 @@ export default function FortuneTool() {
         await saveToHistory(accumulated, body, preflight);
       }
     } catch {
-      setError('Network error. Please try again.');
+      setError(t('fortuneNetworkError'));
     } finally {
       setLoading(false);
     }
@@ -285,16 +302,16 @@ export default function FortuneTool() {
   return (
     <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
       <aside className="glass-panel rounded-[32px] px-5 py-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Fortune Studio</p>
-        <h2 className="mt-2 font-display text-4xl text-slate-950">Divination</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{t('fortuneStudio')}</p>
+        <h2 className="mt-2 font-display text-4xl text-slate-950">{t('fortuneTitle')}</h2>
         <p className="mt-3 text-sm leading-7 text-slate-600">
-          The chart appears first, then the interpretation grows in place so the process feels legible rather than abrupt.
+          {t('fortuneStudioDesc')}
         </p>
 
         <div className="mt-6 flex rounded-[24px] border border-white/70 bg-white/90 p-1 shadow-sm">
           {([
-            ['fortune', 'Reading'],
-            ['history', 'History'],
+            ['fortune', t('fortuneReading')],
+            ['history', t('fortuneHistory')],
           ] as const).map(([value, label]) => (
             <button
               key={value}
@@ -335,7 +352,7 @@ export default function FortuneTool() {
                     </span>
                     <div>
                       <p className="text-sm font-semibold text-slate-900">{meta.label}</p>
-                      <p className="mt-1 text-xs leading-5 text-slate-500">{meta.description}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">{t(meta.description)}</p>
                     </div>
                   </div>
                 </button>
@@ -358,8 +375,8 @@ export default function FortuneTool() {
 
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     {([
-                      ['male', 'Male'],
-                      ['female', 'Female'],
+                      ['male', t('fortuneMale')],
+                      ['female', t('fortuneFemale')],
                     ] as const).map(([value, label]) => (
                       <button
                         key={value}
@@ -381,15 +398,15 @@ export default function FortuneTool() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   {BAZI_ASPECTS.map(option => (
                     <button
-                      key={option}
-                      onClick={() => setBaziAspect(option)}
+                      key={option.value}
+                      onClick={() => setBaziAspect(option.value)}
                       className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                        baziAspect === option
+                        baziAspect === option.value
                           ? 'border-amber-300 bg-amber-50 text-amber-700'
                           : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
                       }`}
                     >
-                      {option}
+                      {t(option.label)}
                     </button>
                   ))}
                 </div>
@@ -399,15 +416,15 @@ export default function FortuneTool() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   {ZIWEI_ASPECTS.map(option => (
                     <button
-                      key={option}
-                      onClick={() => setZiweiAspect(option)}
+                      key={option.value}
+                      onClick={() => setZiweiAspect(option.value)}
                       className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                        ziweiAspect === option
+                        ziweiAspect === option.value
                           ? 'border-amber-300 bg-amber-50 text-amber-700'
                           : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300'
                       }`}
                     >
-                      {option}
+                      {t(option.label)}
                     </button>
                   ))}
                 </div>
@@ -417,8 +434,8 @@ export default function FortuneTool() {
                 <div className="mt-1 space-y-4">
                   <div className="grid gap-2 sm:grid-cols-2">
                     {([
-                      ['random', 'Random cast'],
-                      ['time', 'Time cast'],
+                      ['random', t('fortuneRandomCast')],
+                      ['time', t('fortuneTimeCast')],
                     ] as const).map(([value, label]) => (
                       <button
                         key={value}
@@ -446,11 +463,11 @@ export default function FortuneTool() {
                     />
                   )}
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Question</span>
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('fortuneQuestion')}</span>
                     <input
                       value={liuyaoQuestion}
                       onChange={event => setLiuyaoQuestion(event.target.value)}
-                      placeholder="What do you want to ask?"
+                      placeholder={t('fortuneQuestionPlaceholder')}
                       className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-amber-300 focus:bg-white focus:ring-4 focus:ring-amber-100"
                     />
                   </label>
@@ -461,9 +478,9 @@ export default function FortuneTool() {
                 <div className="mt-1 space-y-4">
                   <div className="grid gap-2">
                     {([
-                      ['random', 'Random'],
-                      ['time', 'Time'],
-                      ['number', 'Numbers'],
+                      ['random', t('fortuneRandom')],
+                      ['time', t('fortuneTime')],
+                      ['number', t('fortuneNumbers')],
                     ] as const).map(([value, label]) => (
                       <button
                         key={value}
@@ -495,7 +512,7 @@ export default function FortuneTool() {
                   {meihuaMethod === 'number' && (
                     <div className="grid gap-3 sm:grid-cols-2">
                       <label className="block">
-                        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Upper number</span>
+                        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('fortuneUpperNumber')}</span>
                         <input
                           value={meihuaNum1}
                           onChange={event => setMeihuaNum1(event.target.value)}
@@ -504,7 +521,7 @@ export default function FortuneTool() {
                         />
                       </label>
                       <label className="block">
-                        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Lower number</span>
+                        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('fortuneLowerNumber')}</span>
                         <input
                           value={meihuaNum2}
                           onChange={event => setMeihuaNum2(event.target.value)}
@@ -516,11 +533,11 @@ export default function FortuneTool() {
                   )}
 
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Question</span>
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('fortuneQuestion')}</span>
                     <input
                       value={meihuaQuestion}
                       onChange={event => setMeihuaQuestion(event.target.value)}
-                      placeholder="What are you trying to read?"
+                      placeholder={t('fortuneQuestionPlaceholder')}
                       className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-amber-300 focus:bg-white focus:ring-4 focus:ring-amber-100"
                     />
                   </label>
@@ -533,7 +550,7 @@ export default function FortuneTool() {
                 disabled={loading}
                 className="mt-5 w-full rounded-[22px] bg-amber-500 px-5 py-4 text-sm font-semibold text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-400 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
               >
-                {loading ? 'Generating…' : 'Start Reading'}
+                {loading ? t('fortuneGenerating') : t('fortuneStart')}
               </button>
 
               {error && (
@@ -544,7 +561,7 @@ export default function FortuneTool() {
 
               {savedToHistory && (
                 <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 animate-fade-in">
-                  Saved to history.
+                  {t('fortuneSaved')}
                 </div>
               )}
             </div>
@@ -555,14 +572,14 @@ export default function FortuneTool() {
           <div className="mt-6">
             {historyLoading && (
               <div className="rounded-[28px] border border-white/70 bg-white/90 px-5 py-8 text-center text-sm text-slate-500">
-                Loading history…
+                {t('fortuneLoadingHistory')}
               </div>
             )}
 
             {!historyLoading && history.length === 0 && (
               <div className="rounded-[28px] border border-dashed border-slate-300 bg-white/80 px-5 py-8 text-center">
-                <p className="font-display text-3xl text-slate-900">No readings yet</p>
-                <p className="mt-3 text-sm text-slate-500">Run a reading and the streamed analysis will be stored here.</p>
+                <p className="font-display text-3xl text-slate-900">{t('fortuneNoHistory')}</p>
+                <p className="mt-3 text-sm text-slate-500">{t('fortuneEmptyDesc')}</p>
               </div>
             )}
 
@@ -589,7 +606,7 @@ export default function FortuneTool() {
                         <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">{entry.analysis}</p>
                       </div>
                       <span className={`mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 transition ${expandedId === entry.id ? 'rotate-180' : ''}`}>
-                        open
+                        {t('fortuneOpen')}
                       </span>
                     </button>
 
@@ -601,7 +618,7 @@ export default function FortuneTool() {
                             onClick={() => deleteEntry(entry.id)}
                             className="rounded-full border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-600 transition hover:bg-red-50"
                           >
-                            Delete
+                            {t('delete')}
                           </button>
                         </div>
                       </div>
@@ -623,14 +640,14 @@ export default function FortuneTool() {
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
                     {METHOD_META[method].label}
                   </p>
-                  <h3 className="mt-2 font-display text-4xl text-slate-950">Reading canvas</h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{METHOD_META[method].description}</p>
+                  <h3 className="mt-2 font-display text-4xl text-slate-950">{t('fortuneCanvas')}</h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{t(METHOD_META[method].description)}</p>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-3">
                   {([
-                    ['排盘', generationStage === 'chart' || generationStage === 'context' || generationStage === 'writing'],
-                    ['建模', generationStage === 'context' || generationStage === 'writing'],
-                    ['成文', generationStage === 'writing'],
+                    [t('fortuneStageChart'), generationStage === 'chart' || generationStage === 'context' || generationStage === 'writing'],
+                    [t('fortuneStageContext'), generationStage === 'context' || generationStage === 'writing'],
+                    [t('fortuneStageWriting'), generationStage === 'writing'],
                   ] as const).map(([title, active], index) => (
                     <div
                       key={title}
@@ -647,7 +664,7 @@ export default function FortuneTool() {
                         <div>
                           <p className="text-sm font-semibold text-slate-900">{title}</p>
                           <p className="text-xs text-slate-500">
-                            {active ? 'active' : 'waiting'}
+                            {active ? t('fortuneStageActive') : t('fortuneStageWaiting')}
                           </p>
                         </div>
                       </div>
@@ -660,14 +677,14 @@ export default function FortuneTool() {
                 <div className="mt-6 rounded-[28px] border border-amber-200 bg-[linear-gradient(135deg,rgba(255,251,235,0.96),rgba(255,247,237,0.92))] px-5 py-5 shadow-sm">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700/60">Generation</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700/60">{t('fortuneGeneration')}</p>
                       <p className="mt-2 text-lg font-semibold text-slate-900">
-                        {generationStage === 'chart' && 'Preparing the chart'}
-                        {generationStage === 'context' && 'Chart is ready, building context'}
-                        {generationStage === 'writing' && 'Streaming the interpretation'}
+                        {generationStage === 'chart' && t('fortunePreparingChart')}
+                        {generationStage === 'context' && t('fortuneBuildingContext')}
+                        {generationStage === 'writing' && t('fortuneStreamingInterpretation')}
                       </p>
                       <p className="mt-2 text-sm text-slate-600">
-                        Results appear as soon as structural data is ready, then markdown analysis keeps growing in place.
+                        {t('fortuneGenerationDesc')}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -684,21 +701,21 @@ export default function FortuneTool() {
               <section className="glass-panel rounded-[32px] px-5 py-5 animate-slide-up">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Chart</p>
-                    <h3 className="mt-2 font-display text-3xl text-slate-950">BaZi pillars</h3>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{t('fortuneChart')}</p>
+                    <h3 className="mt-2 font-display text-3xl text-slate-950">{t('fortuneBaziPillars')}</h3>
                   </div>
                   <ElementBar elements={bazi.elements} />
                 </div>
 
                 <div className="mt-5 grid gap-3 lg:grid-cols-4">
-                  <PillarCard title="Year" pillar={bazi.year} />
-                  <PillarCard title="Month" pillar={bazi.month} />
-                  <PillarCard title="Day" pillar={bazi.day} accent />
-                  <PillarCard title="Hour" pillar={bazi.hour} />
+                  <PillarCard title={t('fortuneYear')} pillar={bazi.year} />
+                  <PillarCard title={t('fortuneMonth')} pillar={bazi.month} />
+                  <PillarCard title={t('fortuneDay')} pillar={bazi.day} accent />
+                  <PillarCard title={t('fortuneHour')} pillar={bazi.hour} />
                 </div>
 
                 <div className="mt-5 rounded-[24px] border border-white/70 bg-white/90 px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Day master</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('fortuneDayMaster')}</p>
                   <p className="mt-2 text-2xl font-semibold text-slate-900">
                     {bazi.dayMaster} <span className="text-sm text-slate-500">{bazi.dayMasterElement}</span>
                   </p>
@@ -710,8 +727,8 @@ export default function FortuneTool() {
               <section className="glass-panel rounded-[32px] px-5 py-5 animate-slide-up">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Constellation</p>
-                    <h3 className="mt-2 font-display text-3xl text-slate-950">Ziwei layout</h3>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{t('fortuneConstellation')}</p>
+                    <h3 className="mt-2 font-display text-3xl text-slate-950">{t('fortuneZiweiLayout')}</h3>
                   </div>
                   <div className="rounded-full bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-700">
                     {ziwei.wuxingJu.name} · {ziwei.nayinName}
@@ -720,11 +737,11 @@ export default function FortuneTool() {
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <div className="rounded-[24px] border border-white/70 bg-white/92 px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">命宫</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{t('fortuneLifePalace')}</p>
                     <p className="mt-2 text-3xl font-semibold text-slate-900">{ziwei.mingGongBranch}</p>
                   </div>
                   <div className="rounded-[24px] border border-white/70 bg-white/92 px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">身宫</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{t('fortuneBodyPalace')}</p>
                     <p className="mt-2 text-3xl font-semibold text-slate-900">{ziwei.shenGongBranch}</p>
                   </div>
                 </div>
@@ -755,13 +772,13 @@ export default function FortuneTool() {
               <section className="glass-panel rounded-[32px] px-5 py-5">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Interpretation</p>
-                    <h3 className="mt-2 font-display text-3xl text-slate-950">Generated analysis</h3>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{t('fortuneInterpretation')}</p>
+                    <h3 className="mt-2 font-display text-3xl text-slate-950">{t('fortuneGeneratedAnalysis')}</h3>
                   </div>
                   {loading && (
                     <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
                       <span className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
-                      streaming
+                      {t('fortuneStreaming')}
                     </span>
                   )}
                 </div>

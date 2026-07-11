@@ -9,7 +9,7 @@ const MIME: Record<string, string> = {
   '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
 };
 
-export async function GET(_: Request, { params }: { params: Promise<{ path: string[] }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const { path: routePath } = await params;
   const filename = routePath.join('/');
   const { uploadsDir } = getRuntimePaths();
@@ -29,9 +29,15 @@ export async function GET(_: Request, { params }: { params: Promise<{ path: stri
     'Content-Length': String(stat.size),
     'X-Content-Type-Options': 'nosniff',
     'Cache-Control': 'public, max-age=31536000, immutable',
+    'CDN-Cache-Control': 'public, max-age=31536000, immutable',
+    'Accept-Ranges': 'bytes',
     'ETag': etag,
   };
   if (ext === '.svg') headers['Content-Security-Policy'] = "script-src 'none'";
+
+  if (req.headers.get('if-none-match') === etag) {
+    return new NextResponse(null, { status: 304, headers });
+  }
 
   // Stream the file instead of reading entirely into memory
   const stream = createReadStream(resolved);

@@ -9,6 +9,7 @@ import {
   type Skill,
   type SkillSummary,
 } from '@/lib/skill-taxonomy';
+import { useLocale } from '@/components/useLocale';
 
 interface SkillRouteEditorState {
   skill: string;
@@ -118,6 +119,7 @@ function toEditorState(skill: Skill): SkillEditorState {
 }
 
 export default function AdminSkillsPage() {
+  const { t } = useLocale();
   const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [editing, setEditing] = useState<SkillEditorState | null>(null);
   const [activeSkillId, setActiveSkillId] = useState<string | null>(null);
@@ -233,14 +235,14 @@ export default function AdminSkillsPage() {
       <section className="glass-panel rounded-[34px] px-6 py-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Skill system</p>
-            <h1 className="mt-2 font-display text-4xl text-slate-950">Hierarchical skills</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{t('adminSkillsEyebrow')}</p>
+            <h1 className="mt-2 font-display text-4xl text-slate-950">{t('adminSkillsTitle')}</h1>
             <p className="mt-3 text-sm leading-7 text-slate-600">
               Compact index for finding, routing, and editing skill metadata.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {saved && <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">Saved</span>}
+            {saved && <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">{t('saved')}</span>}
             <button onClick={startNew} className="rounded-[20px] bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg">
               New skill
             </button>
@@ -257,7 +259,7 @@ export default function AdminSkillsPage() {
             data-testid="admin-skills-search"
             value={query}
             onChange={event => setQuery(event.target.value)}
-            placeholder="Search by skill name, invoke path, alias, or keyword"
+            placeholder={t('adminSkillsSearch')}
             className="w-full rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
           />
 
@@ -368,7 +370,7 @@ export default function AdminSkillsPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Type</span>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('adminSkillsType')}</span>
                   <select
                     value={editing.invocable ? 'invocable' : 'guide'}
                     onChange={(event) => {
@@ -386,15 +388,15 @@ export default function AdminSkillsPage() {
                     }}
                     className="w-full rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
                   >
-                    <option value="invocable">Invocable skill</option>
-                    <option value="guide">Guide / router skill</option>
+                    <option value="invocable">{t('adminInvocableSkill')}</option>
+                    <option value="guide">{t('adminGuideSkill')}</option>
                   </select>
                 </label>
               </div>
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Name</span>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('adminSkillsName')}</span>
                   <input
                     value={editing.name}
                     onChange={event => setEditing({ ...editing, name: event.target.value })}
@@ -402,7 +404,7 @@ export default function AdminSkillsPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Name (zh)</span>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('adminSkillsName')} (zh)</span>
                   <input
                     value={editing.name_zh}
                     onChange={event => setEditing({ ...editing, name_zh: event.target.value })}
@@ -413,7 +415,7 @@ export default function AdminSkillsPage() {
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Description</span>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('adminSkillsDescription')}</span>
                   <input
                     value={editing.description}
                     onChange={event => setEditing({ ...editing, description: event.target.value })}
@@ -421,7 +423,7 @@ export default function AdminSkillsPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Description (zh)</span>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('adminSkillsDescription')} (zh)</span>
                   <input
                     value={editing.description_zh}
                     onChange={event => setEditing({ ...editing, description_zh: event.target.value })}
@@ -432,7 +434,7 @@ export default function AdminSkillsPage() {
 
               {editing.invocable && (
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Output</span>
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('adminSkillsOutput')}</span>
                   <select
                     value={editing.output}
                     onChange={event => setEditing({ ...editing, output: event.target.value })}
@@ -448,10 +450,10 @@ export default function AdminSkillsPage() {
               )}
 
               <div className="rounded-[28px] border border-white/70 bg-white/90 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Hierarchy</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('adminSkillsHierarchy')}</p>
                 <div className="mt-4 grid gap-4 lg:grid-cols-[repeat(3,minmax(0,1fr))_120px]">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-medium text-slate-500">Domain</span>
+                    <span className="mb-2 block text-xs font-medium text-slate-500">{t('adminSkillDomain')}</span>
                     <input
                       value={editing.hierarchy.domain}
                       onChange={event => setEditing({
@@ -462,7 +464,7 @@ export default function AdminSkillsPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-medium text-slate-500">Category</span>
+                    <span className="mb-2 block text-xs font-medium text-slate-500">{t('adminSkillCategory')}</span>
                     <input
                       value={editing.hierarchy.category}
                       onChange={event => setEditing({
@@ -473,7 +475,7 @@ export default function AdminSkillsPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-medium text-slate-500">Subcategory</span>
+                    <span className="mb-2 block text-xs font-medium text-slate-500">{t('adminSkillSubcategory')}</span>
                     <input
                       value={editing.hierarchy.subcategory}
                       onChange={event => setEditing({
@@ -484,7 +486,7 @@ export default function AdminSkillsPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-medium text-slate-500">Order</span>
+                    <span className="mb-2 block text-xs font-medium text-slate-500">{t('adminSkillOrder')}</span>
                     <input
                       type="number"
                       value={editing.hierarchy.order}
@@ -499,10 +501,10 @@ export default function AdminSkillsPage() {
               </div>
 
               <div className="rounded-[28px] border border-white/70 bg-white/90 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Lookup</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('adminSkillsLookup')}</p>
                 <div className="mt-4 grid gap-4">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-medium text-slate-500">Invoke path</span>
+                    <span className="mb-2 block text-xs font-medium text-slate-500">{t('adminSkillInvokePath')}</span>
                     <input
                       value={editing.lookup.invoke}
                       onChange={event => setEditing({
@@ -514,7 +516,7 @@ export default function AdminSkillsPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-medium text-slate-500">Aliases</span>
+                    <span className="mb-2 block text-xs font-medium text-slate-500">{t('adminSkillAliases')}</span>
                     <input
                       value={editing.lookup.aliases}
                       onChange={event => setEditing({
@@ -526,7 +528,7 @@ export default function AdminSkillsPage() {
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-medium text-slate-500">Keywords</span>
+                    <span className="mb-2 block text-xs font-medium text-slate-500">{t('adminSkillKeywords')}</span>
                     <input
                       value={editing.lookup.keywords}
                       onChange={event => setEditing({
@@ -543,7 +545,7 @@ export default function AdminSkillsPage() {
               <div className="rounded-[28px] border border-white/70 bg-white/90 px-4 py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Orchestration</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('adminSkillsOrchestration')}</p>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
                       Root and router skills can hand off to more specific skills. Keep leaf skills direct when the web app or agent should execute them immediately.
                     </p>
@@ -567,7 +569,7 @@ export default function AdminSkillsPage() {
 
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-medium text-slate-500">Role</span>
+                    <span className="mb-2 block text-xs font-medium text-slate-500">{t('adminSkillRole')}</span>
                     <select
                       data-testid="admin-skill-role"
                       value={editing.orchestration.role}
@@ -593,7 +595,7 @@ export default function AdminSkillsPage() {
                   </label>
 
                   <label className="block">
-                    <span className="mb-2 block text-xs font-medium text-slate-500">Mode</span>
+                    <span className="mb-2 block text-xs font-medium text-slate-500">{t('adminSkillMode')}</span>
                     <select
                       data-testid="admin-skill-mode"
                       value={editing.orchestration.mode}
@@ -631,7 +633,7 @@ export default function AdminSkillsPage() {
                     <div key={`${index}-${child.skill || 'route'}`} className="rounded-[22px] border border-slate-200 bg-slate-50/90 px-4 py-4">
                       <div className="grid gap-4 lg:grid-cols-[minmax(0,180px)_minmax(0,1fr)_160px_auto]">
                         <label className="block">
-                          <span className="mb-2 block text-xs font-medium text-slate-500">Skill</span>
+                          <span className="mb-2 block text-xs font-medium text-slate-500">{t('adminSkillChild')}</span>
                           <input
                             list="admin-skill-route-options"
                             data-testid={`admin-skill-route-skill-${index}`}
@@ -653,7 +655,7 @@ export default function AdminSkillsPage() {
                         </label>
 
                         <label className="block">
-                          <span className="mb-2 block text-xs font-medium text-slate-500">When to use it</span>
+                          <span className="mb-2 block text-xs font-medium text-slate-500">{t('adminSkillWhen')}</span>
                           <input
                             data-testid={`admin-skill-route-when-${index}`}
                             value={child.when}
@@ -674,7 +676,7 @@ export default function AdminSkillsPage() {
                         </label>
 
                         <label className="block">
-                          <span className="mb-2 block text-xs font-medium text-slate-500">Child mode</span>
+                          <span className="mb-2 block text-xs font-medium text-slate-500">{t('adminSkillChildMode')}</span>
                           <select
                             data-testid={`admin-skill-route-mode-${index}`}
                             value={child.mode}
@@ -729,7 +731,7 @@ export default function AdminSkillsPage() {
               {editing.invocable && (
                 <>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">System prompt</span>
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('adminSkillsSystemPrompt')}</span>
                     <textarea
                       value={editing.system}
                       onChange={event => setEditing({ ...editing, system: event.target.value })}
@@ -739,7 +741,7 @@ export default function AdminSkillsPage() {
                   </label>
 
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Prompt</span>
+                    <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('adminSkillsPrompt')}</span>
                     <textarea
                       value={editing.prompt}
                       onChange={event => setEditing({ ...editing, prompt: event.target.value })}
@@ -751,7 +753,7 @@ export default function AdminSkillsPage() {
               )}
 
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">SKILL.md body</span>
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('adminSkillsBody')}</span>
                 <textarea
                   data-testid="admin-skill-body"
                   value={editing.content}
@@ -802,9 +804,9 @@ export default function AdminSkillsPage() {
           ) : (
             <div className="flex min-h-[720px] items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-white/70 px-6 text-center">
               <div>
-                <p className="font-display text-4xl text-slate-950">Select a skill</p>
+                <p className="font-display text-4xl text-slate-950">{t('adminSkillsSelect')}</p>
                 <p className="mt-3 text-sm leading-7 text-slate-500">
-                  The list on the left now scrolls independently. Open any entry to edit its metadata and SKILL.md body while keeping this panel anchored in place.
+                  {t('adminSkillsSelectDesc')}
                 </p>
               </div>
             </div>

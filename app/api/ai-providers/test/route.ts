@@ -1,9 +1,17 @@
 export const runtime = 'nodejs';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
 import { getEnvProviderById } from '@/lib/ai-providers';
+import {
+  readUpstreamFailure,
+  readUpstreamJson,
+  safeFetchError,
+  timeoutSignal,
+  upstreamEmptyResponseError,
+  upstreamInvalidResponseError,
+  validateUpstreamSse,
+} from '@/lib/ai-upstream';
 import {
   buildClaudeHeaders,
   buildClaudeMessagesPayload,
@@ -27,10 +35,16 @@ async function readResponsesStreamText(upstreamBody: ReadableStream<Uint8Array>)
   const decoder = new TextDecoder();
   let buf = '';
   let text = '';
+  let bytes = 0;
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
+    bytes += value.byteLength;
+    if (bytes > 2 * 1024 * 1024) {
+      await reader.cancel().catch(() => undefined);
+      return { ok: false as const, error: upstreamInvalidResponseError('AI provider') };
+    }
     buf += decoder.decode(value, { stream: true });
     const lines = buf.split('\n');
     buf = lines.pop() ?? '';
@@ -45,15 +59,17 @@ async function readResponsesStreamText(upstreamBody: ReadableStream<Uint8Array>)
         const parsed = JSON.parse(raw);
         text += extractResponsesStreamText(parsed);
         if (isResponsesStreamDone(parsed)) {
-          return text;
+          return text
+            ? { ok: true as const, text }
+            : { ok: false as const, error: upstreamEmptyResponseError('AI provider') };
         }
       } catch {
-        // Ignore malformed SSE lines.
+        return { ok: false as const, error: upstreamInvalidResponseError('AI provider') };
       }
     }
   }
 
-  return text;
+  return { ok: false as const, error: upstreamInvalidResponseError('AI provider') };
 }
 
 export async function POST(req: Request) {
@@ -70,11 +86,10 @@ export async function POST(req: Request) {
   const { provider_id } = body;
   if (!provider_id) return Response.json({ error: 'Missing provider_id' }, { status: 400 });
 
-  const envProvider = getEnvProviderById(Number(provider_id));
-  const provider = envProvider
-    ? envProvider
-    : db.prepare('SELECT * FROM ai_providers WHERE id = ?').get(provider_id) as any;
-  if (!provider) return Response.json({ error: 'Provider not found' }, { status: 404 });
+  const provider = getEnvProviderById(Number(provider_id));
+  if (!provider) {
+    return Response.json({ code: 'provider_not_found', error: 'AI provider not found.' }, { status: 404 });
+  }
 
   try {
     if (provider.api_type === 'anthropic') {
@@ -88,20 +103,20 @@ export async function POST(req: Request) {
           stream: false,
           messages: [{ role: 'user', content: 'Hi' }],
         })),
-        signal: AbortSignal.timeout(30000),
+        signal: timeoutSignal(30000),
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        return Response.json({
-          ok: false,
-          error: err.error?.message || `API returned ${res.status}`,
-        });
+        const failure = await readUpstreamFailure(res);
+        console.warn('[ai-provider-test]', failure.logDetail);
+        return Response.json({ ok: false, ...failure.payload });
       }
 
-      const data = await res.json();
-      const text = extractClaudeResponseText(data);
-      return Response.json({ ok: true, text, model: data.model });
+      const parsed = await readUpstreamJson(res);
+      if (!parsed.ok) return Response.json({ ok: false, ...parsed.failure.payload });
+      const text = extractClaudeResponseText(parsed.data);
+      if (!text) return Response.json({ ok: false, ...upstreamEmptyResponseError() });
+      return Response.json({ ok: true, text, model: parsed.data.model });
 
     } else {
       // OpenAI-compatible: minimal non-streaming request
@@ -133,37 +148,43 @@ export async function POST(req: Request) {
               max_tokens: 32,
               messages: [{ role: 'user', content: 'Hi' }],
             }),
-        signal: AbortSignal.timeout(isResponsesApi ? 60000 : 30000),
+        signal: timeoutSignal(isResponsesApi ? 60000 : 30000),
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        return Response.json({
-          ok: false,
-          error: err.error?.message || `API returned ${res.status}`,
-        });
+        const failure = await readUpstreamFailure(res);
+        console.warn('[ai-provider-test]', failure.logDetail);
+        return Response.json({ ok: false, ...failure.payload });
       }
 
       if (isResponsesApi) {
         const contentType = res.headers.get('content-type') || '';
-        if (contentType.includes('text/event-stream') && res.body) {
-          const text = await readResponsesStreamText(res.body);
-          return Response.json({ ok: true, text, model: provider.model });
+        if (contentType.includes('text/event-stream')) {
+          const validated = await validateUpstreamSse(res);
+          if (!validated.ok) return Response.json({ ok: false, ...validated.payload });
+          const streamed = await readResponsesStreamText(validated.body);
+          if (!streamed.ok) return Response.json({ ok: false, ...streamed.error });
+          return Response.json({ ok: true, text: streamed.text, model: provider.model });
         }
 
-        const data = await res.json();
+        const parsed = await readUpstreamJson(res);
+        if (!parsed.ok) return Response.json({ ok: false, ...parsed.failure.payload });
+        const text = extractResponsesText(parsed.data);
+        if (!text) return Response.json({ ok: false, ...upstreamEmptyResponseError() });
         return Response.json({
           ok: true,
-          text: extractResponsesText(data),
-          model: data.model || provider.model,
+          text,
+          model: parsed.data.model || provider.model,
         });
       }
 
-      const data = await res.json();
-      const text = data.choices?.[0]?.message?.content || '';
-      return Response.json({ ok: true, text, model: data.model });
+      const parsed = await readUpstreamJson(res);
+      if (!parsed.ok) return Response.json({ ok: false, ...parsed.failure.payload });
+      const text = parsed.data.choices?.[0]?.message?.content || '';
+      if (!text) return Response.json({ ok: false, ...upstreamEmptyResponseError() });
+      return Response.json({ ok: true, text, model: parsed.data.model });
     }
-  } catch (e: any) {
-    return Response.json({ ok: false, error: e.message || 'Connection failed' });
+  } catch (caught: unknown) {
+    return Response.json({ ok: false, ...safeFetchError(caught) });
   }
 }

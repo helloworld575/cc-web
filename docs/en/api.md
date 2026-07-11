@@ -89,7 +89,9 @@ Response:
 { "ok": true, "filename": "uuid.png", "url": "/uploads/uuid.png" }
 ```
 
-### `GET /api/uploads/<filename>`
+### `GET /uploads/<filename>`
+
+`/api/uploads/<filename>` remains the internal rewrite target for compatibility. Public pages should use `/uploads/<filename>` so CDN rules can match one stable path.
 Public endpoint — serves the uploaded file with long-term caching.
 
 ---
@@ -169,7 +171,7 @@ Override the default model with `GPT_IMAGE_MODEL`.
 
 In native image mode, `image` and `size` are optional. In legacy chat mode, `GPT_IMAGE_GROUP` is sent both as the `group` request field and the `New-Api-Group` header for New API compatible gateways.
 
-If the upstream image service returns HTML or invalid JSON, the route returns `502` JSON with `error` and `detail` instead of throwing a server-side parse exception.
+If the upstream image service returns HTML, invalid JSON, an empty body, or a provider error, the route returns bounded JSON containing a safe `code` and `error`. Raw HTML, provider diagnostics, internal hosts, and exception messages are not exposed.
 
 ---
 

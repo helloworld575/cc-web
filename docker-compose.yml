@@ -7,9 +7,11 @@ services:
       - "3000:3000"
     environment:
       CLAUDE_CODE_WORKER_URL: http://claude-worker:8787
+      TRUST_PROXY_HEADERS: 1
     volumes:
       - app-data:/app/data
       - app-uploads:/app/uploads
+      - app-next-cache:/app/.next/cache
       - ./content:/app/content
     env_file:
       - .env.local
@@ -31,12 +33,13 @@ services:
       CLAUDE_ALLOWED_TOOLS: ${CLAUDE_ALLOWED_TOOLS:-Read,Glob,Grep}
       CLAUDE_DISALLOWED_TOOLS: ${CLAUDE_DISALLOWED_TOOLS:-Bash,Edit,Write,NotebookEdit}
       CLAUDE_MAX_BUDGET_USD: ${CLAUDE_MAX_BUDGET_USD:-}
+      CLAUDE_WORKER_TOKEN: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:?CLAUDE_API_KEY is required}
-      CLAUDE_API_HOST: ${CLAUDE_API_HOST:-https://api.anthropic.com}
-      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-6}
+      CLAUDE_API_HOST: ${CLAUDE_API_HOST:-https://www.right.codes/claude}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-opus-4-8}
       ANTHROPIC_API_KEY: ${CLAUDE_API_KEY:?CLAUDE_API_KEY is required}
-      ANTHROPIC_BASE_URL: ${CLAUDE_API_HOST:-https://api.anthropic.com}
-      ANTHROPIC_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-6}
+      ANTHROPIC_BASE_URL: ${CLAUDE_API_HOST:-https://www.right.codes/claude}
+      ANTHROPIC_MODEL: ${CLAUDE_MODEL:-claude-opus-4-8}
       USE_BUILTIN_RIPGREP: 0
     volumes:
       - claude-workspaces:/workspaces
@@ -59,4 +62,5 @@ services:
 volumes:
   app-data:
   app-uploads:
+  app-next-cache:
   claude-workspaces:

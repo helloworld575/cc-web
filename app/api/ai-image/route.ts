@@ -2,9 +2,23 @@ export const runtime = 'nodejs';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { rateLimitByIp } from '@/lib/rateLimit';
+import {
+  readUpstreamFailure,
+  readUpstreamJson,
+  safeFetchError,
+  safeUpstreamResponse,
+  timeoutSignal,
+  upstreamEmptyResponseError,
+  upstreamInvalidResponseError,
+  upstreamResponseTooLargeError,
+} from '@/lib/ai-upstream';
 
 const MOCK_IMAGE_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zx7cAAAAASUVORK5CYII=';
+const MAX_IMAGE_PROMPT_CHARS = 4000;
+const MAX_REFERENCE_IMAGE_BYTES = 6 * 1024 * 1024;
+const MAX_IMAGE_STREAM_BYTES = 16 * 1024 * 1024;
+const IMAGE_REQUEST_TIMEOUT_MS = 180000;
 
 function getImageGenerationUrl() {
   const configured = (process.env.GPT_IMAGE_API_URL || 'https://www.right.codes/draw').replace(/\/+$/, '');
@@ -38,64 +52,26 @@ function getImageGroup() {
 }
 
 function normalizeReferenceImage(value: unknown) {
-  if (value == null || value === '') return { value: null, error: null };
+  if (value == null || value === '') return { value: null, error: null, tooLarge: false };
   if (typeof value !== 'string') {
-    return { value: null, error: 'Reference image must be a data URL image' };
+    return { value: null, error: 'Reference image must be a data URL image', tooLarge: false };
   }
 
   const trimmed = value.trim();
   if (!/^data:image\/(?:png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/i.test(trimmed)) {
-    return { value: null, error: 'Reference image must be a data URL image' };
+    return { value: null, error: 'Reference image must be a data URL image', tooLarge: false };
   }
 
-  return { value: trimmed, error: null };
+  const base64 = trimmed.slice(trimmed.indexOf(',') + 1);
+  if (Buffer.byteLength(Buffer.from(base64, 'base64')) > MAX_REFERENCE_IMAGE_BYTES) {
+    return { value: null, error: 'Reference image exceeds the 6 MB limit', tooLarge: true };
+  }
+
+  return { value: trimmed, error: null, tooLarge: false };
 }
 
 function logImageFailure(reason: string, detail: Record<string, unknown>) {
   console.warn('[ai-image]', reason, detail);
-}
-
-async function readUpstreamError(response: Response) {
-  const fallback = `Image API error (${response.status})`;
-  const contentType = response.headers.get('content-type') || '';
-  try {
-    if (contentType.includes('application/json')) {
-      const data = await response.json();
-      const detail = data.error?.message || data.message || data.error || JSON.stringify(data);
-      return { error: detail ? `${fallback}: ${detail}` : fallback, detail };
-    }
-    const detail = await response.text();
-    return { error: fallback, detail: detail.slice(0, 500) };
-  } catch {
-    return { error: fallback, detail: response.statusText };
-  }
-}
-
-async function readUpstreamJson(response: Response) {
-  const contentType = response.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    const detail = await response.text().catch(() => response.statusText);
-    return {
-      data: null,
-      error: 'Image API returned a non-JSON response',
-      detail: detail.slice(0, 500),
-    };
-  }
-
-  try {
-    return {
-      data: await response.json(),
-      error: null,
-      detail: null,
-    };
-  } catch (caught: unknown) {
-    const errorLike = caught as { message?: string };
-    return {
-      data: null,
-      error: 'Image API returned invalid JSON',
-      detail: errorLike?.message || response.statusText,
-    };
-  }
 }
 
 function buildUserImageMessage(prompt: string, referenceImage: string | null) {
@@ -176,16 +152,22 @@ function normalizeImageResponse(data: any, prompt: string) {
 async function readUpstreamStream(response: Response) {
   const reader = response.body?.getReader();
   if (!reader) {
-    return { text: '', error: 'Image API returned an empty stream', detail: null };
+    return { text: '', error: upstreamEmptyResponseError('Image provider') };
   }
 
   const decoder = new TextDecoder();
   let buf = '';
   let text = '';
+  let bytes = 0;
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
+    bytes += value.byteLength;
+    if (bytes > MAX_IMAGE_STREAM_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      return { text: '', error: upstreamResponseTooLargeError('Image provider') };
+    }
     buf += decoder.decode(value, { stream: true });
     const lines = buf.split('\n');
     buf = lines.pop() ?? '';
@@ -199,9 +181,13 @@ async function readUpstreamStream(response: Response) {
         const parsed = JSON.parse(raw);
         text += extractContentFromJson(parsed);
       } catch {
-        text += raw;
+        return { text: '', error: upstreamInvalidResponseError('Image provider') };
       }
     }
+  }
+
+  if (bytes === 0) {
+    return { text: '', error: upstreamEmptyResponseError('Image provider') };
   }
 
   if (buf.trim().startsWith('data: ')) {
@@ -210,12 +196,12 @@ async function readUpstreamStream(response: Response) {
       try {
         text += extractContentFromJson(JSON.parse(raw));
       } catch {
-        text += raw;
+        return { text: '', error: upstreamInvalidResponseError('Image provider') };
       }
     }
   }
 
-  return { text, error: null, detail: null };
+  return { text, error: null };
 }
 
 export async function POST(req: Request) {
@@ -232,9 +218,17 @@ export async function POST(req: Request) {
 
   const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
   if (!prompt) return Response.json({ error: 'Prompt is required' }, { status: 400 });
+  if (prompt.length > MAX_IMAGE_PROMPT_CHARS) {
+    return Response.json({ code: 'invalid_prompt', error: 'Prompt must be 4000 characters or fewer.' }, { status: 400 });
+  }
 
   const referenceImage = normalizeReferenceImage(body.reference_image);
-  if (referenceImage.error) return Response.json({ error: referenceImage.error }, { status: 400 });
+  if (referenceImage.error) {
+    return Response.json({
+      ...(referenceImage.tooLarge ? { code: 'reference_image_too_large' } : {}),
+      error: referenceImage.error,
+    }, { status: referenceImage.tooLarge ? 413 : 400 });
+  }
 
   if (process.env.E2E_MOCK_STREAMS === '1') {
     return Response.json({
@@ -268,20 +262,20 @@ export async function POST(req: Request) {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
+      signal: timeoutSignal(IMAGE_REQUEST_TIMEOUT_MS),
     });
   } catch (caught: unknown) {
-    const errorLike = caught as { message?: string };
-    return Response.json({ error: errorLike?.message || 'Failed to reach image API' }, { status: 502 });
+    return safeUpstreamResponse(safeFetchError(caught, 'Image provider'));
   }
 
   if (!upstream.ok) {
-    const { error, detail } = await readUpstreamError(upstream);
+    const failure = await readUpstreamFailure(upstream, 'Image provider');
     logImageFailure('upstream-error', {
       status: upstream.status,
       contentType: upstream.headers.get('content-type') || '',
-      detail,
+      detail: failure.logDetail,
     });
-    return Response.json({ error, detail }, { status: 502 });
+    return safeUpstreamResponse(failure.payload);
   }
 
   const contentType = upstream.headers.get('content-type') || '';
@@ -290,25 +284,25 @@ export async function POST(req: Request) {
   let created: unknown;
 
   if (contentType.includes('text/event-stream')) {
-    const { text, error, detail } = await readUpstreamStream(upstream);
+    const { text, error } = await readUpstreamStream(upstream);
     if (error) {
-      logImageFailure('stream-error', { error, detail });
-      return Response.json({ error, detail }, { status: 502 });
+      logImageFailure('stream-error', { code: error.code });
+      return safeUpstreamResponse(error);
     }
     image = extractImageFromText(text);
     revisedPrompt = prompt;
   } else {
-    const { data, error: parseError, detail: parseDetail } = await readUpstreamJson(upstream);
-    if (parseError) {
+    const parsed = await readUpstreamJson(upstream, 'Image provider', MAX_IMAGE_STREAM_BYTES);
+    if (!parsed.ok) {
       logImageFailure('parse-error', {
-        error: parseError,
-        detail: parseDetail,
+        code: parsed.failure.payload.code,
+        detail: parsed.failure.logDetail,
         contentType,
       });
-      return Response.json({ error: parseError, detail: parseDetail }, { status: 502 });
+      return safeUpstreamResponse(parsed.failure.payload);
     }
 
-    const normalized = normalizeImageResponse(data, prompt);
+    const normalized = normalizeImageResponse(parsed.data, prompt);
     image = normalized.image;
     revisedPrompt = normalized.revisedPrompt;
     created = normalized.created;
@@ -316,7 +310,7 @@ export async function POST(req: Request) {
 
   if (!image) {
     logImageFailure('no-image', { contentType });
-    return Response.json({ error: 'Image API returned no image' }, { status: 502 });
+    return safeUpstreamResponse(upstreamInvalidResponseError('Image provider'));
   }
 
   return Response.json({

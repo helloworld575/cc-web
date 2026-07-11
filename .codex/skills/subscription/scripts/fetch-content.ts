@@ -20,6 +20,8 @@
  *   other      → Try RSS first, fallback to HTML text extraction
  */
 
+import { fetchPublicHttp } from './safe-fetch';
+
 export interface FetchedContent {
   title: string;
   content: string;
@@ -34,7 +36,7 @@ async function fetchX(url: string): Promise<FetchedContent | null> {
   const username = match[1];
 
   try {
-    const res = await fetch(
+    const res = await fetchPublicHttp(
       `https://syndication.twitter.com/srv/timeline-profile/screen-name/${username}`,
       {
         headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
@@ -66,7 +68,7 @@ async function fetchX(url: string): Promise<FetchedContent | null> {
     // Get user profile via fxtwitter (optional enrichment)
     let profileDesc = '';
     try {
-      const profileRes = await fetch(`https://api.fxtwitter.com/${username}`, {
+      const profileRes = await fetchPublicHttp(`https://api.fxtwitter.com/${username}`, {
         signal: AbortSignal.timeout(8000),
       });
       if (profileRes.ok) {
@@ -104,7 +106,7 @@ async function fetchGitHubRepo(owner: string, repo: string): Promise<FetchedCont
 
   // Releases atom feed
   try {
-    const res = await fetch(`https://github.com/${owner}/${clean}/releases.atom`, { signal: AbortSignal.timeout(15000) });
+    const res = await fetchPublicHttp(`https://github.com/${owner}/${clean}/releases.atom`, { signal: AbortSignal.timeout(15000) });
     if (res.ok) {
       const xml = await res.text();
       for (const entry of xml.split('<entry>').slice(1, 8)) {
@@ -120,7 +122,7 @@ async function fetchGitHubRepo(owner: string, repo: string): Promise<FetchedCont
 
   // Commits atom feed
   try {
-    const res = await fetch(`https://github.com/${owner}/${clean}/commits.atom`, { signal: AbortSignal.timeout(15000) });
+    const res = await fetchPublicHttp(`https://github.com/${owner}/${clean}/commits.atom`, { signal: AbortSignal.timeout(15000) });
     if (res.ok) {
       const xml = await res.text();
       for (const entry of xml.split('<entry>').slice(1, 11)) {
@@ -135,7 +137,7 @@ async function fetchGitHubRepo(owner: string, repo: string): Promise<FetchedCont
   // Repo description via HTML
   let repoDesc = '';
   try {
-    const res = await fetch(`https://github.com/${owner}/${clean}`, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(10000) });
+    const res = await fetchPublicHttp(`https://github.com/${owner}/${clean}`, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(10000) });
     if (res.ok) {
       const html = await res.text();
       const desc = html.match(/<p[^>]*class="[^"]*f4[^"]*"[^>]*>([\s\S]*?)<\/p>/)?.[1]?.replace(/<[^>]+>/g, '').trim();
@@ -154,7 +156,7 @@ async function fetchGitHubRepo(owner: string, repo: string): Promise<FetchedCont
 async function fetchGitHubOrg(org: string): Promise<FetchedContent | null> {
   const items: string[] = [];
   try {
-    const res = await fetch(`https://github.com/${org}.atom`, { signal: AbortSignal.timeout(15000) });
+    const res = await fetchPublicHttp(`https://github.com/${org}.atom`, { signal: AbortSignal.timeout(15000) });
     if (res.ok) {
       const xml = await res.text();
       for (const entry of xml.split('<entry>').slice(1, 15)) {
@@ -176,7 +178,7 @@ async function fetchBlog(url: string): Promise<FetchedContent | null> {
 
   for (const path of feedPaths) {
     try {
-      const res = await fetch(baseUrl + path, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
+      const res = await fetchPublicHttp(baseUrl + path, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
       if (res.ok) {
         const text = await res.text();
         if (text.includes('<rss') || text.includes('<feed') || text.includes('<channel>')) {
@@ -188,14 +190,14 @@ async function fetchBlog(url: string): Promise<FetchedContent | null> {
 
   // Check HTML <link> for feed URL
   try {
-    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
+    const res = await fetchPublicHttp(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
     if (res.ok) {
       const html = await res.text();
       const feedLink = html.match(/<link[^>]*type="application\/(rss|atom)\+xml"[^>]*href="([^"]+)"/)?.[2];
       if (feedLink) {
         const feedUrl = feedLink.startsWith('http') ? feedLink : new URL(feedLink, url).href;
         try {
-          const feedRes = await fetch(feedUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
+          const feedRes = await fetchPublicHttp(feedUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
           if (feedRes.ok) {
             const feedText = await feedRes.text();
             if (feedText.includes('<rss') || feedText.includes('<feed') || feedText.includes('<channel>')) {
@@ -239,7 +241,7 @@ function parseRSSFeed(xml: string, sourceUrl: string): FetchedContent {
 async function fetchReddit(url: string): Promise<FetchedContent | null> {
   const jsonUrl = url.replace(/\/$/, '') + '.json';
   try {
-    const res = await fetch(jsonUrl, { headers: { 'User-Agent': 'SubscriptionBot/1.0' }, signal: AbortSignal.timeout(15000) });
+    const res = await fetchPublicHttp(jsonUrl, { headers: { 'User-Agent': 'SubscriptionBot/1.0' }, signal: AbortSignal.timeout(15000) });
     if (!res.ok) return fetchGeneric(url);
 
     const data = await res.json();
@@ -259,7 +261,7 @@ async function fetchReddit(url: string): Promise<FetchedContent | null> {
 // ─── Generic HTML (fallback) ────────────────────────────────────────────────
 export async function fetchGeneric(url: string): Promise<FetchedContent | null> {
   try {
-    const res = await fetch(url, {
+    const res = await fetchPublicHttp(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
       signal: AbortSignal.timeout(20000),
     });

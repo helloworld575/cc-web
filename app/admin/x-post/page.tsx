@@ -1,11 +1,14 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import { useLocale } from '@/components/useLocale';
+import { apiErrorTranslationKey, readSafeApiError } from '@/lib/client-api-error';
 
 interface BlogPost { slug: string; title: string; date: string; brief: string; }
 interface DiaryEntry { id: number; date: string; content: string; }
 interface SiteFile { id: number; filename: string; original_name: string; mime_type: string; size: number; }
 
 export default function AdminPostToXPage() {
+  const { t } = useLocale();
   const [tab, setTab] = useState<'blog' | 'diary' | 'custom'>('blog');
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [diaries, setDiaries] = useState<DiaryEntry[]>([]);
@@ -33,9 +36,14 @@ export default function AdminPostToXPage() {
     fetch('/api/blog').then(r => r.ok ? r.json() : []).then(setPosts).catch(() => {});
     fetch('/api/diary').then(r => r.ok ? r.json() : []).then(setDiaries).catch(() => {});
     fetch('/api/x-auth').then(r => r.json()).then(d => {
-      setXAuthStatus(d.authenticated ? '✓ Connected' : '✗ ' + (d.help || d.message || 'Not configured'));
-    }).catch(() => setXAuthStatus('✗ Failed to check'));
-  }, []);
+      setXAuthStatus(d.authenticated ? `✓ ${t('xConnected')}` : `✗ ${t('xNotConfigured')}`);
+    }).catch(() => setXAuthStatus(`✗ ${t('xStatusFailed')}`));
+  }, [t]);
+
+  async function localizedError(response: Response, fallback: 'xAiFailed' | 'xPostFailed') {
+    const safe = await readSafeApiError(response, t(fallback));
+    return t(apiErrorTranslationKey(safe.code, fallback));
+  }
 
   async function loadSiteFiles(page: number = 1) {
     setLoadingSiteFiles(true);
@@ -56,23 +64,23 @@ export default function AdminPostToXPage() {
 
   async function selectSiteFile(file: SiteFile) {
     if (images.length >= 4) {
-      setResult({ ok: false, msg: 'Maximum 4 images per tweet' });
+      setResult({ ok: false, msg: t('xMaxImages') });
       return;
     }
     // Fetch the file from the server and convert to File object
-    const res = await fetch(`/api/uploads/${file.filename}`);
+    const res = await fetch(`/uploads/${file.filename}`);
     if (!res.ok) return;
     const blob = await res.blob();
     const fileObj = new File([blob], file.original_name, { type: file.mime_type });
     const newImages = [...images, fileObj];
     setImages(newImages);
-    setImagePreviews([...imagePreviews, `/api/uploads/${file.filename}`]);
+    setImagePreviews([...imagePreviews, `/uploads/${file.filename}`]);
   }
 
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
     if (images.length + files.length > 4) {
-      setResult({ ok: false, msg: 'Maximum 4 images per tweet' });
+      setResult({ ok: false, msg: t('xMaxImages') });
       return;
     }
     const newImages = [...images, ...files];
@@ -107,8 +115,7 @@ export default function AdminPostToXPage() {
       });
 
       if (!res.ok) {
-        const d = await res.json();
-        setResult({ ok: false, msg: d.error || 'AI generation failed' });
+        setResult({ ok: false, msg: await localizedError(res, 'xAiFailed') });
         setGenerating(false);
         return;
       }
@@ -145,8 +152,8 @@ export default function AdminPostToXPage() {
         setTweetMode('single');
         setTweetText(fullText.slice(0, 280));
       }
-    } catch (e: any) {
-      setResult({ ok: false, msg: e.message });
+    } catch {
+      setResult({ ok: false, msg: t('xAiFailed') });
     }
     setGenerating(false);
   }
@@ -175,10 +182,10 @@ ${selectedContent}
 
   async function getDefaultProviderId(): Promise<number> {
     const res = await fetch('/api/ai-providers');
-    if (!res.ok) throw new Error('No AI providers');
+    if (!res.ok) throw new Error(t('xAiFailed'));
     const providers = await res.json();
     const def = providers.find((p: any) => p.is_default) || providers[0];
-    if (!def) throw new Error('No AI provider configured');
+    if (!def) throw new Error(t('xAiFailed'));
     return def.id;
   }
 
@@ -193,8 +200,11 @@ ${selectedContent}
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ thread: threadTexts }),
         });
-        const data = await res.json();
-        setResult(!res.ok ? { ok: false, msg: data.error } : { ok: true, msg: `Posted thread! ${data.tweets?.length} tweets` });
+        if (!res.ok) {
+          setResult({ ok: false, msg: await localizedError(res, 'xPostFailed') });
+        } else {
+          setResult({ ok: true, msg: t('xPosted') });
+        }
       } else if (images.length > 0) {
         const formData = new FormData();
         formData.append('text', tweetText);
@@ -202,11 +212,10 @@ ${selectedContent}
           formData.append('images', img);
         }
         const res = await fetch('/api/x-post', { method: 'POST', body: formData });
-        const data = await res.json();
         if (!res.ok) {
-          setResult({ ok: false, msg: data.error });
+          setResult({ ok: false, msg: await localizedError(res, 'xPostFailed') });
         } else {
-          setResult({ ok: true, msg: `Posted with ${images.length} image(s)! Tweet ID: ${data.tweet?.id}` });
+          setResult({ ok: true, msg: t('xPosted') });
           setImages([]); setImagePreviews([]);
         }
       } else {
@@ -215,11 +224,14 @@ ${selectedContent}
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: tweetText }),
         });
-        const data = await res.json();
-        setResult(!res.ok ? { ok: false, msg: data.error } : { ok: true, msg: `Posted! Tweet ID: ${data.tweet?.id}` });
+        if (!res.ok) {
+          setResult({ ok: false, msg: await localizedError(res, 'xPostFailed') });
+        } else {
+          setResult({ ok: true, msg: t('xPosted') });
+        }
       }
-    } catch (e: any) {
-      setResult({ ok: false, msg: e.message });
+    } catch {
+      setResult({ ok: false, msg: t('xPostFailed') });
     }
     setPosting(false);
   }
@@ -233,7 +245,7 @@ ${selectedContent}
   }
 
   function selectDiary(entry: DiaryEntry) {
-    setSelectedTitle(`Diary: ${entry.date}`);
+    setSelectedTitle(`${t('xDiary')}: ${entry.date}`);
     setSelectedContent(entry.content);
     setResult(null);
   }
@@ -243,7 +255,7 @@ ${selectedContent}
   return (
     <main className="max-w-4xl mx-auto px-6 py-12">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Post to X</h1>
+        <h1 className="text-3xl font-bold">{t('xPostTitle')}</h1>
         <span className={`text-sm ${xAuthStatus.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>
           {xAuthStatus}
         </span>
@@ -251,10 +263,10 @@ ${selectedContent}
 
       {/* Source selector tabs */}
       <div className="flex gap-1 mb-6 border-b">
-        {(['blog', 'diary', 'custom'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`pb-2 px-3 text-sm font-medium ${tab === t ? 'border-b-2 border-black' : 'text-gray-500 hover:text-black'}`}>
-            {t === 'blog' ? 'Blog Posts' : t === 'diary' ? 'Diary' : 'Custom'}
+        {(['blog', 'diary', 'custom'] as const).map(sourceTab => (
+          <button key={sourceTab} onClick={() => setTab(sourceTab)}
+            className={`pb-2 px-3 text-sm font-medium ${tab === sourceTab ? 'border-b-2 border-black' : 'text-gray-500 hover:text-black'}`}>
+            {sourceTab === 'blog' ? t('xBlogPosts') : sourceTab === 'diary' ? t('xDiary') : t('xCustom')}
           </button>
         ))}
       </div>
@@ -271,7 +283,7 @@ ${selectedContent}
                   <span className="text-gray-400 text-xs ml-2">{p.date}</span>
                 </div>
               ))}
-              {posts.length === 0 && <p className="text-gray-400 text-sm">No blog posts</p>}
+              {posts.length === 0 && <p className="text-gray-400 text-sm">{t('xNoBlogPosts')}</p>}
             </div>
           )}
 
@@ -279,29 +291,29 @@ ${selectedContent}
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {diaries.map(d => (
                 <div key={d.id} onClick={() => selectDiary(d)}
-                  className={`border rounded px-3 py-2 cursor-pointer text-sm hover:border-gray-400 ${selectedTitle === `Diary: ${d.date}` ? 'border-black bg-gray-50' : ''}`}>
+                  className={`border rounded px-3 py-2 cursor-pointer text-sm hover:border-gray-400 ${selectedTitle === `${t('xDiary')}: ${d.date}` ? 'border-black bg-gray-50' : ''}`}>
                   <span className="font-medium">{d.date}</span>
                   <p className="text-gray-500 text-xs truncate">{d.content.slice(0, 80)}</p>
                 </div>
               ))}
-              {diaries.length === 0 && <p className="text-gray-400 text-sm">No diary entries</p>}
+              {diaries.length === 0 && <p className="text-gray-400 text-sm">{t('xNoDiaryEntries')}</p>}
             </div>
           )}
 
           {tab === 'custom' && (
             <div className="space-y-3">
               <input value={selectedTitle} onChange={e => setSelectedTitle(e.target.value)}
-                className="border rounded px-2 py-1 text-sm w-full" placeholder="Title" />
+                className="border rounded px-2 py-1 text-sm w-full" placeholder={t('xCustomTitle')} />
               <textarea value={selectedContent} onChange={e => setSelectedContent(e.target.value)}
                 rows={12} className="border rounded px-2 py-1 text-sm w-full resize-y font-mono"
-                placeholder="Paste your content here..." />
+                placeholder={t('xCustomContent')} />
             </div>
           )}
 
           {selectedContent && (
             <button onClick={generateTweet} disabled={generating}
               className="mt-4 bg-black text-white px-4 py-2 rounded text-sm w-full disabled:opacity-50">
-              {generating ? 'Generating...' : '🤖 Generate Tweet with AI'}
+              {generating ? t('xGenerating') : `🤖 ${t('xGenerate')}`}
             </button>
           )}
         </div>
@@ -311,20 +323,20 @@ ${selectedContent}
           {tweetMode === 'single' ? (
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs text-gray-500">Tweet</label>
+                <label className="text-xs text-gray-500">{t('xTweet')}</label>
                 <span className={`text-xs ${tweetText.length > 280 ? 'text-red-500' : 'text-gray-400'}`}>
                   {tweetText.length}/280
                 </span>
               </div>
               <textarea value={tweetText} onChange={e => setTweetText(e.target.value)}
-                rows={6} className="border rounded px-3 py-2 text-sm w-full resize-y" placeholder="Write or generate a tweet..." />
+                rows={6} className="border rounded px-3 py-2 text-sm w-full resize-y" placeholder={t('xTweetPlaceholder')} />
             </div>
           ) : (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="text-xs text-gray-500">Thread ({threadTexts.length} tweets)</label>
+                <label className="text-xs text-gray-500">{t('xThread')} ({threadTexts.length} {t('xTweets')})</label>
                 <button onClick={() => setThreadTexts([...threadTexts, ''])}
-                  className="text-xs text-blue-500 hover:underline">+ Add tweet</button>
+                  className="text-xs text-blue-500 hover:underline">+ {t('xAddTweet')}</button>
               </div>
               {threadTexts.map((t, i) => (
                 <div key={i} className="relative">
@@ -346,7 +358,7 @@ ${selectedContent}
           {/* Image area */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs text-gray-500">Images ({images.length}/4)</label>
+              <label className="text-xs text-gray-500">{t('xImages')} ({images.length}/4)</label>
             </div>
 
             {/* Image previews */}
@@ -354,7 +366,7 @@ ${selectedContent}
               <div className="flex gap-2 mb-2 flex-wrap">
                 {imagePreviews.map((src, i) => (
                   <div key={i} className="relative group">
-                    <img src={src} alt={`Upload ${i + 1}`}
+                    <img src={src} alt={`${t('xUploadAlt')} ${i + 1}`} loading="lazy" decoding="async"
                       className="w-20 h-20 object-cover rounded border" />
                     <button onClick={() => removeImage(i)}
                       className="absolute -top-1 -right-1 bg-red-500 text-white w-4 h-4 rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -371,11 +383,11 @@ ${selectedContent}
                   onChange={handleImageSelect} className="hidden" />
                 <button onClick={() => fileInputRef.current?.click()}
                   className="flex-1 border border-dashed rounded px-3 py-2 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors">
-                  📁 From computer
+                  📁 {t('xFromComputer')}
                 </button>
                 <button onClick={openFilePicker}
                   className="flex-1 border border-dashed rounded px-3 py-2 text-xs text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors">
-                  🖼️ From site files
+                  🖼️ {t('xFromSiteFiles')}
                 </button>
               </div>
             )}
@@ -385,20 +397,20 @@ ${selectedContent}
           {showFilePicker && (
             <div className="border rounded-lg p-3 bg-gray-50 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-600">Select from site files</span>
-                <button onClick={() => setShowFilePicker(false)} className="text-xs text-gray-400 hover:text-gray-600">Close</button>
+                <span className="text-xs font-medium text-gray-600">{t('xSelectSiteFiles')}</span>
+                <button onClick={() => setShowFilePicker(false)} className="text-xs text-gray-400 hover:text-gray-600">{t('close')}</button>
               </div>
               {loadingSiteFiles ? (
-                <p className="text-xs text-gray-400 text-center py-4">Loading...</p>
+                <p className="text-xs text-gray-400 text-center py-4">{t('loading')}</p>
               ) : siteFiles.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-4">No files uploaded yet</p>
+                <p className="text-xs text-gray-400 text-center py-4">{t('xNoFiles')}</p>
               ) : (
                 <>
                   <div className="grid grid-cols-4 gap-2">
                     {siteFiles.map(f => (
                       <button key={f.id} onClick={() => { selectSiteFile(f); setShowFilePicker(false); }}
                         className="border rounded overflow-hidden hover:border-blue-400 transition-colors group">
-                        <img src={`/api/uploads/${f.filename}`} alt={f.original_name}
+                        <img src={`/uploads/${f.filename}`} alt={f.original_name} loading="lazy" decoding="async"
                           className="w-full h-16 object-cover" />
                         <p className="text-[10px] text-gray-400 truncate px-1 py-0.5 group-hover:text-blue-500">{f.original_name}</p>
                       </button>
@@ -407,10 +419,10 @@ ${selectedContent}
                   {siteFilesTotalPages > 1 && (
                     <div className="flex justify-center gap-2">
                       <button onClick={() => loadSiteFiles(siteFilesPage - 1)} disabled={siteFilesPage <= 1}
-                        className="text-xs px-2 py-0.5 border rounded disabled:opacity-30">Prev</button>
+                        className="text-xs px-2 py-0.5 border rounded disabled:opacity-30">{t('prev')}</button>
                       <span className="text-xs text-gray-400">{siteFilesPage}/{siteFilesTotalPages}</span>
                       <button onClick={() => loadSiteFiles(siteFilesPage + 1)} disabled={siteFilesPage >= siteFilesTotalPages}
-                        className="text-xs px-2 py-0.5 border rounded disabled:opacity-30">Next</button>
+                        className="text-xs px-2 py-0.5 border rounded disabled:opacity-30">{t('next')}</button>
                     </div>
                   )}
                 </>
@@ -421,7 +433,7 @@ ${selectedContent}
           <div className="flex gap-2">
             <button onClick={() => { setTweetMode(tweetMode === 'single' ? 'thread' : 'single'); }}
               className="border rounded px-3 py-1 text-xs text-gray-500 hover:bg-gray-50">
-              Switch to {tweetMode === 'single' ? 'Thread' : 'Single'}
+              {t('xSwitchTo')} {tweetMode === 'single' ? t('xThread') : t('xSingle')}
             </button>
           </div>
 
@@ -434,7 +446,7 @@ ${selectedContent}
           <button onClick={postToX}
             disabled={posting || (tweetMode === 'single' ? (!tweetText && images.length === 0) : threadTexts.length === 0)}
             className="bg-blue-500 text-white px-4 py-2 rounded text-sm w-full hover:bg-blue-600 disabled:opacity-50">
-            {posting ? 'Posting...' : images.length > 0 ? `🐦 Post to X with ${images.length} image(s)` : '🐦 Post to X'}
+            {posting ? t('xPosting') : images.length > 0 ? `🐦 ${t('xPostWithImages')} (${images.length})` : `🐦 ${t('xPost')}`}
           </button>
         </div>
       </div>

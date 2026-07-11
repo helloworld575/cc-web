@@ -4,6 +4,16 @@ import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
 import { getEnvProviderById, type AiProviderConfig } from '@/lib/ai-providers';
+import {
+  readUpstreamFailure,
+  safeFetchError,
+  safeUpstreamResponse,
+  timeoutSignal,
+  upstreamEmptyResponseError,
+  upstreamInvalidResponseError,
+  validateUpstreamSse,
+  type SafeUpstreamError,
+} from '@/lib/ai-upstream';
 import { DEFAULT_AI_CHAT_SYSTEM_PROMPT, mergeAiChatSystemPrompts } from '@/lib/ai-chat-defaults';
 import { getSkill, resolveSkillReference, type Skill } from '@/lib/skills';
 import { isInvocableSkill } from '@/lib/skill-taxonomy';
@@ -113,13 +123,12 @@ function enqueueEvent(
   controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
 }
 
-function formatAiStreamError(caught: unknown) {
-  if (typeof caught === 'string' && caught.trim()) return caught.trim();
-  const errorLike = caught as { message?: unknown };
-  if (typeof errorLike?.message === 'string' && errorLike.message.trim()) {
-    return errorLike.message.trim();
+function normalizeAiStreamError(caught: unknown): SafeUpstreamError {
+  const errorLike = caught as Partial<SafeUpstreamError>;
+  if (typeof errorLike?.code === 'string' && typeof errorLike?.error === 'string') {
+    return errorLike as SafeUpstreamError;
   }
-  return 'Unknown AI stream error';
+  return safeFetchError(caught);
 }
 
 function extractUpstreamStreamError(event: any) {
@@ -260,7 +269,7 @@ function createAnthropicStream(
 
   function finishWithError(controller: ReadableStreamDefaultController<Uint8Array>, caught: unknown) {
     if (!donePersisted) {
-      enqueueEvent(controller, { error: `AI stream interrupted: ${formatAiStreamError(caught)}` });
+      enqueueEvent(controller, { ...normalizeAiStreamError(caught) });
       donePersisted = true;
     }
     try { controller.close(); } catch {}
@@ -275,6 +284,7 @@ function createAnthropicStream(
         upstreamReader = upstreamBody.getReader();
         const decoder = new TextDecoder();
         let buf = '';
+        let sawEvent = false;
 
         while (true) {
           const { done, value } = await upstreamReader.read();
@@ -289,6 +299,7 @@ function createAnthropicStream(
               if (raw === '[DONE]') { finish(controller); return; }
               try {
                 const parsed = JSON.parse(raw);
+                sawEvent = true;
                 const upstreamError = extractUpstreamStreamError(parsed);
                 if (upstreamError) {
                   finishWithError(controller, upstreamError);
@@ -303,11 +314,16 @@ function createAnthropicStream(
                   finish(controller);
                   return;
                 }
-              } catch { /* skip malformed */ }
+              } catch {
+                finishWithError(controller, upstreamInvalidResponseError());
+                return;
+              }
             }
           }
         }
-        finish(controller);
+        finishWithError(controller, sawEvent
+          ? upstreamInvalidResponseError()
+          : upstreamEmptyResponseError());
       } catch (caught) {
         finishWithError(controller, caught);
       }
@@ -344,7 +360,7 @@ function createOpenAIStream(
 
   function finishWithError(controller: ReadableStreamDefaultController<Uint8Array>, caught: unknown) {
     if (!donePersisted) {
-      enqueueEvent(controller, { error: `AI stream interrupted: ${formatAiStreamError(caught)}` });
+      enqueueEvent(controller, { ...normalizeAiStreamError(caught) });
       donePersisted = true;
     }
     try { controller.close(); } catch {}
@@ -359,6 +375,7 @@ function createOpenAIStream(
         upstreamReader = upstreamBody.getReader();
         const decoder = new TextDecoder();
         let buf = '';
+        let sawEvent = false;
 
         while (true) {
           const { done, value } = await upstreamReader.read();
@@ -373,6 +390,7 @@ function createOpenAIStream(
               if (raw === '[DONE]') { finish(controller); return; }
               try {
                 const parsed = JSON.parse(raw);
+                sawEvent = true;
                 const upstreamError = extractUpstreamStreamError(parsed);
                 if (upstreamError) {
                   finishWithError(controller, upstreamError);
@@ -387,11 +405,16 @@ function createOpenAIStream(
                   finish(controller);
                   return;
                 }
-              } catch { /* skip malformed */ }
+              } catch {
+                finishWithError(controller, upstreamInvalidResponseError());
+                return;
+              }
             }
           }
         }
-        finish(controller);
+        finishWithError(controller, sawEvent
+          ? upstreamInvalidResponseError()
+          : upstreamEmptyResponseError());
       } catch (caught) {
         finishWithError(controller, caught);
       }
@@ -428,7 +451,7 @@ function createResponsesStream(
 
   function finishWithError(controller: ReadableStreamDefaultController<Uint8Array>, caught: unknown) {
     if (!donePersisted) {
-      enqueueEvent(controller, { error: `AI stream interrupted: ${formatAiStreamError(caught)}` });
+      enqueueEvent(controller, { ...normalizeAiStreamError(caught) });
       donePersisted = true;
     }
     try { controller.close(); } catch {}
@@ -443,6 +466,7 @@ function createResponsesStream(
         upstreamReader = upstreamBody.getReader();
         const decoder = new TextDecoder();
         let buf = '';
+        let sawEvent = false;
 
         while (true) {
           const { done, value } = await upstreamReader.read();
@@ -457,6 +481,7 @@ function createResponsesStream(
               if (raw === '[DONE]') { finish(controller); return; }
               try {
                 const parsed = JSON.parse(raw);
+                sawEvent = true;
                 const upstreamError = extractUpstreamStreamError(parsed);
                 if (upstreamError) {
                   finishWithError(controller, upstreamError);
@@ -471,11 +496,16 @@ function createResponsesStream(
                   finish(controller);
                   return;
                 }
-              } catch { /* skip malformed */ }
+              } catch {
+                finishWithError(controller, upstreamInvalidResponseError());
+                return;
+              }
             }
           }
         }
-        finish(controller);
+        finishWithError(controller, sawEvent
+          ? upstreamInvalidResponseError()
+          : upstreamEmptyResponseError());
       } catch (caught) {
         finishWithError(controller, caught);
       }
@@ -534,12 +564,9 @@ export async function POST(req: Request) {
     return Response.json({ error: `Skill is not invocable: ${skillReference}` }, { status: 400 });
   }
 
-  const envProvider = getEnvProviderById(Number(provider_id));
-  const provider = envProvider
-    ? envProvider
-    : db.prepare('SELECT * FROM ai_providers WHERE id = ?').get(provider_id) as AiProviderConfig | undefined;
+  const provider = getEnvProviderById(Number(provider_id));
   if (!provider) {
-    return Response.json({ error: 'Provider not found' }, { status: 404 });
+    return Response.json({ code: 'provider_not_found', error: 'AI provider not found.' }, { status: 404 });
   }
 
   const providerId = Number(provider_id);
@@ -617,20 +644,19 @@ export async function POST(req: Request) {
       method: 'POST',
       headers: reqConfig.headers,
       body: reqConfig.body,
+      signal: timeoutSignal(120000),
     });
   } catch (caught: unknown) {
-    const errorLike = caught as { message?: string };
-    return Response.json({ error: errorLike?.message || 'Failed to reach AI provider' }, { status: 502 });
+    return safeUpstreamResponse(safeFetchError(caught));
   }
 
   if (!upstream.ok) {
-    let msg = 'AI API error';
-    try { const err = await upstream.json(); msg = err.error?.message ?? JSON.stringify(err.error) ?? msg; } catch {}
-    return Response.json({ error: msg }, { status: 502 });
+    const failure = await readUpstreamFailure(upstream);
+    console.warn('[ai-chat]', failure.logDetail);
+    return safeUpstreamResponse(failure.payload);
   }
-  if (!upstream.body) {
-    return Response.json({ error: 'AI provider returned an empty stream' }, { status: 502 });
-  }
+  const validated = await validateUpstreamSse(upstream);
+  if (!validated.ok) return safeUpstreamResponse(validated.payload);
 
   if (!chatId) {
     const saved = saveNewChat(providerId, messages);
@@ -649,10 +675,10 @@ export async function POST(req: Request) {
     },
   };
   const stream = provider.api_type === 'anthropic'
-    ? createAnthropicStream(upstream.body!, streamOptions)
+    ? createAnthropicStream(validated.body, streamOptions)
     : openAiApiStyle === 'responses'
-      ? createResponsesStream(upstream.body!, streamOptions)
-      : createOpenAIStream(upstream.body!, streamOptions);
+      ? createResponsesStream(validated.body, streamOptions)
+      : createOpenAIStream(validated.body, streamOptions);
 
   return new Response(stream, {
     headers: {

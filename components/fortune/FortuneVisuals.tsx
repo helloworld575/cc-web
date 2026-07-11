@@ -1,5 +1,6 @@
 import { type BaziResult, ELEMENT_COLOR } from '@/lib/bazi';
 import { type HexagramResult, TRIGRAMS } from '@/lib/yijing';
+import { useLocale } from '@/components/useLocale';
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => ({
   value: hour,
@@ -73,13 +74,14 @@ export function BirthInputs({
   onDay: (value: number) => void;
   onHour: (value: number) => void;
 }) {
+  const { t } = useLocale();
   const inputClassName =
     'w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-amber-300 focus:ring-4 focus:ring-amber-100';
 
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <label className="block">
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Year</span>
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('fortuneYear')}</span>
         <input
           type="number"
           value={year}
@@ -90,7 +92,7 @@ export function BirthInputs({
         />
       </label>
       <label className="block">
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Month</span>
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('fortuneMonth')}</span>
         <select value={month} onChange={event => onMonth(Number(event.target.value))} className={inputClassName}>
           {Array.from({ length: 12 }, (_, index) => index + 1).map(value => (
             <option key={value} value={value}>
@@ -100,7 +102,7 @@ export function BirthInputs({
         </select>
       </label>
       <label className="block">
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Day</span>
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('fortuneDay')}</span>
         <select value={day} onChange={event => onDay(Number(event.target.value))} className={inputClassName}>
           {Array.from({ length: 31 }, (_, index) => index + 1).map(value => (
             <option key={value} value={value}>
@@ -110,7 +112,7 @@ export function BirthInputs({
         </select>
       </label>
       <label className="block">
-        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Hour</span>
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t('fortuneHour')}</span>
         <select value={hour} onChange={event => onHour(Number(event.target.value))} className={inputClassName}>
           {HOURS.map(option => (
             <option key={option.value} value={option.value}>
@@ -124,6 +126,7 @@ export function BirthInputs({
 }
 
 export function HexagramDisplay({ result }: { result: HexagramResult }) {
+  const { t } = useLocale();
   const upper = TRIGRAMS[result.upperBinary];
   const lower = TRIGRAMS[result.lowerBinary];
 
@@ -131,14 +134,14 @@ export function HexagramDisplay({ result }: { result: HexagramResult }) {
     <section className="rounded-[30px] border border-white/70 bg-white/95 px-5 py-5 shadow-sm animate-slide-up">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Hexagram</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{t('fortuneHexagram')}</p>
           <h3 className="mt-2 font-display text-3xl text-slate-900">{result.hexagram.fullName}</h3>
           <p className="mt-2 text-sm text-slate-500">
-            上卦 {upper.name} / {upper.element}，下卦 {lower.name} / {lower.element}
+            {t('fortuneUpperTrigram')} {upper.name} / {upper.element}，{t('fortuneLowerTrigram')} {lower.name} / {lower.element}
           </p>
           {result.transformed && (
             <p className="mt-3 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-              变卦 {result.transformed.fullName}
+              {t('fortuneChangedHexagram')} {result.transformed.fullName}
             </p>
           )}
         </div>
@@ -154,7 +157,7 @@ export function HexagramDisplay({ result }: { result: HexagramResult }) {
                 <span className="w-12 text-xs uppercase tracking-[0.18em] text-slate-400">L{lineIndex + 1}</span>
                 <div className={`flex items-center gap-2 ${changing ? 'text-rose-600' : 'text-slate-800'}`}>
                   <span className={`hex-line ${isYang ? 'hex-line-yang' : 'hex-line-yin'}`} />
-                  {changing && <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">changing</span>}
+                  {changing && <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">{t('fortuneChanging')}</span>}
                 </div>
               </div>
             );

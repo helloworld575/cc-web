@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-10T02:24:56.975Z",
+  "generatedAt": "2026-07-11T17:45:28.495Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -462,12 +462,14 @@
     "components": [
       "components/AIChatTool.tsx",
       "components/AIImageTool.tsx",
+      "components/AdminNav.tsx",
       "components/BaziTool.tsx",
       "components/ClaudeCodeTool.tsx",
       "components/DateRangeFilter.tsx",
       "components/DeadlineAlert.tsx",
       "components/FortuneTool.tsx",
       "components/HydrationReady.tsx",
+      "components/LocaleProvider.tsx",
       "components/MarkdownEditor.tsx",
       "components/Nav.tsx",
       "components/Pagination.tsx",
@@ -482,9 +484,11 @@
       "lib/ai-chat-defaults.ts",
       "lib/ai-gateway.ts",
       "lib/ai-providers.ts",
+      "lib/ai-upstream.ts",
       "lib/auth.ts",
       "lib/bazi.ts",
       "lib/blog-analytics.ts",
+      "lib/client-api-error.ts",
       "lib/db.ts",
       "lib/fetchers.ts",
       "lib/i18n.ts",
@@ -1146,13 +1150,17 @@
       "tests/config/claude-worker.test.ts",
       "tests/config/dockerfile.test.ts",
       "tests/config/platform-modernization.test.ts",
+      "tests/config/worker-security.test.ts",
       "tests/lib/auth.test.ts",
+      "tests/lib/client-api-error.test.ts",
       "tests/lib/i18n.test.ts",
       "tests/lib/markdown-headings.test.ts",
+      "tests/lib/rate-limit-security.test.ts",
       "tests/lib/runtime-paths.test.ts",
+      "tests/lib/safe-fetch.test.ts",
       "tests/lib/skill-taxonomy.test.ts",
       "tests/proxy.test.ts"
     ],
-    "count": 42
+    "count": 46
   }
 }

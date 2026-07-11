@@ -4,22 +4,24 @@ import { authOptions } from '@/lib/auth';
 import { rateLimitByIp } from '@/lib/rateLimit';
 
 const MAX_PROMPT_CHARS = 20000;
+const WORKER_TIMEOUT_MS = 10 * 60_000;
 
 function getWorkerUrl() {
   return process.env.CLAUDE_CODE_WORKER_URL?.replace(/\/$/, '');
 }
 
-async function readWorkerError(response: Response) {
-  try {
-    const data = await response.clone().json();
-    if (typeof data?.error === 'string' && data.error.trim()) {
-      return data.error;
-    }
-  } catch {
-    const text = await response.text().catch(() => '');
-    if (text.trim()) return text.trim();
-  }
-  return `Claude Code worker failed with HTTP ${response.status}`;
+async function logWorkerFailure(response: Response) {
+  const contentType = response.headers.get('content-type') || '';
+  const detail = await response.text().catch(() => response.statusText);
+  console.warn('[claude-code] worker failure', {
+    status: response.status,
+    contentType,
+    detail: detail.replace(/\s+/g, ' ').slice(0, 500),
+  });
+}
+
+function workerError(code: string, error: string, status = 502) {
+  return Response.json({ code, error }, { status });
 }
 
 export async function POST(req: Request) {
@@ -46,6 +48,10 @@ export async function POST(req: Request) {
   if (!workerUrl) {
     return Response.json({ error: 'Claude Code worker is not configured' }, { status: 503 });
   }
+  const workerToken = process.env.NEXTAUTH_SECRET;
+  if (!workerToken) {
+    return workerError('CLAUDE_WORKER_NOT_CONFIGURED', 'Claude Code worker authentication is not configured.', 503);
+  }
 
   const payload: { prompt: string; cwd?: string } = { prompt };
   if (typeof body.cwd === 'string' && body.cwd.trim()) {
@@ -56,26 +62,37 @@ export async function POST(req: Request) {
   try {
     upstream = await fetch(`${workerUrl}/run`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Claude-Worker-Token': workerToken,
+      },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(WORKER_TIMEOUT_MS),
     });
   } catch (caught: unknown) {
-    const errorLike = caught as { message?: string };
-    return Response.json({ error: errorLike?.message || 'Failed to reach Claude Code worker' }, { status: 502 });
+    console.warn('[claude-code] worker request failed', caught);
+    return workerError('CLAUDE_WORKER_UNAVAILABLE', 'Claude Code worker is unavailable. Try again later.');
   }
 
   if (!upstream.ok) {
-    return Response.json({ error: await readWorkerError(upstream) }, { status: 502 });
+    await logWorkerFailure(upstream);
+    return workerError('CLAUDE_WORKER_FAILED', 'Claude Code worker failed. Check the server logs and try again.');
   }
   if (!upstream.body) {
-    return Response.json({ error: 'Claude Code worker returned an empty stream' }, { status: 502 });
+    return workerError('CLAUDE_WORKER_INVALID_RESPONSE', 'Claude Code worker returned an invalid response.');
+  }
+  const contentType = upstream.headers.get('content-type') || '';
+  if (!contentType.toLowerCase().startsWith('text/plain')) {
+    await logWorkerFailure(upstream);
+    return workerError('CLAUDE_WORKER_INVALID_RESPONSE', 'Claude Code worker returned an invalid response.');
   }
 
   return new Response(upstream.body, {
     headers: {
-      'Content-Type': upstream.headers.get('Content-Type') || 'text/plain; charset=utf-8',
+      'Content-Type': 'text/plain; charset=utf-8',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
+      'X-Content-Type-Options': 'nosniff',
     },
   });
 }

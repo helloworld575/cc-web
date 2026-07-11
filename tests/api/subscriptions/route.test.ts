@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockSession, mockDbStmt, mockRateLimit429 } from '../../helpers';
 import { rateLimitByIp } from '@/lib/rateLimit';
+import { validatePublicHttpUrl } from '@/.codex/skills/subscription/scripts/safe-fetch';
+
+vi.mock('@/.codex/skills/subscription/scripts/safe-fetch', () => ({
+  validatePublicHttpUrl: vi.fn(async (value: string) => new URL(value).toString()),
+}));
 
 describe('GET /api/subscriptions', () => {
   beforeEach(() => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
+    vi.mocked(validatePublicHttpUrl).mockImplementation(async value => new URL(value).toString());
   });
 
   it('returns 401 without session', async () => {
@@ -33,6 +39,7 @@ describe('GET /api/subscriptions', () => {
 describe('POST /api/subscriptions', () => {
   beforeEach(() => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
+    vi.mocked(validatePublicHttpUrl).mockImplementation(async value => new URL(value).toString());
   });
 
   it('returns 401 without session', async () => {
@@ -59,6 +66,7 @@ describe('POST /api/subscriptions', () => {
 
   it('returns 400 on invalid URL', async () => {
     mockSession(true);
+    vi.mocked(validatePublicHttpUrl).mockRejectedValue(new Error('Subscription URL must use http or https'));
     const { POST } = await import('@/app/api/subscriptions/route');
     const res = await POST(new Request('http://localhost', {
       method: 'POST',
@@ -67,6 +75,20 @@ describe('POST /api/subscriptions', () => {
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toContain('Invalid URL');
+  });
+
+  it('returns 400 when the URL resolves to a private target', async () => {
+    mockSession(true);
+    const insertStmt = mockDbStmt();
+    vi.mocked(validatePublicHttpUrl).mockRejectedValue(new Error('Subscription URL host is not allowed'));
+    const { POST } = await import('@/app/api/subscriptions/route');
+    const res = await POST(new Request('http://localhost', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'metadata', url: 'http://169.254.169.254/latest/meta-data' }),
+    }));
+
+    expect(res.status).toBe(400);
+    expect(insertStmt.run).not.toHaveBeenCalled();
   });
 
   it('returns 429 when rate limited', async () => {
@@ -90,6 +112,7 @@ describe('POST /api/subscriptions', () => {
       body: JSON.stringify({ name: 'My Blog', url: 'https://example.com' }),
     }));
     expect(res.status).toBe(201);
+    expect(validatePublicHttpUrl).toHaveBeenCalledWith('https://example.com');
     const data = await res.json();
     expect(data.id).toBe(42);
   });

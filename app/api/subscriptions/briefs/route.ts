@@ -3,10 +3,26 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 
+function readStrictInteger(value: string | null) {
+  if (value === null || !/^-?\d+$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const sourceId = url.searchParams.get('source_id');
-  const limit = parseInt(url.searchParams.get('limit') || '50');
+  const rawSourceId = url.searchParams.get('source_id');
+  const sourceId = rawSourceId === null ? null : readStrictInteger(rawSourceId);
+  if (rawSourceId !== null && (sourceId === null || sourceId <= 0)) {
+    return Response.json({ error: 'Invalid source_id' }, { status: 400 });
+  }
+
+  const rawLimit = url.searchParams.get('limit');
+  const parsedLimit = rawLimit === null ? 50 : readStrictInteger(rawLimit);
+  if (parsedLimit === null) {
+    return Response.json({ error: 'Invalid limit' }, { status: 400 });
+  }
+  const limit = Math.min(100, Math.max(1, parsedLimit));
 
   let briefs;
   if (sourceId) {

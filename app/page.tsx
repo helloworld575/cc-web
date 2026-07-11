@@ -45,12 +45,12 @@ export default function Home() {
           </h2>
           <div className="mt-5 space-y-4 text-sm text-slate-600">
             <div className="rounded-2xl bg-slate-50 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Identity</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{isZh ? '身份' : 'Identity'}</p>
               <p className="mt-2 font-mono text-base text-slate-900">ID · thomaslee</p>
             </div>
             <div className="grid gap-3">
               <div className="rounded-2xl border border-slate-200 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Email</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{isZh ? '邮箱' : 'Email'}</p>
                 <a
                   href="mailto:zhichenli6@gmail.com"
                   className="mt-2 inline-block text-base font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 transition hover:text-sky-700"
@@ -59,7 +59,7 @@ export default function Home() {
                 </a>
               </div>
               <div className="rounded-2xl border border-slate-200 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Blog</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{isZh ? '博客' : 'Blog'}</p>
                 <a
                   href="https://thomaslee.site"
                   target="_blank"

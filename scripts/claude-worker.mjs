@@ -1,12 +1,16 @@
 import { createServer } from 'node:http';
 import { mkdir } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
+import { timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
 
 const port = Number(process.env.CLAUDE_WORKER_PORT || 8787);
 const workspaceRoot = path.resolve(process.env.CLAUDE_WORKSPACE_ROOT || '/workspaces');
 const maxPromptChars = Number(process.env.CLAUDE_MAX_PROMPT_CHARS || 20000);
 const requestTimeoutMs = Number(process.env.CLAUDE_REQUEST_TIMEOUT_MS || 600000);
+const maxOutputBytes = Number(process.env.CLAUDE_MAX_OUTPUT_BYTES || 1024 * 1024);
+const workerToken = process.env.CLAUDE_WORKER_TOKEN || '';
+const WORKER_TOKEN_HEADER = 'X-Claude-Worker-Token';
 const DEFAULT_PERSONAL_ASSISTANT_PROMPT = [
   '你是 ThomasLee 的个人助理。',
   '你的职责是用直接、清晰、可执行的文本帮助他处理日常事务、写作、代码分析、计划拆解和决策整理。',
@@ -19,6 +23,7 @@ function json(res, status, payload) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache',
+    'X-Content-Type-Options': 'nosniff',
   });
   res.end(JSON.stringify(payload));
 }
@@ -67,6 +72,15 @@ function getSystemPrompt() {
   return process.env.CLAUDE_SYSTEM_PROMPT?.trim() || DEFAULT_PERSONAL_ASSISTANT_PROMPT;
 }
 
+function isAuthorized(req) {
+  const provided = String(req.headers[WORKER_TOKEN_HEADER.toLowerCase()] || '');
+  if (!workerToken || !provided) return false;
+  const expectedBuffer = Buffer.from(workerToken);
+  const providedBuffer = Buffer.from(provided);
+  return expectedBuffer.length === providedBuffer.length
+    && timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
 async function handleRun(req, res) {
   let body;
   try {
@@ -95,12 +109,6 @@ async function handleRun(req, res) {
     return;
   }
 
-  res.writeHead(200, {
-    'Content-Type': 'text/plain; charset=utf-8',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-  });
-
   const args = [
     '-p',
     prompt,
@@ -122,53 +130,96 @@ async function handleRun(req, res) {
   });
 
   const timeout = setTimeout(() => {
+    timedOut = true;
     child.kill('SIGTERM');
   }, requestTimeoutMs);
 
-  req.on('close', () => {
-    if (!res.writableEnded) child.kill('SIGTERM');
+  req.on('aborted', () => {
+    child.kill('SIGTERM');
   });
 
+  const stdout = [];
+  const stderr = [];
+  let stdoutBytes = 0;
+  let stderrBytes = 0;
+  let timedOut = false;
+  let outputTooLarge = false;
+  let finalized = false;
+
   child.stdout.on('data', chunk => {
-    res.write(chunk);
+    const buffer = Buffer.from(chunk);
+    stdoutBytes += buffer.length;
+    if (stdoutBytes > maxOutputBytes) {
+      outputTooLarge = true;
+      child.kill('SIGTERM');
+      return;
+    }
+    stdout.push(buffer);
   });
 
   child.stderr.on('data', chunk => {
-    res.write(`\n[worker stderr]\n${chunk.toString('utf8')}`);
+    if (stderrBytes >= 32 * 1024) return;
+    const buffer = Buffer.from(chunk);
+    stderrBytes += buffer.length;
+    stderr.push(buffer.subarray(0, Math.max(0, 32 * 1024 - (stderrBytes - buffer.length))));
   });
 
-  child.on('error', error => {
+  function finish(code, spawnError) {
+    if (finalized) return;
+    finalized = true;
     clearTimeout(timeout);
-    if (!res.writableEnded) {
-      res.write(`\n[worker error] ${error.message}\n`);
-      res.end();
-    }
-  });
+    const stderrText = Buffer.concat(stderr).toString('utf8').replace(/\s+/g, ' ').slice(0, 2000);
+    if (stderrText) console.error('[claude-worker] claude stderr:', stderrText);
+    if (spawnError) console.error('[claude-worker] spawn failed:', spawnError);
 
-  child.on('close', code => {
-    clearTimeout(timeout);
-    if (!res.writableEnded) {
-      if (code !== 0) {
-        res.write(`\n[worker exited with code ${code}]\n`);
-      }
-      res.end();
+    if (timedOut) {
+      json(res, 504, { code: 'CLAUDE_TIMEOUT', error: 'Claude request timed out.' });
+      return;
     }
-  });
+    if (outputTooLarge) {
+      json(res, 502, { code: 'CLAUDE_OUTPUT_TOO_LARGE', error: 'Claude response exceeded the safe output limit.' });
+      return;
+    }
+    if (spawnError || code !== 0) {
+      json(res, 502, { code: 'CLAUDE_FAILED', error: 'Claude request failed. Check worker logs.' });
+      return;
+    }
+
+    const output = Buffer.concat(stdout).toString('utf8');
+    if (/<!doctype|<html|<body|<head/i.test(output)) {
+      console.error('[claude-worker] rejected HTML-like Claude output');
+      json(res, 502, { code: 'CLAUDE_INVALID_RESPONSE', error: 'Claude returned an invalid response.' });
+      return;
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Content-Length': String(Buffer.byteLength(output)),
+      'Cache-Control': 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(output);
+  }
+
+  child.on('error', error => finish(null, error));
+  child.on('close', code => finish(code, null));
 }
 
 const server = createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
-    json(res, 200, {
-      ok: true,
-      workspaceRoot,
-      role: process.env.CLAUDE_WORKER_ROLE || 'personal-assistant',
-      model: process.env.CLAUDE_MODEL || process.env.ANTHROPIC_MODEL || null,
-      hasApiKey: Boolean(process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY),
-    });
+    json(res, 200, { ok: true });
     return;
   }
 
   if (req.method === 'POST' && req.url === '/run') {
+    if (!workerToken) {
+      json(res, 503, { code: 'WORKER_NOT_CONFIGURED', error: 'Worker authentication is not configured.' });
+      return;
+    }
+    if (!isAuthorized(req)) {
+      json(res, 401, { code: 'UNAUTHORIZED', error: 'Unauthorized' });
+      return;
+    }
     await handleRun(req, res);
     return;
   }

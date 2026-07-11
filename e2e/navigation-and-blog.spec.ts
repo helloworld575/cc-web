@@ -10,6 +10,8 @@ test('language toggle updates immediately and persists across reloads', async ({
   await page.getByRole('button', { name: '中文' }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
   await expect(page.getByRole('button', { name: 'EN', exact: true })).toBeVisible();
+  await expect(page.getByText('身份', { exact: true })).toBeVisible();
+  await expect(page.getByText('邮箱', { exact: true })).toBeVisible();
 
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');

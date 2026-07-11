@@ -64,4 +64,49 @@ describe('platform modernization', () => {
     expect(deploy).toContain('"proxy.ts"');
     expect(deploy).not.toContain('"middleware.ts"');
   });
+
+  it('server-renders the saved locale and provides one shared locale context', () => {
+    const layout = read('app/layout.tsx');
+
+    expect(layout).toContain("cookies()");
+    expect(layout).toContain('LocaleProvider');
+    expect(layout).toContain('initialLocale={locale}');
+    expect(layout).toContain('lang={localeToHtmlLang(locale)}');
+  });
+
+  it('keeps Chinese copy for every tools tab without falling back to English', () => {
+    const tools = read('app/tools/page.tsx');
+    const chineseCopy = tools.slice(tools.indexOf('  zh: {'), tools.indexOf('} as const;'));
+
+    expect(chineseCopy).toContain("image: {");
+    expect(chineseCopy).toContain("eyebrow: '创作'");
+    expect(chineseCopy).toContain('生成图片');
+  });
+
+  it('keeps AI client errors structured and localized instead of rendering upstream text', () => {
+    for (const file of [
+      'components/AIImageTool.tsx',
+      'components/AIChatTool.tsx',
+      'components/ClaudeCodeTool.tsx',
+    ]) {
+      const source = read(file);
+      expect(source).toContain("@/lib/client-api-error");
+      expect(source).not.toContain('response.text()');
+    }
+  });
+
+  it('optimizes image transfer paths and lazy-loads rendered markdown images', () => {
+    const imageTool = read('components/AIImageTool.tsx');
+    const xPost = read('app/admin/x-post/page.tsx');
+    const blogPost = read('app/blog/[slug]/PostClient.tsx');
+    const streamingMarkdown = read('components/StreamingMarkdown.tsx');
+
+    expect(imageTool).toContain('compressReferenceImage');
+    expect(imageTool).toContain("'image/webp'");
+    expect(xPost).not.toContain('/api/uploads/');
+    expect(blogPost).toContain('loading="lazy"');
+    expect(blogPost).toContain('decoding="async"');
+    expect(streamingMarkdown).toContain('loading="lazy"');
+    expect(streamingMarkdown).toContain('decoding="async"');
+  });
 });

@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockSession, mockDbStmt, mockRateLimit429 } from '../../helpers';
 import { rateLimitByIp } from '@/lib/rateLimit';
+import { validatePublicHttpUrl } from '@/.codex/skills/subscription/scripts/safe-fetch';
+
+vi.mock('@/.codex/skills/subscription/scripts/safe-fetch', () => ({
+  validatePublicHttpUrl: vi.fn(async (value: string) => new URL(value).toString()),
+}));
 
 describe('GET /api/subscriptions/[id]', () => {
   beforeEach(() => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
+    vi.mocked(validatePublicHttpUrl).mockImplementation(async value => new URL(value).toString());
   });
 
   it('returns 401 without session', async () => {
@@ -40,6 +46,7 @@ describe('GET /api/subscriptions/[id]', () => {
 describe('PUT /api/subscriptions/[id]', () => {
   beforeEach(() => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
+    vi.mocked(validatePublicHttpUrl).mockImplementation(async value => new URL(value).toString());
   });
 
   it('returns 401 without session', async () => {
@@ -79,6 +86,7 @@ describe('PUT /api/subscriptions/[id]', () => {
 
   it('returns 400 on invalid URL', async () => {
     mockSession(true);
+    vi.mocked(validatePublicHttpUrl).mockRejectedValue(new Error('Subscription URL must use http or https'));
     mockDbStmt({
       get: vi.fn(() => ({
         id: 1, name: 'Old', url: 'https://old.com', category: 'blog', enabled: 1,
@@ -89,6 +97,23 @@ describe('PUT /api/subscriptions/[id]', () => {
       method: 'PUT',
       body: JSON.stringify({ name: 'New', url: 'not-a-url' }),
     }), { params: { id: '1' } });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when the updated URL resolves to a private target', async () => {
+    mockSession(true);
+    mockDbStmt({
+      get: vi.fn(() => ({
+        id: 1, name: 'Old', url: 'https://old.com', category: 'blog', enabled: 1,
+      })),
+    });
+    vi.mocked(validatePublicHttpUrl).mockRejectedValue(new Error('Subscription URL host is not allowed'));
+    const { PUT } = await import('@/app/api/subscriptions/[id]/route');
+    const res = await PUT(new Request('http://localhost', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'New', url: 'http://127.0.0.1/private' }),
+    }), { params: { id: '1' } });
+
     expect(res.status).toBe(400);
   });
 });

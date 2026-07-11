@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
+import { validatePublicHttpUrl } from '@/.codex/skills/subscription/scripts/safe-fetch';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
@@ -30,20 +31,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   const { name, url, category, enabled, fetch_interval } = body;
-  if (!name || !url) {
+  if (typeof name !== 'string' || !name.trim() || typeof url !== 'string' || !url.trim()) {
     return Response.json({ error: 'Missing required fields: name, url' }, { status: 400 });
   }
 
-  // Validate URL
+  let normalizedUrl: string;
   try {
-    new URL(url);
+    normalizedUrl = await validatePublicHttpUrl(url);
   } catch {
-    return Response.json({ error: 'Invalid URL format' }, { status: 400 });
+    return Response.json({ error: 'Invalid URL: only public HTTP(S) targets are allowed' }, { status: 400 });
   }
 
   db.prepare(
     "UPDATE subscription_sources SET name=?, url=?, category=?, enabled=?, fetch_interval=?, updated_at=datetime('now') WHERE id=?"
-  ).run(name, url, category || 'other', enabled !== undefined ? (enabled ? 1 : 0) : 1, fetch_interval || 3600, id);
+  ).run(name.trim(), normalizedUrl, category || 'other', enabled !== undefined ? (enabled ? 1 : 0) : 1, fetch_interval || 3600, id);
 
   return Response.json({ ok: true });
 }

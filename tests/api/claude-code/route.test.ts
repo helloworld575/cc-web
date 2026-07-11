@@ -19,6 +19,7 @@ describe('POST /api/claude-code', () => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
     mockFetch.mockReset();
     delete process.env.CLAUDE_CODE_WORKER_URL;
+    process.env.NEXTAUTH_SECRET = 'worker-shared-secret';
   });
 
   it('returns 401 without session', async () => {
@@ -60,7 +61,46 @@ describe('POST /api/claude-code', () => {
     const res = await POST(makePostReq({ prompt: 'inspect repo' }));
 
     expect(res.status).toBe(502);
-    await expect(res.json()).resolves.toEqual({ error: 'worker failed' });
+    await expect(res.json()).resolves.toEqual({
+      code: 'CLAUDE_WORKER_FAILED',
+      error: 'Claude Code worker failed. Check the server logs and try again.',
+    });
+  });
+
+  it('does not expose HTML returned by the worker', async () => {
+    mockSession(true);
+    process.env.CLAUDE_CODE_WORKER_URL = 'http://claude-worker:8787';
+    mockFetch.mockResolvedValue(new Response('<!doctype html><html><body>proxy login</body></html>', {
+      status: 502,
+      headers: { 'Content-Type': 'text/html' },
+    }));
+
+    const { POST } = await import('@/app/api/claude-code/route');
+    const res = await POST(makePostReq({ prompt: 'inspect repo' }));
+    const text = await res.text();
+
+    expect(res.status).toBe(502);
+    expect(res.headers.get('Content-Type')).toContain('application/json');
+    expect(text).not.toContain('<html');
+    expect(text).not.toContain('proxy login');
+  });
+
+  it('rejects successful HTML responses from the worker', async () => {
+    mockSession(true);
+    process.env.CLAUDE_CODE_WORKER_URL = 'http://claude-worker:8787';
+    mockFetch.mockResolvedValue(new Response('<html>unexpected</html>', {
+      status: 200,
+      headers: { 'Content-Type': 'text/html' },
+    }));
+
+    const { POST } = await import('@/app/api/claude-code/route');
+    const res = await POST(makePostReq({ prompt: 'inspect repo' }));
+
+    expect(res.status).toBe(502);
+    await expect(res.json()).resolves.toEqual({
+      code: 'CLAUDE_WORKER_INVALID_RESPONSE',
+      error: 'Claude Code worker returned an invalid response.',
+    });
   });
 
   it('proxies a successful worker stream', async () => {
@@ -85,6 +125,10 @@ describe('POST /api/claude-code', () => {
     expect(res.headers.get('Content-Type')).toContain('text/plain');
     expect(mockFetch).toHaveBeenCalledWith('http://claude-worker:8787/run', expect.objectContaining({
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Claude-Worker-Token': 'worker-shared-secret',
+      },
       body: JSON.stringify({ prompt: 'inspect repo', cwd: 'repo' }),
     }));
 

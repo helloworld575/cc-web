@@ -145,7 +145,7 @@ export default function AdminFilesPage() {
             <option value="__remove">{t('removeFromAlbum')}</option>
             {albums.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
-          <button onClick={() => setSelected(new Set())} className="text-xs text-gray-400 hover:text-gray-600">Clear</button>
+          <button onClick={() => setSelected(new Set())} className="text-xs text-gray-400 hover:text-gray-600">{t('clear')}</button>
         </div>
       )}
 

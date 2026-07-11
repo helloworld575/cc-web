@@ -57,7 +57,7 @@ describe('POST /api/ai-providers/test', () => {
     mockFetch.mockResolvedValue(new Response(JSON.stringify({
       content: [{ text: 'ok' }],
       model: 'claude-opus-4-6',
-    }), { status: 200 }));
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
 
     const { POST } = await import('@/app/api/ai-providers/test/route');
     const res = await POST(makePostReq({ provider_id: -1 }));
@@ -78,7 +78,7 @@ describe('POST /api/ai-providers/test', () => {
     mockFetch.mockResolvedValue(new Response(JSON.stringify({
       content: [{ text: 'ok' }],
       model: 'claude-opus-4-8',
-    }), { status: 200 }));
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
 
     const { POST } = await import('@/app/api/ai-providers/test/route');
     const res = await POST(makePostReq({ provider_id: -1 }));
@@ -134,9 +134,9 @@ describe('POST /api/ai-providers/test', () => {
     });
   });
 
-  it('tests saved Right Code GPT-5.5 presets through the Responses API', async () => {
+  it('rejects legacy database provider ids without reading or calling them', async () => {
     mockSession(true);
-    mockDbStmt({
+    const statement = mockDbStmt({
       get: vi.fn(() => ({
         id: 7,
         name: 'Right Code GPT-5.5',
@@ -148,17 +148,16 @@ describe('POST /api/ai-providers/test', () => {
         max_tokens: 32000,
       })),
     });
-    mockResponsesStreamText('saved ok');
-
     const { POST } = await import('@/app/api/ai-providers/test/route');
     const res = await POST(makePostReq({ provider_id: 7 }));
 
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data).toEqual({ ok: true, text: 'saved ok', model: 'gpt-5.5' });
-    const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/codex/v1/responses');
-    expect(init.headers.Authorization).toBe('Bearer saved-right-code-key');
+    expect(res.status).toBe(404);
+    await expect(res.json()).resolves.toEqual({
+      code: 'provider_not_found',
+      error: 'AI provider not found.',
+    });
+    expect(statement.get).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('returns 404 when a stored provider is missing', async () => {
@@ -167,5 +166,98 @@ describe('POST /api/ai-providers/test', () => {
     const { POST } = await import('@/app/api/ai-providers/test/route');
     const res = await POST(makePostReq({ provider_id: 999 }));
     expect(res.status).toBe(404);
+  });
+
+  it('maps Claude JSON string errors without exposing provider details', async () => {
+    mockSession(true);
+    process.env.CLAUDE_API_KEY = 'test-claude-key';
+    process.env.CLAUDE_MODEL = 'claude-opus-4-8';
+    process.env.CLAUDE_API_HOST = 'https://claude-proxy.example';
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({
+      error: 'API Key is not allowed to access this channel',
+    }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-providers/test/route');
+    const res = await POST(makePostReq({ provider_id: -1 }));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({
+      ok: false,
+      code: 'upstream_forbidden',
+      error: 'AI provider rejected the credentials or channel access.',
+      retryable: false,
+    });
+    expect(JSON.stringify(data)).not.toMatch(/API Key|claude-proxy/i);
+  });
+
+  it('maps successful HTML provider responses to a safe invalid response error', async () => {
+    mockSession(true);
+    process.env.CLAUDE_API_KEY = 'test-claude-key';
+    process.env.CLAUDE_MODEL = 'claude-opus-4-8';
+    process.env.CLAUDE_API_HOST = 'https://claude-proxy.example';
+    mockFetch.mockResolvedValue(new Response('<!doctype html><html>proxy login</html>', {
+      status: 200,
+      headers: { 'Content-Type': 'text/html' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-providers/test/route');
+    const res = await POST(makePostReq({ provider_id: -1 }));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({
+      ok: false,
+      code: 'upstream_invalid_response',
+      error: 'AI provider returned an invalid response.',
+      retryable: true,
+    });
+    expect(JSON.stringify(data)).not.toMatch(/proxy login|doctype|<html/i);
+  });
+
+  it('maps invalid provider JSON to a safe invalid response error', async () => {
+    mockSession(true);
+    process.env.CLAUDE_API_KEY = 'test-claude-key';
+    process.env.CLAUDE_API_HOST = 'https://claude-proxy.example';
+    mockFetch.mockResolvedValue(new Response('{not json', {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-providers/test/route');
+    const res = await POST(makePostReq({ provider_id: -1 }));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({
+      ok: false,
+      code: 'upstream_invalid_response',
+      error: 'AI provider returned an invalid response.',
+      retryable: true,
+    });
+    expect(JSON.stringify(data)).not.toContain('{not json');
+  });
+
+  it('maps provider network failures without exposing internal hosts', async () => {
+    mockSession(true);
+    process.env.CLAUDE_API_KEY = 'test-claude-key';
+    process.env.CLAUDE_API_HOST = 'https://internal-ai.example';
+    mockFetch.mockRejectedValue(new Error('connect ECONNREFUSED internal-ai.example'));
+
+    const { POST } = await import('@/app/api/ai-providers/test/route');
+    const res = await POST(makePostReq({ provider_id: -1 }));
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({
+      ok: false,
+      code: 'upstream_unavailable',
+      error: 'Unable to reach AI provider.',
+      retryable: true,
+    });
+    expect(JSON.stringify(data)).not.toContain('internal-ai.example');
   });
 });

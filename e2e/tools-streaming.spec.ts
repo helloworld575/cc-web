@@ -66,8 +66,8 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   expect(chatShellHeight).toBeGreaterThan(620);
   const chatScrollOverflow = await page.getByTestId('ai-chat-scroll').evaluate(element => window.getComputedStyle(element).overflowY);
   expect(['auto', 'scroll']).toContain(chatScrollOverflow);
-  await page.getByLabel('Enter fullscreen chat').click();
-  await expect(page.getByLabel('Exit fullscreen chat')).toBeVisible();
+  await page.getByLabel('进入全屏对话').click();
+  await expect(page.getByLabel('退出全屏对话')).toBeVisible();
   await expect(page.getByTestId('ai-chat-shell')).toHaveAttribute('data-fullscreen', 'true');
   const fullscreenMountedAtBody = await page.getByTestId('ai-chat-shell').evaluate(element => element.parentElement === document.body);
   expect(fullscreenMountedAtBody).toBeTruthy();
@@ -83,8 +83,8 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   });
   expect(fullscreenIsTopLayer).toBeTruthy();
   await expect(page.getByTestId('ai-chat-input')).toBeInViewport();
-  await page.getByLabel('Exit fullscreen chat').click();
-  await expect(page.getByLabel('Enter fullscreen chat')).toBeVisible();
+  await page.getByLabel('退出全屏对话').click();
+  await expect(page.getByLabel('进入全屏对话')).toBeVisible();
 
   await expect(page.getByTestId('ai-chat-skill')).toBeVisible();
   await expect(page.getByTestId('ai-chat-skill').locator('option[value="content/distribution/api-publishing"]')).toHaveCount(1);
@@ -120,7 +120,7 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   expect(codeRgb[0] + codeRgb[1] + codeRgb[2]).toBeGreaterThan(600);
   expect(preBgRgb[0] + preBgRgb[1] + preBgRgb[2]).toBeLessThan(120);
   await expect(page.getByTestId('ai-chat-history')).toContainText(chatPrompt);
-  await page.getByLabel(new RegExp(`Open chat ${chatPrompt}`)).click();
+  await page.getByLabel(new RegExp(`打开对话 ${chatPrompt}`)).click();
   await expect(page.getByTestId('ai-chat-messages')).toContainText('Mock response');
   page.once('dialog', async dialog => {
     expect(dialog.message()).toContain(chatPrompt);
@@ -129,16 +129,16 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   const deleteResponsePromise = page.waitForResponse(response => (
     response.url().includes('/api/ai-chat/') && response.request().method() === 'DELETE'
   ));
-  await page.getByLabel(new RegExp(`Delete chat ${chatPrompt}`)).click();
+  await page.getByLabel(new RegExp(`删除对话 ${chatPrompt}`)).click();
   const deleteResponse = await deleteResponsePromise;
   expect(deleteResponse.ok()).toBeTruthy();
-  await expect(page.getByLabel(new RegExp(`Delete chat ${chatPrompt}`))).toHaveCount(0);
+  await expect(page.getByLabel(new RegExp(`删除对话 ${chatPrompt}`))).toHaveCount(0);
   await expect(page.getByTestId('ai-chat-messages')).not.toContainText('Mock response');
 
   await page.getByTestId('tools-tab-bazi').click();
   await page.getByTestId('fortune-start').click();
   await expect(page.getByTestId('fortune-analysis')).toContainText('Mock fortune analysis');
-  await expect(page.getByText('Saved to history.')).toBeVisible();
+  await expect(page.getByText('已保存到历史。')).toBeVisible();
 
   await page.getByTestId('fortune-tab-history').click();
   const historyEntry = page.getByRole('button', { name: /BaZi/ }).first();
@@ -148,13 +148,13 @@ test('tools workspace covers seeded data and streaming mock flows', async ({ pag
   expect(fortuneKeyWarnings).toEqual([]);
 
   page.once('dialog', async dialog => {
-    expect(dialog.message()).toBe('Delete this reading?');
+    expect(dialog.message()).toBe('确定删除此记录？');
     await dialog.accept();
   });
   const fortuneDeleteResponsePromise = page.waitForResponse(response => (
     /\/api\/fortune\/history\/\d+$/.test(response.url()) && response.request().method() === 'DELETE'
   ));
-  await page.getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('button', { name: '删除' }).click();
   const fortuneDeleteResponse = await fortuneDeleteResponsePromise;
   expect(fortuneDeleteResponse.ok()).toBeTruthy();
   await expect(page.getByRole('button', { name: /BaZi/ })).toHaveCount(0);
@@ -208,10 +208,51 @@ test('ai chat surfaces stream errors and unlocks the composer', async ({ page })
   await page.getByTestId('ai-chat-input').fill(`stream error e2e ${Date.now()}`);
   await page.getByTestId('ai-chat-send').click();
 
-  await expect(page.getByText('Right Code provider failed: 401')).toBeVisible();
+  await expect(page.getByText('Request failed. Please try again.')).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('Right Code provider failed: 401');
   await expect(page.getByTestId('ai-chat-input')).toBeEnabled();
   await page.getByTestId('ai-chat-input').fill('retry after stream error');
   await expect(page.getByTestId('ai-chat-send')).toBeEnabled();
+});
+
+test('AI tools never render HTML error pages returned by APIs', async ({ page }) => {
+  await login(page);
+  await page.goto('/tools');
+
+  await page.getByTestId('tools-tab-image').click();
+  await page.route('**/api/ai-image', async route => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 502,
+      headers: { 'Content-Type': 'text/html' },
+      body: '<!doctype html><html><body>proxy login page should stay hidden</body></html>',
+    });
+  });
+  await page.getByTestId('ai-image-prompt').fill('safe error rendering');
+  await page.getByTestId('ai-image-generate').click();
+  await expect(page.getByTestId('ai-image-generate')).toBeEnabled();
+  await expect(page.locator('body')).not.toContainText('proxy login page should stay hidden');
+
+  await page.unroute('**/api/ai-image');
+  await page.getByTestId('tools-tab-ai-chat').click();
+  await page.route('**/api/ai-chat', async route => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 502,
+      headers: { 'Content-Type': 'text/html' },
+      body: '<html><body>gateway diagnostics should stay hidden</body></html>',
+    });
+  });
+  await page.getByTestId('ai-chat-input').fill('safe chat error rendering');
+  await page.getByTestId('ai-chat-send').click();
+  await expect(page.getByTestId('ai-chat-input')).toBeEnabled();
+  await expect(page.locator('body')).not.toContainText('gateway diagnostics should stay hidden');
 });
 
 test('mobile drawer opens tools and tool tabs stay clickable', async ({ page }) => {

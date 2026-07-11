@@ -1,58 +1,40 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
-import { translations, type Locale, type TranslationKey } from '@/lib/i18n';
 
-const COOKIE = 'locale';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createTranslator, LocaleContext } from '@/components/LocaleProvider';
+import { localeToHtmlLang, resolveLocale, type Locale } from '@/lib/i18n';
 
-function isLocale(value: string | undefined): value is Locale {
-  return value === 'en' || value === 'zh';
-}
-
-function getCookie(): Locale {
+function readClientLocale() {
   if (typeof document === 'undefined') return 'en';
-  const m = document.cookie.match(/(?:^|;\s*)locale=([^;]+)/);
-  return isLocale(m?.[1]) ? m[1] : 'en';
-}
-
-function setCookie(locale: Locale) {
-  document.cookie = `${COOKIE}=${locale};path=/;max-age=31536000;samesite=lax`;
-}
-
-function setDocumentLanguage(locale: Locale) {
-  if (typeof document === 'undefined') return;
-  document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
-}
-
-// Global state so all components re-render together
-type Listener = (l: Locale) => void;
-const listeners = new Set<Listener>();
-let current: Locale = 'en';
-
-export function setLocale(locale: Locale) {
-  current = locale;
-  setCookie(locale);
-  setDocumentLanguage(locale);
-  listeners.forEach(l => l(locale));
+  return resolveLocale(document.cookie.match(/(?:^|;\s*)locale=([^;]+)/)?.[1]);
 }
 
 export function useLocale() {
-  const [locale, setLocaleState] = useState<Locale>('en');
+  const context = useContext(LocaleContext);
+  const [fallbackLocale, setFallbackLocale] = useState<Locale>('en');
 
   useEffect(() => {
-    const initial = getCookie();
-    current = initial;
-    setDocumentLanguage(initial);
-    setLocaleState(initial);
-    listeners.add(setLocaleState);
-    return () => { listeners.delete(setLocaleState); };
+    if (!context) {
+      const locale = readClientLocale();
+      setFallbackLocale(locale);
+      document.documentElement.lang = localeToHtmlLang(locale);
+    }
+  }, [context]);
+
+  const setFallback = useCallback((locale: Locale) => {
+    setFallbackLocale(locale);
+    document.cookie = `locale=${locale};path=/;max-age=31536000;samesite=lax`;
+    document.documentElement.lang = localeToHtmlLang(locale);
   }, []);
+  const fallbackToggle = useCallback(() => {
+    setFallback(fallbackLocale === 'en' ? 'zh' : 'en');
+  }, [fallbackLocale, setFallback]);
+  const fallbackTranslator = useMemo(() => createTranslator(fallbackLocale), [fallbackLocale]);
 
-  const toggle = useCallback(() => setLocale(locale === 'en' ? 'zh' : 'en'), [locale]);
-
-  const t = useCallback(
-    (key: TranslationKey) => translations[locale][key] ?? translations.en[key] ?? key,
-    [locale]
-  );
-
-  return { locale, setLocale, toggle, t };
+  return context ?? {
+    locale: fallbackLocale,
+    setLocale: setFallback,
+    toggle: fallbackToggle,
+    t: fallbackTranslator,
+  };
 }

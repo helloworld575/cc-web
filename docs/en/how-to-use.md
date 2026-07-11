@@ -27,7 +27,7 @@ A guide to using the features of this personal site.
 
 - View public files/photos at `/files`
 - Organized by albums
-- Photos are served via `/api/uploads/<filename>` with long-term caching
+- Photos are served via the CDN-friendly `/uploads/<filename>` path with long-term caching
 
 ### Tools (at `/tools`)
 

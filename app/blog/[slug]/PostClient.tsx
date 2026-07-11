@@ -108,6 +108,9 @@ export default function PostClient({ post }: { post: Post }) {
           <article className="prose max-w-none">
             <ReactMarkdown
               components={{
+                img({ ...props }) {
+                  return <img {...props} loading="lazy" decoding="async" />;
+                },
                 h2({ children }) {
                   const heading = headingQueue.shift();
                   return (

@@ -89,7 +89,9 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 { "ok": true, "filename": "uuid.png", "url": "/uploads/uuid.png" }
 ```
 
-### `GET /api/uploads/<filename>`
+### `GET /uploads/<filename>`
+
+`/api/uploads/<filename>` 仍作为内部 rewrite 目标兼容旧调用。公开页面应统一使用 `/uploads/<filename>`，便于 CDN 使用稳定路径缓存。
 公开端点，返回文件内容，带长期缓存。
 
 ---
@@ -152,7 +154,7 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 
 原生图像模式使用 `model`、`prompt`、可选 `image`、可选 `size` 和 `response_format`。旧 chat-completions 图像网关仍可通过 `GPT_IMAGE_API_MODE=chat` 启用。
 
-如果上游图像服务返回 HTML 或无法解析的 JSON，接口会返回 `502` JSON，并包含 `error` 与 `detail`，不会再抛出服务端 JSON 解析异常。
+如果上游图像服务返回 HTML、无法解析的 JSON、空响应或服务商错误，接口会返回长度受限的安全 JSON，仅包含 `code`、`error` 和可选 `retryable`。原始 HTML、服务商诊断、内部地址和底层异常不会暴露给浏览器。
 
 ---
 

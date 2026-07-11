@@ -133,6 +133,7 @@ export default function StreamingMarkdown({
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          img: ({ ...props }) => <img {...props} loading="lazy" decoding="async" />,
           pre: MarkdownPre,
           table: ({ children }) => (
             <div className="my-3 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">

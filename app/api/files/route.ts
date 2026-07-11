@@ -5,12 +5,35 @@ import db from '@/lib/db';
 import { stmts } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { writeFile } from 'fs/promises';
+import { writeFile, unlink } from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { getRuntimePaths } from '@/lib/runtime-paths';
+import { rateLimitByIp } from '@/lib/rateLimit';
 
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+function detectImage(buffer: Buffer) {
+  if (buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return { ext: '.png', mimeType: 'image/png' };
+  }
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return { ext: '.jpg', mimeType: 'image/jpeg' };
+  }
+  const signature = buffer.subarray(0, 6).toString('ascii');
+  if (signature === 'GIF87a' || signature === 'GIF89a') {
+    return { ext: '.gif', mimeType: 'image/gif' };
+  }
+  if (
+    buffer.length >= 12
+    && buffer.subarray(0, 4).toString('ascii') === 'RIFF'
+    && buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) {
+    return { ext: '.webp', mimeType: 'image/webp' };
+  }
+  return null;
+}
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -62,24 +85,46 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const rl = rateLimitByIp(req, 'files-upload', 20);
+  if (rl) return rl;
 
   const formData = await req.formData();
   const file = formData.get('file') as File;
   if (!file || !file.name) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+  if (file.size > MAX_IMAGE_BYTES) {
+    return NextResponse.json({ code: 'IMAGE_TOO_LARGE', error: 'Image must be 10 MB or smaller' }, { status: 413 });
+  }
 
   const ext = path.extname(file.name).toLowerCase();
   if (!ALLOWED_EXTS.includes(ext)) {
     return NextResponse.json({ error: `File type not allowed. Use: ${ALLOWED_EXTS.join(', ')}` }, { status: 400 });
   }
 
-  const filename = `${randomUUID()}${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  const { uploadsDir } = getRuntimePaths();
-  await writeFile(path.join(uploadsDir, filename), buffer);
+  const detected = detectImage(buffer);
+  const normalizedInputExt = ext === '.jpeg' ? '.jpg' : ext;
+  if (!detected || detected.ext !== normalizedInputExt) {
+    return NextResponse.json({ code: 'INVALID_IMAGE', error: 'File content does not match a supported image type' }, { status: 400 });
+  }
 
-  const mimeType = file.type || `image/${ext.slice(1)}`;
+  const filename = `${randomUUID()}${detected.ext}`;
+  const { uploadsDir } = getRuntimePaths();
+  const targetPath = path.join(uploadsDir, filename);
+  await writeFile(targetPath, buffer);
+
   const albumId = formData.get('album_id');
-  stmts.insertFile.run(filename, file.name, mimeType, file.size, albumId ? Number(albumId) : null);
+  const parsedAlbumId = albumId ? Number(albumId) : null;
+  if (parsedAlbumId !== null && (!Number.isInteger(parsedAlbumId) || parsedAlbumId <= 0)) {
+    await unlink(targetPath).catch(() => undefined);
+    return NextResponse.json({ code: 'INVALID_ALBUM', error: 'Invalid album id' }, { status: 400 });
+  }
+
+  try {
+    stmts.insertFile.run(filename, file.name, detected.mimeType, file.size, parsedAlbumId);
+  } catch (caught) {
+    await unlink(targetPath).catch(() => undefined);
+    throw caught;
+  }
 
   return NextResponse.json({ ok: true, filename, url: `/uploads/${filename}` });
 }

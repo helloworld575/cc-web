@@ -192,9 +192,9 @@ export default function AdminToolsPage() {
           className="border rounded-lg px-3 py-2 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-black/10" />
         <select value={filter} onChange={e => { setFilter(e.target.value as any); setPage(1); }}
           className="border rounded-lg px-2 py-2 text-sm">
-          <option value="all">All</option>
-          <option value="pending">Pending</option>
-          <option value="done">Done</option>
+          <option value="all">{t('all')}</option>
+          <option value="pending">{t('pending')}</option>
+          <option value="done">{t('done')}</option>
         </select>
       </div>
       <DateRangeFilter from={from} to={to} onFrom={v => { setFrom(v); setPage(1); }} onTo={v => { setTo(v); setPage(1); }} onReset={() => { setFrom(''); setTo(''); setPage(1); }} />

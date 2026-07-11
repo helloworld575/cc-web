@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useLocale } from '@/components/useLocale';
 
 interface Source {
   id?: number;
@@ -16,6 +17,7 @@ const EMPTY: Source = { name: '', url: '', category: 'other', enabled: 1, fetch_
 const CATEGORIES = ['github', 'x', 'selfblog', 'rss', 'newsletter', 'reddit', 'other'];
 
 export default function AdminSubscriptionsPage() {
+  const { locale, t } = useLocale();
   const [sources, setSources] = useState<Source[]>([]);
   const [editing, setEditing] = useState<Source | null>(null);
   const [error, setError] = useState('');
@@ -39,7 +41,7 @@ export default function AdminSubscriptionsPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(editing),
     });
-    if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed'); return; }
+    if (!res.ok) { const d = await res.json(); setError(d.error ?? t('adminSubscriptionsFailed')); return; }
     await load();
     setEditing(null);
     setSaved(true);
@@ -47,7 +49,7 @@ export default function AdminSubscriptionsPage() {
   }
 
   async function del(id: number) {
-    if (!confirm('Delete this subscription?')) return;
+    if (!confirm(t('adminSubscriptionsDeleteConfirm'))) return;
     await fetch(`/api/subscriptions/${id}`, { method: 'DELETE' });
     setSources(sources.filter(s => s.id !== id));
     if (editing?.id === id) setEditing(null);
@@ -63,10 +65,14 @@ export default function AdminSubscriptionsPage() {
     });
     const data = await res.json();
     if (!res.ok) {
-      setFetchMsg(`Error: ${data.error}`);
+      setFetchMsg(`${t('adminSubscriptionsError')}: ${data.error}`);
     } else {
       const r = data.results?.[0];
-      setFetchMsg(r?.cached ? 'Already up to date' : r?.success ? `Fetched: ${r.title}` : `Failed: ${r?.error}`);
+      setFetchMsg(r?.cached
+        ? t('adminSubscriptionsUpToDate')
+        : r?.success
+          ? `${t('adminSubscriptionsFetched')}: ${r.title}`
+          : `${t('adminSubscriptionsFailed')}: ${r?.error}`);
       await load();
     }
     setFetching(null);
@@ -82,10 +88,10 @@ export default function AdminSubscriptionsPage() {
     });
     const data = await res.json();
     if (!res.ok) {
-      setFetchMsg(`Error: ${data.error}`);
+      setFetchMsg(`${t('adminSubscriptionsError')}: ${data.error}`);
     } else {
       const ok = data.results?.filter((r: any) => r.success).length ?? 0;
-      setFetchMsg(`Fetched ${ok}/${data.total} sources`);
+      setFetchMsg(`${t('adminSubscriptionsFetched')} ${ok}/${data.total}`);
       await load();
     }
     setFetching(null);
@@ -94,16 +100,16 @@ export default function AdminSubscriptionsPage() {
   return (
     <main className="max-w-4xl mx-auto px-6 py-12">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Admin — Subscriptions</h1>
+        <h1 className="text-3xl font-bold">{t('adminSubscriptionsTitle')}</h1>
         <div className="flex items-center gap-3">
-          {saved && <span className="text-green-600 text-sm">Saved!</span>}
+          {saved && <span className="text-green-600 text-sm">{t('saved')}</span>}
           {fetchMsg && <span className="text-blue-600 text-sm">{fetchMsg}</span>}
           <button onClick={fetchAll} disabled={fetching !== null}
             className="border border-blue-500 text-blue-500 px-3 py-1 rounded text-sm hover:bg-blue-50 disabled:opacity-50">
-            {fetching === -1 ? 'Fetching...' : 'Fetch All'}
+            {fetching === -1 ? t('adminSubscriptionsFetching') : t('adminSubscriptionsFetchAll')}
           </button>
           <button onClick={() => { setEditing({ ...EMPTY }); setError(''); }}
-            className="bg-black text-white px-3 py-1 rounded text-sm">+ New Source</button>
+            className="bg-black text-white px-3 py-1 rounded text-sm">{t('adminSubscriptionsNew')}</button>
         </div>
       </div>
 
@@ -117,33 +123,33 @@ export default function AdminSubscriptionsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm">{s.name}</span>
-                  {!s.enabled && <span className="bg-gray-100 text-gray-500 text-xs px-1.5 py-0.5 rounded">Disabled</span>}
+                  {!s.enabled && <span className="bg-gray-100 text-gray-500 text-xs px-1.5 py-0.5 rounded">{t('adminSubscriptionsDisabled')}</span>}
                   <span className="bg-blue-50 text-blue-600 text-xs px-1.5 py-0.5 rounded">{s.category}</span>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={e => { e.stopPropagation(); fetchNow(s.id!); }}
                     disabled={fetching !== null}
                     className="text-blue-400 hover:text-blue-600 text-xs disabled:opacity-50">
-                    {fetching === s.id ? '...' : 'Fetch'}
+                    {fetching === s.id ? '...' : t('adminSubscriptionsFetch')}
                   </button>
                   <button onClick={e => { e.stopPropagation(); del(s.id!); }}
-                    className="text-red-400 hover:text-red-600 text-xs">Delete</button>
+                    className="text-red-400 hover:text-red-600 text-xs">{t('delete')}</button>
                 </div>
               </div>
               <p className="text-xs text-gray-400 font-mono truncate mt-0.5">{s.url}</p>
               {s.last_fetched_at && (
-                <p className="text-xs text-gray-300 mt-0.5">Last: {new Date(s.last_fetched_at).toLocaleString()}</p>
+                <p className="text-xs text-gray-300 mt-0.5">{t('adminSubscriptionsLast')}: {new Date(s.last_fetched_at).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US')}</p>
               )}
             </div>
           ))}
-          {sources.length === 0 && <p className="text-gray-400 text-sm">No subscriptions yet. Add a URL to get started.</p>}
+          {sources.length === 0 && <p className="text-gray-400 text-sm">{t('adminSubscriptionsEmpty')}</p>}
         </div>
 
         {/* Editor */}
         {editing && (
           <div className="border rounded-lg px-4 py-4 space-y-3">
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Name</label>
+              <label className="text-xs text-gray-500 block mb-1">{t('adminSubscriptionsName')}</label>
               <input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })}
                 className="border rounded px-2 py-1 text-sm w-full" placeholder="My Blog" />
             </div>
@@ -155,28 +161,28 @@ export default function AdminSubscriptionsPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Category</label>
+                <label className="text-xs text-gray-500 block mb-1">{t('adminSubscriptionsCategory')}</label>
                 <select value={editing.category} onChange={e => setEditing({ ...editing, category: e.target.value })}
                   className="border rounded px-2 py-1 text-sm w-full">
                   {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Fetch Interval (sec)</label>
+                <label className="text-xs text-gray-500 block mb-1">{t('adminSubscriptionsInterval')}</label>
                 <input type="number" value={editing.fetch_interval}
                   onChange={e => setEditing({ ...editing, fetch_interval: parseInt(e.target.value) || 3600 })}
                   className="border rounded px-2 py-1 text-sm w-full" />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Enabled</label>
+              <label className="text-xs text-gray-500">{t('adminSubscriptionsEnabled')}</label>
               <input type="checkbox" checked={!!editing.enabled}
                 onChange={e => setEditing({ ...editing, enabled: e.target.checked ? 1 : 0 })} />
             </div>
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2">
-              <button onClick={save} className="bg-black text-white px-4 py-1 rounded text-sm">Save</button>
-              <button onClick={() => setEditing(null)} className="text-sm text-gray-500">Cancel</button>
+              <button onClick={save} className="bg-black text-white px-4 py-1 rounded text-sm">{t('save')}</button>
+              <button onClick={() => setEditing(null)} className="text-sm text-gray-500">{t('cancel')}</button>
             </div>
           </div>
         )}

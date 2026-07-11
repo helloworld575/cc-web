@@ -99,6 +99,8 @@ SUBSCRIPTION_CRON_INTERVAL_SECONDS=86400
 
 AI providers are temporarily env-only. `/admin/ai-config` is a read-only verification page for the Claude and Right Code GPT providers configured in `.env.local`; POST/PUT/DELETE provider APIs return 403. By default Claude calls use `https://www.right.codes/claude/v1/messages`, send Anthropic-style text blocks with ephemeral cache control, and stream tokens back to the UI as SSE. Right Code GPT-5.5 calls use the Responses API at `https://www.right.codes/codex/v1/responses`, send `input_text` message blocks, and stream SSE responses back to the chat UI. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The admin UI also exposes `/admin/claude-code`, which calls an internal Claude Code worker through `/api/claude-code`. The worker maps `CLAUDE_API_KEY`, `CLAUDE_API_HOST`, and `CLAUDE_MODEL` into Claude Code's Anthropic environment variables, defaults to a personal-assistant system prompt, and returns plain text rather than Claude Code JSON events. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it defaults to the right.codes native `/v1/images/generations` endpoint. Set `GPT_IMAGE_API_MODE=chat` only for legacy chat-completions image gateways that still need `GPT_IMAGE_GROUP`.
 
+AI upstream failures are normalized to bounded JSON error codes. Proxy HTML, provider diagnostics, internal hosts, and raw exception messages are never returned to the browser. Image reference files are resized in the browser and encoded as WebP before upload to reduce request latency.
+
 Subscriptions now separate crawling from AI summarization. `/api/subscriptions/crawl` fetches RSS/blog/GitHub/X/Reddit content into `subscription_items` without calling AI. `/api/subscriptions/integrate` reads the latest stored items and creates `subscription_briefs` with the provider-neutral `subscription` skill. The old `/api/subscriptions/fetch` endpoint remains as a compatibility alias for integration.
 
 ## Quality Gates
@@ -136,6 +138,8 @@ docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 
 Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`. Claude Code worker deployment also requires `CLAUDE_API_KEY`; `CLAUDE_API_HOST` and `CLAUDE_MODEL` are optional overrides. NAS compose also starts `subscription-cron`, which calls `/api/subscriptions/crawl` daily. Set `SUBSCRIPTION_CRON_SECRET` for a dedicated bearer token, or it will fall back to `ADMIN_PASSWORD`; adjust the cadence with `SUBSCRIPTION_CRON_INTERVAL_SECONDS`.
 The deploy script writes timestamped logs to `log/deploy/` and always attempts to remove the remote staging directory and close SSH/SFTP sessions before exiting.
+
+For Cloudflare, add cache rules for `/uploads/*` and `/_next/image*` with a one-year edge TTL. Keep the `url`, `w`, and `q` query parameters in the cache key for `/_next/image*`. Bypass cache for `/api/*` and `/admin/*`. Uploaded files already send immutable browser/CDN cache headers, ETags, and range support.
 
 ## Testing
 
@@ -231,7 +235,7 @@ See [docs/en/development.md](./docs/en/development.md#adding-an-ai-skill) for ho
 | `better-sqlite3` build error | `npm rebuild better-sqlite3` |
 | Hydration mismatch in Nav | Make sure locale cookie matches or clear cookies |
 | AI proxy rejects streaming test | Use `/api/ai-providers/test` endpoint (non-streaming) |
-| AI image returns HTML instead of JSON | Check `GPT_IMAGE_API_URL`; `/api/ai-image` returns a 502 JSON error with the first part of the upstream HTML response |
+| AI image returns a provider or invalid-response error | Check `GPT_IMAGE_API_URL` and account image-channel permission; raw upstream HTML is intentionally hidden |
 | AI image never starts | Default `GPT_IMAGE_API_URL` should point at a native images base such as `https://www.right.codes/draw`; set `GPT_IMAGE_API_MODE=chat` only for legacy `/v1/chat/completions` gateways |
 | X post fails with empty `{}` | Check app has Read+Write permissions, regenerate access tokens |
 | Fortune streaming stops early | Increase `CLAUDE_MAX_TOKENS` in `.env.local` |

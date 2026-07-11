@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useLocale } from '@/components/useLocale';
 
 interface Provider {
   id: number;
@@ -14,6 +15,7 @@ interface Provider {
 }
 
 export default function AdminAIConfigPage() {
+  const { t } = useLocale();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [testingId, setTestingId] = useState<number | null>(null);
@@ -49,14 +51,14 @@ export default function AdminAIConfigPage() {
         ...current,
         [providerId]: {
           ok: Boolean(data.ok),
-          msg: data.ok ? `${data.model}: ${data.text}` : data.error || 'Test failed',
+          msg: data.ok ? `${data.model}: ${data.text}` : data.error || t('adminAiProviderTestFailed'),
         },
       }));
     } catch (caught: unknown) {
       const errorLike = caught as { message?: string };
       setTestResult(current => ({
         ...current,
-        [providerId]: { ok: false, msg: errorLike?.message || 'Connection failed' },
+        [providerId]: { ok: false, msg: errorLike?.message || t('adminAiProviderConnectionFailed') },
       }));
     } finally {
       setTestingId(null);
@@ -66,20 +68,20 @@ export default function AdminAIConfigPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <div className="mb-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Environment managed</p>
-        <h1 className="mt-2 text-3xl font-bold text-slate-950">AI Providers</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{t('adminAiProvidersEyebrow')}</p>
+        <h1 className="mt-2 text-3xl font-bold text-slate-950">{t('adminAiProvidersTitle')}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-          AI provider editing is temporarily disabled. The app now uses the Claude and ChatGPT providers configured in .env.local, and this page only verifies those live settings.
+          {t('adminAiProvidersDesc')}
         </p>
       </div>
 
       {loading ? (
         <div className="rounded-xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-500">
-          Loading providers...
+          {t('adminAiProvidersLoading')}
         </div>
       ) : providers.length === 0 ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-5 text-sm leading-6 text-amber-800">
-          No environment providers are available. Configure CLAUDE_API_KEY and RIGHT_CODE_GPT_API_KEY in .env.local, then redeploy.
+          {t('adminAiProvidersEmpty')}
         </div>
       ) : (
         <div className="space-y-3">
@@ -92,14 +94,14 @@ export default function AdminAIConfigPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-slate-900">{provider.name}</span>
                       {provider.is_default ? (
-                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-700">Default</span>
+                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs text-emerald-700">{t('adminAiProviderDefault')}</span>
                       ) : null}
                       <span className="rounded bg-sky-100 px-1.5 py-0.5 text-xs text-sky-700">env.local</span>
                     </div>
                     <p className="mt-1 text-xs text-slate-500">
                       <span className="rounded bg-slate-100 px-1 font-mono">{provider.api_type}</span>{' '}
                       <span className="font-mono">{provider.model}</span>
-                      <span className="ml-2 text-slate-400">{provider.max_tokens} max tokens</span>
+                      <span className="ml-2 text-slate-400">{provider.max_tokens} {t('adminAiProviderMaxTokens')}</span>
                     </p>
                     <p className="mt-1 truncate font-mono text-xs text-slate-400">{provider.api_url}</p>
                   </div>
@@ -109,7 +111,7 @@ export default function AdminAIConfigPage() {
                     disabled={testingId !== null}
                     className="rounded border border-sky-300 px-3 py-1 text-sm text-sky-700 transition hover:bg-sky-50 disabled:opacity-50"
                   >
-                    {testingId === provider.id ? 'Testing...' : 'Test'}
+                    {testingId === provider.id ? t('adminAiProviderTesting') : t('adminAiProviderTest')}
                   </button>
                 </div>
                 {result && (

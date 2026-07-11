@@ -56,6 +56,35 @@ describe('GET /api/subscriptions/briefs', () => {
     const data = await res.json();
     expect(data).toHaveLength(1);
   });
+
+  it('rejects a non-integer source_id', async () => {
+    const { GET } = await import('@/app/api/subscriptions/briefs/route');
+    const res = await GET(new Request('http://localhost/api/subscriptions/briefs?source_id=1x'));
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Invalid source_id' });
+  });
+
+  it('rejects a non-integer limit', async () => {
+    const { GET } = await import('@/app/api/subscriptions/briefs/route');
+    const res = await GET(new Request('http://localhost/api/subscriptions/briefs?limit=12x'));
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: 'Invalid limit' });
+  });
+
+  it.each([
+    ['-5', 1],
+    ['500', 100],
+  ])('clamps limit=%s to %i', async (requestedLimit, expectedLimit) => {
+    const all = vi.fn(() => []);
+    mockDbStmt({ all });
+    const { GET } = await import('@/app/api/subscriptions/briefs/route');
+    const res = await GET(new Request(`http://localhost/api/subscriptions/briefs?limit=${requestedLimit}`));
+
+    expect(res.status).toBe(200);
+    expect(all).toHaveBeenCalledWith(expectedLimit);
+  });
 });
 
 describe('DELETE /api/subscriptions/briefs', () => {
