@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readSafeApiError } from '@/lib/client-api-error';
+import { apiErrorTranslationKey, readSafeApiError } from '@/lib/client-api-error';
 
 describe('readSafeApiError', () => {
   it('never returns HTML response bodies to the UI', async () => {
@@ -39,5 +39,12 @@ describe('readSafeApiError', () => {
     }, { status: 502 }), 'Safe fallback');
 
     expect(result).toEqual({ code: 'UPSTREAM_INVALID_RESPONSE', message: 'Safe fallback' });
+  });
+
+  it('maps lowercase streaming timeout codes to the localized timeout message', () => {
+    expect(apiErrorTranslationKey('upstream_first_token_timeout', 'apiErrorGeneric'))
+      .toBe('apiErrorProviderTimeout');
+    expect(apiErrorTranslationKey('upstream_stream_idle_timeout', 'apiErrorGeneric'))
+      .toBe('apiErrorProviderTimeout');
   });
 });

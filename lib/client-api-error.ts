@@ -41,15 +41,17 @@ export async function readSafeApiError(response: Response, fallback: string): Pr
 }
 
 export function apiErrorTranslationKey(code: string | null, fallback: TranslationKey): TranslationKey {
-  if (!code) return fallback;
-  if (code === 'UNAUTHORIZED') return 'apiErrorUnauthorized';
-  if (code === 'RATE_LIMITED') return 'apiErrorRateLimited';
-  if (code.includes('IMAGE') && (code.includes('FORBIDDEN') || code.includes('PERMISSION'))) {
+  const normalizedCode = code?.toUpperCase() || '';
+  if (!normalizedCode) return fallback;
+  if (normalizedCode === 'UNAUTHORIZED') return 'apiErrorUnauthorized';
+  if (normalizedCode === 'RATE_LIMITED') return 'apiErrorRateLimited';
+  if (normalizedCode.includes('IMAGE') && (normalizedCode.includes('FORBIDDEN') || normalizedCode.includes('PERMISSION'))) {
     return 'apiErrorImagePermission';
   }
-  if (code.includes('FORBIDDEN') || code.includes('UNAUTHORIZED')) return 'apiErrorProviderForbidden';
-  if (code.includes('INVALID_RESPONSE') || code.includes('EMPTY_RESPONSE')) return 'apiErrorProviderInvalidResponse';
-  if (code.startsWith('CLAUDE_WORKER') || code.startsWith('CLAUDE_')) return 'apiErrorWorkerFailed';
-  if (code.includes('TIMEOUT') || code.includes('UNAVAILABLE') || code.includes('NETWORK')) return 'apiErrorProviderUnavailable';
+  if (normalizedCode.includes('FORBIDDEN') || normalizedCode.includes('UNAUTHORIZED')) return 'apiErrorProviderForbidden';
+  if (normalizedCode.includes('INVALID_RESPONSE') || normalizedCode.includes('EMPTY_RESPONSE')) return 'apiErrorProviderInvalidResponse';
+  if (normalizedCode.startsWith('CLAUDE_WORKER') || normalizedCode.startsWith('CLAUDE_')) return 'apiErrorWorkerFailed';
+  if (normalizedCode.includes('TIMEOUT')) return 'apiErrorProviderTimeout';
+  if (normalizedCode.includes('UNAVAILABLE') || normalizedCode.includes('NETWORK')) return 'apiErrorProviderUnavailable';
   return fallback;
 }

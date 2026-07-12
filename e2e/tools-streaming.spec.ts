@@ -181,15 +181,31 @@ test('ai chat does not auto-scroll while streaming a long message', async ({ pag
   expect(afterScrollTop).toBeLessThanOrEqual(beforeScrollTop + 4);
 });
 
-test('ai chat surfaces stream errors and unlocks the composer', async ({ page }) => {
+test('ai chat localizes timeout errors, unlocks the composer, and allows retry', async ({ page }) => {
   await login(page);
   await page.goto('/tools');
   await page.getByTestId('tools-tab-ai-chat').click();
   await expect(page.getByTestId('ai-chat-shell')).toBeVisible();
 
+  let postCount = 0;
   await page.route('**/api/ai-chat', async route => {
     if (route.request().method() !== 'POST') {
       await route.continue();
+      return;
+    }
+
+    postCount += 1;
+    if (postCount === 3) {
+      await route.fulfill({
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream' },
+        body: [
+          'data: {"chat_id":777}',
+          '',
+          'data: {"text":"retry succeeded"}',
+          '',
+        ].join('\n'),
+      });
       return;
     }
 
@@ -199,7 +215,7 @@ test('ai chat surfaces stream errors and unlocks the composer', async ({ page })
       body: [
         'data: {"chat_id":777}',
         '',
-        'data: {"error":"Right Code provider failed: 401"}',
+        'data: {"code":"upstream_first_token_timeout","error":"private upstream timeout diagnostics","retryable":true}',
         '',
       ].join('\n'),
     });
@@ -208,11 +224,22 @@ test('ai chat surfaces stream errors and unlocks the composer', async ({ page })
   await page.getByTestId('ai-chat-input').fill(`stream error e2e ${Date.now()}`);
   await page.getByTestId('ai-chat-send').click();
 
-  await expect(page.getByText('Request failed. Please try again.')).toBeVisible();
-  await expect(page.locator('body')).not.toContainText('Right Code provider failed: 401');
+  await expect(page.getByText('The provider response timed out. Please try again.')).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('private upstream timeout diagnostics');
   await expect(page.getByTestId('ai-chat-input')).toBeEnabled();
-  await page.getByTestId('ai-chat-input').fill('retry after stream error');
+  await expect(page.getByTestId('ai-chat-stop')).toHaveCount(0);
+
+  await page.getByRole('button', { name: '中文' }).click();
+  await page.getByTestId('ai-chat-input').fill('中文超时测试');
+  await page.getByTestId('ai-chat-send').click();
+  await expect(page.getByText('服务商响应超时，请重试。')).toBeVisible();
+  await expect(page.getByTestId('ai-chat-input')).toBeEnabled();
+
+  await page.getByTestId('ai-chat-input').fill('retry after stream timeout');
   await expect(page.getByTestId('ai-chat-send')).toBeEnabled();
+  await page.getByTestId('ai-chat-send').click();
+  await expect(page.getByTestId('ai-chat-messages')).toContainText('retry succeeded');
+  expect(postCount).toBe(3);
 });
 
 test('AI tools never render HTML error pages returned by APIs', async ({ page }) => {

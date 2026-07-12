@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mockSession, mockDbStmt, mockRateLimit429 } from '../../helpers';
 import { rateLimitByIp } from '@/lib/rateLimit';
 import { getSkill, resolveSkillReference } from '@/lib/skills';
@@ -104,6 +104,14 @@ describe('POST /api/ai-chat', () => {
     delete process.env.E2E_MOCK_STREAMS;
     delete process.env.RIGHT_CODE_GPT_API_STYLE;
     delete process.env.RIGHT_CODE_GPT_MAX_TOKENS;
+    delete process.env.AI_CHAT_FIRST_TOKEN_TIMEOUT_MS;
+    delete process.env.AI_CHAT_STREAM_IDLE_TIMEOUT_MS;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    delete process.env.AI_CHAT_FIRST_TOKEN_TIMEOUT_MS;
+    delete process.env.AI_CHAT_STREAM_IDLE_TIMEOUT_MS;
   });
 
   it('returns 401 without session', async () => {
@@ -392,6 +400,165 @@ describe('POST /api/ai-chat', () => {
     }));
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+  });
+
+  it('times out an Anthropic stream that emits metadata but no text', async () => {
+    vi.useFakeTimers();
+    process.env.AI_CHAT_FIRST_TOKEN_TIMEOUT_MS = '50';
+    process.env.AI_CHAT_STREAM_IDLE_TIMEOUT_MS = '20';
+    mockSession(true);
+    const providerId = configureEnvClaudeProvider();
+    const run = vi.fn(() => ({ lastInsertRowid: 51, changes: 1 }));
+    mockDbStmt({ run });
+    const encoder = new TextEncoder();
+    mockFetch.mockResolvedValue(new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"type":"message_start","message":{"id":"msg_waiting"}}\n\n'));
+      },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: providerId,
+      messages: [{ role: 'user', content: 'wait for claude' }],
+    }));
+    let settled = false;
+    const bodyPromise = res.text().then(text => {
+      settled = true;
+      return text;
+    });
+
+    await vi.advanceTimersByTimeAsync(51);
+
+    expect(settled).toBe(true);
+    const text = await bodyPromise;
+    expect(text).toContain('"code":"upstream_first_token_timeout"');
+    expect(text).toContain('"error":"AI provider did not return content in time."');
+    expect(text).toContain('"retryable":true');
+    expect(run.mock.calls.flat().filter(value => typeof value === 'string' && value.startsWith('[')))
+      .not.toContainEqual(expect.stringContaining('"role":"assistant"'));
+  });
+
+  it('times out an Anthropic stream that stops producing text', async () => {
+    vi.useFakeTimers();
+    process.env.AI_CHAT_FIRST_TOKEN_TIMEOUT_MS = '50';
+    process.env.AI_CHAT_STREAM_IDLE_TIMEOUT_MS = '20';
+    mockSession(true);
+    const providerId = configureEnvClaudeProvider();
+    const run = vi.fn(() => ({ lastInsertRowid: 52, changes: 1 }));
+    mockDbStmt({ run });
+    const encoder = new TextEncoder();
+    mockFetch.mockResolvedValue(new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"partial"}}\n\n'));
+      },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: providerId,
+      messages: [{ role: 'user', content: 'start then stall' }],
+    }));
+    let settled = false;
+    const bodyPromise = res.text().then(text => {
+      settled = true;
+      return text;
+    });
+
+    await vi.advanceTimersByTimeAsync(21);
+
+    expect(settled).toBe(true);
+    const text = await bodyPromise;
+    expect(text).toContain('"text":"partial"');
+    expect(text).toContain('"code":"upstream_stream_idle_timeout"');
+    expect(text).toContain('"error":"AI provider stopped returning content."');
+    expect(run.mock.calls.flat().filter(value => typeof value === 'string' && value.startsWith('[')))
+      .not.toContainEqual(expect.stringContaining('"role":"assistant"'));
+  });
+
+  it('preserves the latest user message when an existing Anthropic chat times out', async () => {
+    vi.useFakeTimers();
+    process.env.AI_CHAT_FIRST_TOKEN_TIMEOUT_MS = '50';
+    process.env.AI_CHAT_STREAM_IDLE_TIMEOUT_MS = '20';
+    mockSession(true);
+    const providerId = configureEnvClaudeProvider();
+    const get = vi.fn(() => ({
+      id: 9,
+      provider_id: providerId,
+      title: 'Existing Claude chat',
+      messages: '[]',
+    }));
+    const run = vi.fn(() => ({ lastInsertRowid: 9, changes: 1 }));
+    mockDbStmt({ get, run });
+    const encoder = new TextEncoder();
+    mockFetch.mockResolvedValue(new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"type":"message_start","message":{"id":"msg_existing"}}\n\n'));
+      },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    }));
+    const messages = [
+      { role: 'user', content: 'old question' },
+      { role: 'assistant', content: 'old answer' },
+      { role: 'user', content: 'new question that times out' },
+    ];
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      chat_id: 9,
+      provider_id: providerId,
+      messages,
+    }));
+    const bodyPromise = res.text();
+    await vi.advanceTimersByTimeAsync(51);
+    await bodyPromise;
+
+    expect(run).toHaveBeenCalledWith(
+      'Existing Claude chat',
+      JSON.stringify(messages),
+      9,
+    );
+    expect(run).not.toHaveBeenCalledWith(
+      'Existing Claude chat',
+      expect.stringContaining('"role":"assistant","content":""'),
+      9,
+    );
+  });
+
+  it('does not persist an empty assistant when Anthropic ends without text', async () => {
+    mockSession(true);
+    const providerId = configureEnvClaudeProvider();
+    const run = vi.fn(() => ({ lastInsertRowid: 53, changes: 1 }));
+    mockDbStmt({ run });
+    const encoder = new TextEncoder();
+    mockFetch.mockResolvedValue(new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"type":"message_stop"}\n\n'));
+        controller.close();
+      },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    }));
+
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: providerId,
+      messages: [{ role: 'user', content: 'empty response' }],
+    }));
+    const text = await res.text();
+
+    expect(text).toContain('"code":"upstream_empty_response"');
+    expect(run.mock.calls.flat().filter(value => typeof value === 'string' && value.startsWith('[')))
+      .not.toContainEqual(expect.stringContaining('"role":"assistant"'));
   });
 
   it('returns 502 when upstream API fails', async () => {

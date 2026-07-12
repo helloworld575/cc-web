@@ -94,6 +94,22 @@ export function upstreamTimeoutError(label = 'AI provider'): SafeUpstreamError {
   };
 }
 
+export function upstreamFirstTokenTimeoutError(): SafeUpstreamError {
+  return {
+    code: 'upstream_first_token_timeout',
+    error: 'AI provider did not return content in time.',
+    retryable: true,
+  };
+}
+
+export function upstreamStreamIdleTimeoutError(): SafeUpstreamError {
+  return {
+    code: 'upstream_stream_idle_timeout',
+    error: 'AI provider stopped returning content.',
+    retryable: true,
+  };
+}
+
 export function upstreamInvalidResponseError(label = 'AI provider'): SafeUpstreamError {
   return {
     code: 'upstream_invalid_response',

@@ -64,6 +64,9 @@ CLAUDE_API_KEY=
 CLAUDE_MODEL=claude-opus-4-8
 CLAUDE_API_HOST=https://www.right.codes/claude
 CLAUDE_MAX_TOKENS=32000
+AI_CHAT_CONNECT_TIMEOUT_MS=30000
+AI_CHAT_FIRST_TOKEN_TIMEOUT_MS=60000
+AI_CHAT_STREAM_IDLE_TIMEOUT_MS=30000
 CLAUDE_CODE_WORKER_URL=http://claude-worker:8787
 CLAUDE_PERMISSION_MODE=dontAsk
 CLAUDE_ALLOWED_TOOLS=Read,Glob,Grep
@@ -95,7 +98,7 @@ SUBSCRIPTION_CRON_SECRET=
 SUBSCRIPTION_CRON_INTERVAL_SECONDS=86400
 ```
 
-AI 服务商暂时改为 `.env.local` 只读配置。`/admin/ai-config` 只展示并测试 Claude 与 Right Code GPT，新增、编辑、删除 provider API 会返回 403。Claude 默认调用 `https://www.right.codes/claude/v1/messages` 和 `claude-opus-4-8`。AI 对话会保存完整历史，但只把最近的对话窗口发送给上游模型，以降低上下文占用。生图默认调用 right.codes 原生 `/v1/images/generations`；只有旧网关需要 chat-completions 时才设置 `GPT_IMAGE_API_MODE=chat`。
+AI 服务商暂时改为 `.env.local` 只读配置。`/admin/ai-config` 只展示并测试 Claude 与 Right Code GPT，新增、编辑、删除 provider API 会返回 403。Claude 默认调用 `https://www.right.codes/claude/v1/messages` 和 `claude-opus-4-8`。AI 对话默认允许 30 秒建立上游连接、60 秒等待首个可见文本，并在连续 30 秒没有新可见文本时结束流；可通过 `AI_CHAT_CONNECT_TIMEOUT_MS`、`AI_CHAT_FIRST_TOKEN_TIMEOUT_MS`、`AI_CHAT_STREAM_IDLE_TIMEOUT_MS` 调整。AI 对话会保存完整历史，但只把最近的对话窗口发送给上游模型，以降低上下文占用。生图默认调用 right.codes 原生 `/v1/images/generations`；只有旧网关需要 chat-completions 时才设置 `GPT_IMAGE_API_MODE=chat`。
 
 所有 AI 上游失败都会转换成长度受限的 JSON 错误码，浏览器不会收到代理 HTML、服务商诊断、内部地址或底层异常文本。参考图会先在浏览器缩放并转为 WebP，再发送到生图接口。
 

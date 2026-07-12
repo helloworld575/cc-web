@@ -8,9 +8,10 @@ import {
   readUpstreamFailure,
   safeFetchError,
   safeUpstreamResponse,
-  timeoutSignal,
   upstreamEmptyResponseError,
+  upstreamFirstTokenTimeoutError,
   upstreamInvalidResponseError,
+  upstreamStreamIdleTimeoutError,
   validateUpstreamSse,
   type SafeUpstreamError,
 } from '@/lib/ai-upstream';
@@ -38,6 +39,67 @@ interface ChatMessage {
 
 const MAX_UPSTREAM_CONTEXT_MESSAGES = 12;
 const MAX_UPSTREAM_CONTEXT_CHARS = 16000;
+const DEFAULT_AI_CHAT_CONNECT_TIMEOUT_MS = 30_000;
+const DEFAULT_AI_CHAT_FIRST_TOKEN_TIMEOUT_MS = 60_000;
+const DEFAULT_AI_CHAT_STREAM_IDLE_TIMEOUT_MS = 30_000;
+
+interface AiStreamOptions {
+  chatId?: number;
+  firstTokenTimeoutMs?: number;
+  streamIdleTimeoutMs?: number;
+  onText?: (text: string) => void;
+  onDone?: () => void;
+}
+
+function readPositiveTimeout(name: string, fallback: number) {
+  const parsed = Number.parseInt(process.env[name] || '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function createStreamWatchdog(options: AiStreamOptions) {
+  const firstTokenTimeoutMs = options.firstTokenTimeoutMs ?? DEFAULT_AI_CHAT_FIRST_TOKEN_TIMEOUT_MS;
+  const streamIdleTimeoutMs = options.streamIdleTimeoutMs ?? DEFAULT_AI_CHAT_STREAM_IDLE_TIMEOUT_MS;
+  let sawText = false;
+  let deadline = Date.now() + firstTokenTimeoutMs;
+
+  return {
+    markText() {
+      sawText = true;
+      deadline = Date.now() + streamIdleTimeoutMs;
+    },
+    read(reader: ReadableStreamDefaultReader<Uint8Array>) {
+      const timeoutError = sawText
+        ? upstreamStreamIdleTimeoutError()
+        : upstreamFirstTokenTimeoutError();
+      const remainingMs = Math.max(0, deadline - Date.now());
+
+      return new Promise<ReadableStreamReadResult<Uint8Array>>((resolve, reject) => {
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(timeoutError);
+          void reader.cancel(timeoutError).catch(() => undefined);
+        }, remainingMs);
+
+        reader.read().then(
+          result => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            resolve(result);
+          },
+          caught => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            reject(caught);
+          },
+        );
+      });
+    },
+  };
+}
 
 function createTitle(messages: ChatMessage[]) {
   const firstUserMessage = messages.find(message => message.role === 'user')?.content.trim();
@@ -249,17 +311,18 @@ function buildResponsesRequest(provider: AiProviderConfig, messages: ChatMessage
 
 function createAnthropicStream(
   upstreamBody: ReadableStream<Uint8Array>,
-  options: {
-    chatId?: number;
-    onText?: (text: string) => void;
-    onDone?: () => void;
-  } = {},
+  options: AiStreamOptions = {},
 ) {
   const encoder = new TextEncoder();
   let upstreamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   let donePersisted = false;
+  let hasText = false;
 
   function finish(controller: ReadableStreamDefaultController<Uint8Array>) {
+    if (!hasText) {
+      finishWithError(controller, upstreamEmptyResponseError());
+      return;
+    }
     if (!donePersisted) {
       options.onDone?.();
       donePersisted = true;
@@ -283,11 +346,12 @@ function createAnthropicStream(
         }
         upstreamReader = upstreamBody.getReader();
         const decoder = new TextDecoder();
+        const watchdog = createStreamWatchdog(options);
         let buf = '';
         let sawEvent = false;
 
         while (true) {
-          const { done, value } = await upstreamReader.read();
+          const { done, value } = await watchdog.read(upstreamReader);
           if (done) break;
           buf += decoder.decode(value, { stream: true });
           const lines = buf.split('\n');
@@ -307,6 +371,8 @@ function createAnthropicStream(
                 }
                 const text = extractClaudeStreamText(parsed);
                 if (text) {
+                  hasText = true;
+                  watchdog.markText();
                   options.onText?.(text);
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
                 }
@@ -330,7 +396,7 @@ function createAnthropicStream(
     },
     cancel() {
       if (!donePersisted) {
-        options.onDone?.();
+        if (hasText) options.onDone?.();
         donePersisted = true;
       }
       upstreamReader?.cancel();
@@ -340,17 +406,18 @@ function createAnthropicStream(
 
 function createOpenAIStream(
   upstreamBody: ReadableStream<Uint8Array>,
-  options: {
-    chatId?: number;
-    onText?: (text: string) => void;
-    onDone?: () => void;
-  } = {},
+  options: AiStreamOptions = {},
 ) {
   const encoder = new TextEncoder();
   let upstreamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   let donePersisted = false;
+  let hasText = false;
 
   function finish(controller: ReadableStreamDefaultController<Uint8Array>) {
+    if (!hasText) {
+      finishWithError(controller, upstreamEmptyResponseError());
+      return;
+    }
     if (!donePersisted) {
       options.onDone?.();
       donePersisted = true;
@@ -374,11 +441,12 @@ function createOpenAIStream(
         }
         upstreamReader = upstreamBody.getReader();
         const decoder = new TextDecoder();
+        const watchdog = createStreamWatchdog(options);
         let buf = '';
         let sawEvent = false;
 
         while (true) {
-          const { done, value } = await upstreamReader.read();
+          const { done, value } = await watchdog.read(upstreamReader);
           if (done) break;
           buf += decoder.decode(value, { stream: true });
           const lines = buf.split('\n');
@@ -398,6 +466,8 @@ function createOpenAIStream(
                 }
                 const delta = parsed.choices?.[0]?.delta?.content;
                 if (delta) {
+                  hasText = true;
+                  watchdog.markText();
                   options.onText?.(delta);
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
                 }
@@ -421,7 +491,7 @@ function createOpenAIStream(
     },
     cancel() {
       if (!donePersisted) {
-        options.onDone?.();
+        if (hasText) options.onDone?.();
         donePersisted = true;
       }
       upstreamReader?.cancel();
@@ -431,17 +501,18 @@ function createOpenAIStream(
 
 function createResponsesStream(
   upstreamBody: ReadableStream<Uint8Array>,
-  options: {
-    chatId?: number;
-    onText?: (text: string) => void;
-    onDone?: () => void;
-  } = {},
+  options: AiStreamOptions = {},
 ) {
   const encoder = new TextEncoder();
   let upstreamReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   let donePersisted = false;
+  let hasText = false;
 
   function finish(controller: ReadableStreamDefaultController<Uint8Array>) {
+    if (!hasText) {
+      finishWithError(controller, upstreamEmptyResponseError());
+      return;
+    }
     if (!donePersisted) {
       options.onDone?.();
       donePersisted = true;
@@ -465,11 +536,12 @@ function createResponsesStream(
         }
         upstreamReader = upstreamBody.getReader();
         const decoder = new TextDecoder();
+        const watchdog = createStreamWatchdog(options);
         let buf = '';
         let sawEvent = false;
 
         while (true) {
-          const { done, value } = await upstreamReader.read();
+          const { done, value } = await watchdog.read(upstreamReader);
           if (done) break;
           buf += decoder.decode(value, { stream: true });
           const lines = buf.split('\n');
@@ -489,6 +561,8 @@ function createResponsesStream(
                 }
                 const text = extractResponsesStreamText(parsed);
                 if (text) {
+                  hasText = true;
+                  watchdog.markText();
                   options.onText?.(text);
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
                 }
@@ -512,7 +586,7 @@ function createResponsesStream(
     },
     cancel() {
       if (!donePersisted) {
-        options.onDone?.();
+        if (hasText) options.onDone?.();
         donePersisted = true;
       }
       upstreamReader?.cancel();
@@ -639,15 +713,22 @@ export async function POST(req: Request) {
       : buildOpenAIRequest(provider, upstreamMessages);
 
   let upstream: Response;
+  const connectController = new AbortController();
+  const connectTimeout = setTimeout(
+    () => connectController.abort(new DOMException('AI provider connection timed out.', 'TimeoutError')),
+    readPositiveTimeout('AI_CHAT_CONNECT_TIMEOUT_MS', DEFAULT_AI_CHAT_CONNECT_TIMEOUT_MS),
+  );
   try {
     upstream = await fetch(reqConfig.url, {
       method: 'POST',
       headers: reqConfig.headers,
       body: reqConfig.body,
-      signal: timeoutSignal(120000),
+      signal: connectController.signal,
     });
   } catch (caught: unknown) {
     return safeUpstreamResponse(safeFetchError(caught));
+  } finally {
+    clearTimeout(connectTimeout);
   }
 
   if (!upstream.ok) {
@@ -662,11 +743,21 @@ export async function POST(req: Request) {
     const saved = saveNewChat(providerId, messages);
     chatId = saved.id;
     chatTitle = saved.title;
+  } else {
+    updateChat(chatId, chatTitle, messages);
   }
 
   let assistantText = '';
   const streamOptions = {
     chatId,
+    firstTokenTimeoutMs: readPositiveTimeout(
+      'AI_CHAT_FIRST_TOKEN_TIMEOUT_MS',
+      DEFAULT_AI_CHAT_FIRST_TOKEN_TIMEOUT_MS,
+    ),
+    streamIdleTimeoutMs: readPositiveTimeout(
+      'AI_CHAT_STREAM_IDLE_TIMEOUT_MS',
+      DEFAULT_AI_CHAT_STREAM_IDLE_TIMEOUT_MS,
+    ),
     onText(text: string) {
       assistantText += text;
     },

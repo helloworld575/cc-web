@@ -68,6 +68,9 @@ CLAUDE_API_KEY=
 CLAUDE_MODEL=claude-opus-4-8
 CLAUDE_API_HOST=https://www.right.codes/claude
 CLAUDE_MAX_TOKENS=32000
+AI_CHAT_CONNECT_TIMEOUT_MS=30000
+AI_CHAT_FIRST_TOKEN_TIMEOUT_MS=60000
+AI_CHAT_STREAM_IDLE_TIMEOUT_MS=30000
 CLAUDE_CODE_WORKER_URL=http://claude-worker:8787
 CLAUDE_PERMISSION_MODE=dontAsk
 CLAUDE_ALLOWED_TOOLS=Read,Glob,Grep
@@ -97,7 +100,7 @@ SUBSCRIPTION_CRON_SECRET=
 SUBSCRIPTION_CRON_INTERVAL_SECONDS=86400
 ```
 
-AI providers are temporarily env-only. `/admin/ai-config` is a read-only verification page for the Claude and Right Code GPT providers configured in `.env.local`; POST/PUT/DELETE provider APIs return 403. By default Claude calls use `https://www.right.codes/claude/v1/messages`, send Anthropic-style text blocks with ephemeral cache control, and stream tokens back to the UI as SSE. Right Code GPT-5.5 calls use the Responses API at `https://www.right.codes/codex/v1/responses`, send `input_text` message blocks, and stream SSE responses back to the chat UI. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The admin UI also exposes `/admin/claude-code`, which calls an internal Claude Code worker through `/api/claude-code`. The worker maps `CLAUDE_API_KEY`, `CLAUDE_API_HOST`, and `CLAUDE_MODEL` into Claude Code's Anthropic environment variables, defaults to a personal-assistant system prompt, and returns plain text rather than Claude Code JSON events. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it defaults to the right.codes native `/v1/images/generations` endpoint. Set `GPT_IMAGE_API_MODE=chat` only for legacy chat-completions image gateways that still need `GPT_IMAGE_GROUP`.
+AI providers are temporarily env-only. `/admin/ai-config` is a read-only verification page for the Claude and Right Code GPT providers configured in `.env.local`; POST/PUT/DELETE provider APIs return 403. By default Claude calls use `https://www.right.codes/claude/v1/messages`, send Anthropic-style text blocks with ephemeral cache control, and stream tokens back to the UI as SSE. AI chat limits provider connection setup to 30 seconds, waits up to 60 seconds for the first visible text, and ends a stream after 30 seconds without additional visible text; override those defaults with `AI_CHAT_CONNECT_TIMEOUT_MS`, `AI_CHAT_FIRST_TOKEN_TIMEOUT_MS`, and `AI_CHAT_STREAM_IDLE_TIMEOUT_MS`. Right Code GPT-5.5 calls use the Responses API at `https://www.right.codes/codex/v1/responses`, send `input_text` message blocks, and stream SSE responses back to the chat UI. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The admin UI also exposes `/admin/claude-code`, which calls an internal Claude Code worker through `/api/claude-code`. The worker maps `CLAUDE_API_KEY`, `CLAUDE_API_HOST`, and `CLAUDE_MODEL` into Claude Code's Anthropic environment variables, defaults to a personal-assistant system prompt, and returns plain text rather than Claude Code JSON events. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it defaults to the right.codes native `/v1/images/generations` endpoint. Set `GPT_IMAGE_API_MODE=chat` only for legacy chat-completions image gateways that still need `GPT_IMAGE_GROUP`.
 
 AI upstream failures are normalized to bounded JSON error codes. Proxy HTML, provider diagnostics, internal hosts, and raw exception messages are never returned to the browser. Image reference files are resized in the browser and encoded as WebP before upload to reduce request latency.
 

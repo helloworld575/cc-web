@@ -60,6 +60,7 @@ describe('i18n translations', () => {
       'apiErrorRateLimited',
       'apiErrorProviderForbidden',
       'apiErrorProviderInvalidResponse',
+      'apiErrorProviderTimeout',
       'apiErrorProviderUnavailable',
       'apiErrorImagePermission',
       'apiErrorWorkerFailed',
