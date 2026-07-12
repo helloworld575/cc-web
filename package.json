@@ -23,6 +23,7 @@
     "e2e": "node scripts/run-managed-command.mjs --label playwright-e2e --clear-port 3001 -- node ./node_modules/playwright/cli.js test",
     "e2e:headed": "node scripts/run-managed-command.mjs --label playwright-e2e-headed --clear-port 3001 -- node ./node_modules/playwright/cli.js test --headed",
     "run:managed": "node scripts/run-managed-command.mjs",
+    "nas:logs": "python scripts/nas-logs.py --audit",
     "codex:skills": "node scripts/normalize-codex-skills.mjs",
     "codex:cache": "node scripts/refresh-codex-cache.mjs",
     "verify": "npm run lint && npm test && npm run build",

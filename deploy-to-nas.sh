@@ -17,6 +17,7 @@ export ENV_FILE PACKAGE_FILE
 
 "${PYTHON_BIN}" - <<'PY'
 import hashlib
+import json
 import os
 import posixpath
 import re
@@ -324,6 +325,59 @@ def verify_container_env_value(
     log(f"Verified container {service} {key} hash {hash_secret(expected_value)}")
 
 
+def verify_container_logging(
+    client: "paramiko.SSHClient",
+    nas_path: str,
+    compose_file_name: str,
+    env_file_name: str,
+    services: list[str],
+) -> None:
+    expected_max_size = os.environ.get("CONTAINER_LOG_MAX_SIZE", "10m")
+    expected_max_files = os.environ.get("CONTAINER_LOG_MAX_FILES", "5")
+    compose_cmd = (
+        f"docker compose --env-file {shlex.quote(env_file_name)} "
+        f"-f {shlex.quote(compose_file_name)}"
+    )
+
+    for service in services:
+        code, container_id, err = run_remote(
+            client,
+            f"cd {shlex.quote(nas_path)} && {compose_cmd} ps -q {shlex.quote(service)}",
+            timeout=60,
+        )
+        container_id = container_id.strip()
+        if code != 0 or not container_id:
+            raise RuntimeError(
+                f"Unable to resolve logging config for {service}: {err.strip() or 'no container id'}"
+            )
+
+        code, inspection, err = run_remote(
+            client,
+            f"docker inspect {shlex.quote(container_id)}",
+            timeout=60,
+        )
+        if code != 0:
+            raise RuntimeError(
+                f"Unable to inspect logging config for {service}: {err.strip() or 'docker inspect failed'}"
+            )
+        log_config = json.loads(inspection)[0]["HostConfig"]["LogConfig"]
+        options = log_config.get("Config") or {}
+        if (
+            log_config.get("Type") != "json-file"
+            or options.get("max-size") != expected_max_size
+            or options.get("max-file") != expected_max_files
+        ):
+            raise RuntimeError(
+                f"Unexpected logging config for {service}: "
+                f"driver={log_config.get('Type')} max-size={options.get('max-size')} max-file={options.get('max-file')}"
+            )
+
+    log(
+        f"Verified container logging for {', '.join(services)} "
+        f"(driver=json-file, max-size={expected_max_size}, max-file={expected_max_files})"
+    )
+
+
 def to_sftp_path(shell_path: str) -> str:
     match = re.match(r"^/volume\d+/(.+)$", shell_path)
     if match:
@@ -410,6 +464,13 @@ def main() -> int:
                 service="app",
                 key="ADMIN_PASSWORD",
                 expected_value=os.environ["ADMIN_PASSWORD"],
+            )
+            verify_container_logging(
+                client,
+                nas_path=NAS_PATH,
+                compose_file_name=compose_file_name,
+                env_file_name=NAS_ENV_FILE,
+                services=["app", "subscription-cron", "claude-worker", "cloudflared"],
             )
         finally:
             if client is not None and remote_stage is not None:

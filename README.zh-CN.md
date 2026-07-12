@@ -96,6 +96,8 @@ NAS_PATH=/volume1/docker/my-site
 NAS_PASSWORD=
 SUBSCRIPTION_CRON_SECRET=
 SUBSCRIPTION_CRON_INTERVAL_SECONDS=86400
+CONTAINER_LOG_MAX_SIZE=10m
+CONTAINER_LOG_MAX_FILES=5
 ```
 
 AI 服务商暂时改为 `.env.local` 只读配置。`/admin/ai-config` 只展示并测试 Claude 与 Right Code GPT，新增、编辑、删除 provider API 会返回 403。Claude 默认调用 `https://www.right.codes/claude/v1/messages` 和 `claude-opus-4-8`。AI 对话默认允许 30 秒建立上游连接、60 秒等待首个可见文本，并在连续 30 秒没有新可见文本时结束流；可通过 `AI_CHAT_CONNECT_TIMEOUT_MS`、`AI_CHAT_FIRST_TOKEN_TIMEOUT_MS`、`AI_CHAT_STREAM_IDLE_TIMEOUT_MS` 调整。AI 对话会保存完整历史，但只把最近的对话窗口发送给上游模型，以降低上下文占用。生图默认调用 right.codes 原生 `/v1/images/generations`；只有旧网关需要 chat-completions 时才设置 `GPT_IMAGE_API_MODE=chat`。
@@ -139,6 +141,17 @@ docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 
 部署所需变量统一放在 `.env.local`：`NAS_HOST`、`NAS_USER`、`NAS_PATH`、`NAS_PASSWORD`、`CLOUDFLARE_TUNNEL_TOKEN`。NAS compose 会额外启动 `subscription-cron`，每天调用 `/api/subscriptions/crawl` 抓取订阅原始内容；建议配置 `SUBSCRIPTION_CRON_SECRET`，未配置时会回退使用 `ADMIN_PASSWORD`，抓取间隔可用 `SUBSCRIPTION_CRON_INTERVAL_SECONDS` 调整。
 部署日志会按时间写入 `log/deploy/`，脚本退出前会尽量清理远端暂存目录并关闭 SSH / SFTP 会话。
+
+容器日志统一使用带轮转的 `json-file` 驱动，默认每个文件 10 MB、每个服务保留 5 个文件；可用 `CONTAINER_LOG_MAX_SIZE` 和 `CONTAINER_LOG_MAX_FILES` 调整。部署脚本会验证 NAS 上每个容器实际生效的日志驱动和容量限制。
+
+排查生产问题前先采集经过脱敏的 NAS 日志：
+
+```bash
+npm run nas:logs
+npm run nas:logs -- --service app --service claude-worker --since 1h --grep "ai-chat|claude"
+```
+
+日志快照保存在 `log/nas/`。AI Chat、Claude worker 和订阅抓取使用单行 JSON 日志，包含 `request_id`、事件、耗时、结果数量或输出大小以及安全错误码；不会记录提示词、凭据、Authorization 请求头或原始上游响应。排查单次请求时，应使用同一个 `request_id` 关联 app 与 worker 日志。
 
 使用 Cloudflare 时，建议为 `/uploads/*` 和 `/_next/image*` 配置一年边缘缓存；`/_next/image*` 的缓存键保留 `url`、`w`、`q` 参数。`/api/*` 与 `/admin/*` 必须绕过缓存。上传文件接口已经提供 immutable 缓存头、ETag 与 Range 支持。
 

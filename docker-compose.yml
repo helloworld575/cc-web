@@ -1,3 +1,9 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "${CONTAINER_LOG_MAX_SIZE:-10m}"
+    max-file: "${CONTAINER_LOG_MAX_FILES:-5}"
+
 services:
   app:
     image: my-site
@@ -18,6 +24,7 @@ services:
     depends_on:
       claude-worker:
         condition: service_healthy
+    logging: *default-logging
 
   claude-worker:
     image: my-site-claude-worker
@@ -49,6 +56,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    logging: *default-logging
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -58,6 +66,7 @@ services:
     restart: unless-stopped
     depends_on:
       - app
+    logging: *default-logging
 
 volumes:
   app-data:

@@ -18,6 +18,7 @@ import {
 import { DEFAULT_AI_CHAT_SYSTEM_PROMPT, mergeAiChatSystemPrompts } from '@/lib/ai-chat-defaults';
 import { getSkill, resolveSkillReference, type Skill } from '@/lib/skills';
 import { isInvocableSkill } from '@/lib/skill-taxonomy';
+import { getRequestId, logServerEvent, summarizeError } from '@/lib/server-log';
 import {
   buildClaudeHeaders,
   buildClaudeMessagesPayload,
@@ -45,10 +46,13 @@ const DEFAULT_AI_CHAT_STREAM_IDLE_TIMEOUT_MS = 30_000;
 
 interface AiStreamOptions {
   chatId?: number;
+  requestId?: string;
   firstTokenTimeoutMs?: number;
   streamIdleTimeoutMs?: number;
   onText?: (text: string) => void;
   onDone?: () => void;
+  onError?: (error: SafeUpstreamError) => void;
+  onCancel?: () => void;
 }
 
 function readPositiveTimeout(name: string, fallback: number) {
@@ -332,7 +336,9 @@ function createAnthropicStream(
 
   function finishWithError(controller: ReadableStreamDefaultController<Uint8Array>, caught: unknown) {
     if (!donePersisted) {
-      enqueueEvent(controller, { ...normalizeAiStreamError(caught) });
+      const error = normalizeAiStreamError(caught);
+      enqueueEvent(controller, { ...error, request_id: options.requestId });
+      options.onError?.(error);
       donePersisted = true;
     }
     try { controller.close(); } catch {}
@@ -342,7 +348,7 @@ function createAnthropicStream(
     async start(controller) {
       try {
         if (options.chatId) {
-          enqueueEvent(controller, { chat_id: options.chatId });
+          enqueueEvent(controller, { chat_id: options.chatId, request_id: options.requestId });
         }
         upstreamReader = upstreamBody.getReader();
         const decoder = new TextDecoder();
@@ -397,6 +403,7 @@ function createAnthropicStream(
     cancel() {
       if (!donePersisted) {
         if (hasText) options.onDone?.();
+        options.onCancel?.();
         donePersisted = true;
       }
       upstreamReader?.cancel();
@@ -427,7 +434,9 @@ function createOpenAIStream(
 
   function finishWithError(controller: ReadableStreamDefaultController<Uint8Array>, caught: unknown) {
     if (!donePersisted) {
-      enqueueEvent(controller, { ...normalizeAiStreamError(caught) });
+      const error = normalizeAiStreamError(caught);
+      enqueueEvent(controller, { ...error, request_id: options.requestId });
+      options.onError?.(error);
       donePersisted = true;
     }
     try { controller.close(); } catch {}
@@ -437,7 +446,7 @@ function createOpenAIStream(
     async start(controller) {
       try {
         if (options.chatId) {
-          enqueueEvent(controller, { chat_id: options.chatId });
+          enqueueEvent(controller, { chat_id: options.chatId, request_id: options.requestId });
         }
         upstreamReader = upstreamBody.getReader();
         const decoder = new TextDecoder();
@@ -492,6 +501,7 @@ function createOpenAIStream(
     cancel() {
       if (!donePersisted) {
         if (hasText) options.onDone?.();
+        options.onCancel?.();
         donePersisted = true;
       }
       upstreamReader?.cancel();
@@ -522,7 +532,9 @@ function createResponsesStream(
 
   function finishWithError(controller: ReadableStreamDefaultController<Uint8Array>, caught: unknown) {
     if (!donePersisted) {
-      enqueueEvent(controller, { ...normalizeAiStreamError(caught) });
+      const error = normalizeAiStreamError(caught);
+      enqueueEvent(controller, { ...error, request_id: options.requestId });
+      options.onError?.(error);
       donePersisted = true;
     }
     try { controller.close(); } catch {}
@@ -532,7 +544,7 @@ function createResponsesStream(
     async start(controller) {
       try {
         if (options.chatId) {
-          enqueueEvent(controller, { chat_id: options.chatId });
+          enqueueEvent(controller, { chat_id: options.chatId, request_id: options.requestId });
         }
         upstreamReader = upstreamBody.getReader();
         const decoder = new TextDecoder();
@@ -587,6 +599,7 @@ function createResponsesStream(
     cancel() {
       if (!donePersisted) {
         if (hasText) options.onDone?.();
+        options.onCancel?.();
         donePersisted = true;
       }
       upstreamReader?.cancel();
@@ -608,6 +621,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const requestId = getRequestId(req);
+  const startedAt = Date.now();
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   const rl = rateLimitByIp(req, 'ai-chat', 30);
@@ -656,6 +671,16 @@ export async function POST(req: Request) {
     chatTitle = existing.title || chatTitle;
   }
 
+  logServerEvent('info', 'ai-chat', 'request_started', {
+    request_id: requestId,
+    provider_id: providerId,
+    provider_type: provider.api_type,
+    model: provider.model,
+    chat_id: chatId,
+    message_count: messages.length,
+    skill: skill?.name,
+  });
+
   if (process.env.E2E_MOCK_STREAMS === '1') {
     if (!chatId) {
       const saved = saveNewChat(providerId, messages);
@@ -679,12 +704,21 @@ export async function POST(req: Request) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
-        enqueueEvent(controller, { chat_id: chatId });
+        enqueueEvent(controller, { chat_id: chatId, request_id: requestId });
         for (const chunk of chunks) {
           assistantText += chunk;
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
         }
         updateChat(chatId!, chatTitle, [...messages, { role: 'assistant', content: assistantText }]);
+        logServerEvent('info', 'ai-chat', 'request_completed', {
+          request_id: requestId,
+          provider_id: providerId,
+          model: provider.model,
+          chat_id: chatId,
+          duration_ms: Date.now() - startedAt,
+          text_chars: assistantText.length,
+          mock: true,
+        });
         controller.close();
       },
     });
@@ -694,6 +728,7 @@ export async function POST(req: Request) {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
+        'X-Request-ID': requestId,
       },
     });
   }
@@ -726,18 +761,52 @@ export async function POST(req: Request) {
       signal: connectController.signal,
     });
   } catch (caught: unknown) {
-    return safeUpstreamResponse(safeFetchError(caught));
+    const error = safeFetchError(caught);
+    logServerEvent('warn', 'ai-chat', 'request_failed', {
+      request_id: requestId,
+      provider_id: providerId,
+      model: provider.model,
+      phase: 'connect',
+      duration_ms: Date.now() - startedAt,
+      error_code: error.code,
+      cause: summarizeError(caught),
+    });
+    const response = safeUpstreamResponse(error);
+    response.headers.set('X-Request-ID', requestId);
+    return response;
   } finally {
     clearTimeout(connectTimeout);
   }
 
   if (!upstream.ok) {
     const failure = await readUpstreamFailure(upstream);
-    console.warn('[ai-chat]', failure.logDetail);
-    return safeUpstreamResponse(failure.payload);
+    logServerEvent('warn', 'ai-chat', 'request_failed', {
+      request_id: requestId,
+      provider_id: providerId,
+      model: provider.model,
+      phase: 'upstream_status',
+      duration_ms: Date.now() - startedAt,
+      upstream_status: upstream.status,
+      error_code: failure.payload.code,
+    });
+    const response = safeUpstreamResponse(failure.payload);
+    response.headers.set('X-Request-ID', requestId);
+    return response;
   }
   const validated = await validateUpstreamSse(upstream);
-  if (!validated.ok) return safeUpstreamResponse(validated.payload);
+  if (!validated.ok) {
+    logServerEvent('warn', 'ai-chat', 'request_failed', {
+      request_id: requestId,
+      provider_id: providerId,
+      model: provider.model,
+      phase: 'validate_stream',
+      duration_ms: Date.now() - startedAt,
+      error_code: validated.payload.code,
+    });
+    const response = safeUpstreamResponse(validated.payload);
+    response.headers.set('X-Request-ID', requestId);
+    return response;
+  }
 
   if (!chatId) {
     const saved = saveNewChat(providerId, messages);
@@ -750,6 +819,7 @@ export async function POST(req: Request) {
   let assistantText = '';
   const streamOptions = {
     chatId,
+    requestId,
     firstTokenTimeoutMs: readPositiveTimeout(
       'AI_CHAT_FIRST_TOKEN_TIMEOUT_MS',
       DEFAULT_AI_CHAT_FIRST_TOKEN_TIMEOUT_MS,
@@ -763,6 +833,37 @@ export async function POST(req: Request) {
     },
     onDone() {
       updateChat(chatId!, chatTitle, [...messages, { role: 'assistant', content: assistantText }]);
+      logServerEvent('info', 'ai-chat', 'request_completed', {
+        request_id: requestId,
+        provider_id: providerId,
+        model: provider.model,
+        chat_id: chatId,
+        duration_ms: Date.now() - startedAt,
+        text_chars: assistantText.length,
+      });
+    },
+    onError(error: SafeUpstreamError) {
+      logServerEvent('warn', 'ai-chat', 'request_failed', {
+        request_id: requestId,
+        provider_id: providerId,
+        model: provider.model,
+        chat_id: chatId,
+        phase: 'stream',
+        duration_ms: Date.now() - startedAt,
+        text_chars: assistantText.length,
+        error_code: error.code,
+        retryable: error.retryable,
+      });
+    },
+    onCancel() {
+      logServerEvent('info', 'ai-chat', 'request_cancelled', {
+        request_id: requestId,
+        provider_id: providerId,
+        model: provider.model,
+        chat_id: chatId,
+        duration_ms: Date.now() - startedAt,
+        text_chars: assistantText.length,
+      });
     },
   };
   const stream = provider.api_type === 'anthropic'
@@ -776,6 +877,7 @@ export async function POST(req: Request) {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
+      'X-Request-ID': requestId,
     },
   });
 }

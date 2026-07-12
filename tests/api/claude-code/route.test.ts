@@ -5,10 +5,10 @@ import { rateLimitByIp } from '@/lib/rateLimit';
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-function makePostReq(body: unknown) {
+function makePostReq(body: unknown, headers: Record<string, string> = {}) {
   return new Request('http://localhost/api/claude-code', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-forwarded-for': '1.2.3.4' },
+    headers: { 'Content-Type': 'application/json', 'x-forwarded-for': '1.2.3.4', ...headers },
     body: JSON.stringify(body),
   });
 }
@@ -119,7 +119,10 @@ describe('POST /api/claude-code', () => {
     }));
 
     const { POST } = await import('@/app/api/claude-code/route');
-    const res = await POST(makePostReq({ prompt: 'inspect repo', cwd: 'repo' }));
+    const res = await POST(makePostReq(
+      { prompt: 'inspect repo', cwd: 'repo' },
+      { 'x-request-id': 'req-claude-worker-123' },
+    ));
 
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toContain('text/plain');
@@ -128,11 +131,13 @@ describe('POST /api/claude-code', () => {
       headers: {
         'Content-Type': 'application/json',
         'X-Claude-Worker-Token': 'worker-shared-secret',
+        'X-Request-ID': 'req-claude-worker-123',
       },
       body: JSON.stringify({ prompt: 'inspect repo', cwd: 'repo' }),
     }));
 
     const text = await res.text();
     expect(text).toBe('ok');
+    expect(res.headers.get('X-Request-ID')).toBe('req-claude-worker-123');
   });
 });

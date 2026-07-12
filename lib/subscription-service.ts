@@ -3,6 +3,7 @@ import db from '@/lib/db';
 import { fetchByCategory } from '@/lib/fetchers';
 import { getEnvProviders, type AiProviderConfig } from '@/lib/ai-providers';
 import type { InvocableSkill } from '@/lib/skill-taxonomy';
+import { logServerEvent, summarizeError } from '@/lib/server-log';
 import {
   buildClaudeHeaders,
   buildClaudeMessagesPayload,
@@ -142,9 +143,36 @@ export async function generateBriefWithSkill(
   source: { name: string; url: string; category: string },
   content: string,
 ): Promise<string> {
+  const requestId = `subscription-integrate-${crypto.randomUUID()}`;
+  const startedAt = Date.now();
   const provider = getDefaultEnvAiProvider();
   if (!provider) {
+    logServerEvent('warn', 'subscription-integrate', 'request_failed', {
+      request_id: requestId,
+      duration_ms: Date.now() - startedAt,
+      error_code: 'PROVIDER_NOT_CONFIGURED',
+    });
     return 'No default AI provider configured. Configure CLAUDE_API_KEY and RIGHT_CODE_GPT_API_KEY in .env.local.';
+  }
+  const providerType = provider.api_type;
+  const providerModel = provider.model;
+
+  logServerEvent('info', 'subscription-integrate', 'request_started', {
+    request_id: requestId,
+    provider_type: providerType,
+    model: providerModel,
+    source_category: source.category,
+  });
+
+  function completed(text: string) {
+    logServerEvent('info', 'subscription-integrate', 'request_completed', {
+      request_id: requestId,
+      duration_ms: Date.now() - startedAt,
+      provider_type: providerType,
+      model: providerModel,
+      text_chars: text.length,
+    });
+    return text;
   }
 
   const userPrompt = skill.prompt
@@ -215,31 +243,44 @@ export async function generateBriefWithSkill(
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error('AI API error:', error);
+      await response.body?.cancel().catch(() => undefined);
+      logServerEvent('warn', 'subscription-integrate', 'request_failed', {
+        request_id: requestId,
+        duration_ms: Date.now() - startedAt,
+        provider_type: provider.api_type,
+        model: provider.model,
+        upstream_status: response.status,
+        error_code: 'UPSTREAM_REJECTED',
+      });
       return `Brief generation failed: AI API returned ${response.status}`;
     }
 
     if (provider.api_type === 'anthropic') {
       const data = await response.json();
-      return extractClaudeResponseText(data) || 'No brief generated';
+      return completed(extractClaudeResponseText(data) || 'No brief generated');
     }
 
     if (openAiApiStyle === 'responses') {
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('text/event-stream') && response.body) {
-        return await readResponsesStreamText(response.body) || 'No brief generated';
+        return completed(await readResponsesStreamText(response.body) || 'No brief generated');
       }
 
       const data = await response.json();
-      return extractResponsesText(data) || 'No brief generated';
+      return completed(extractResponsesText(data) || 'No brief generated');
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || 'No brief generated';
+    return completed(data.choices?.[0]?.message?.content || 'No brief generated');
   } catch (error: unknown) {
     const errorLike = error as { message?: string };
-    console.error('AI brief generation error:', error);
+    logServerEvent('error', 'subscription-integrate', 'request_failed', {
+      request_id: requestId,
+      duration_ms: Date.now() - startedAt,
+      provider_type: provider.api_type,
+      model: provider.model,
+      ...summarizeError(error),
+    });
     return `Brief generation failed: ${errorLike?.message || 'Unknown error'}`;
   }
 }

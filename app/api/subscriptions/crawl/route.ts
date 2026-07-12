@@ -8,8 +8,11 @@ import {
   getEnabledSubscriptionSources,
   hasValidSubscriptionCronToken,
 } from '@/lib/subscription-service';
+import { getRequestId, logServerEvent, summarizeError } from '@/lib/server-log';
 
 export async function POST(req: Request) {
+  const requestId = getRequestId(req);
+  const startedAt = Date.now();
   const cronAuthorized = hasValidSubscriptionCronToken(req);
   if (!cronAuthorized) {
     const session = await getServerSession(authOptions);
@@ -26,5 +29,31 @@ export async function POST(req: Request) {
     return Response.json({ error: 'No enabled sources found' }, { status: 404 });
   }
 
-  return Response.json(await crawlSubscriptionSources(sources));
+  logServerEvent('info', 'subscription-crawl', 'request_started', {
+    request_id: requestId,
+    auth_mode: cronAuthorized ? 'cron' : 'session',
+    source_count: sources.length,
+    source_id: body.source_id,
+  });
+
+  try {
+    const result = await crawlSubscriptionSources(sources);
+    const successCount = result.results.filter(item => item.success).length;
+    logServerEvent('info', 'subscription-crawl', 'request_completed', {
+      request_id: requestId,
+      duration_ms: Date.now() - startedAt,
+      source_count: result.total,
+      success_count: successCount,
+      failure_count: result.total - successCount,
+    });
+    return Response.json(result, { headers: { 'X-Request-ID': requestId } });
+  } catch (caught) {
+    logServerEvent('error', 'subscription-crawl', 'request_failed', {
+      request_id: requestId,
+      duration_ms: Date.now() - startedAt,
+      source_count: sources.length,
+      ...summarizeError(caught),
+    });
+    throw caught;
+  }
 }

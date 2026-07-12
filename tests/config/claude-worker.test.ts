@@ -18,4 +18,14 @@ describe('Claude Code worker configuration', () => {
     expect(dockerfile).toContain('CLAUDE_WORKER_ROLE=personal-assistant');
     expect(dockerfile).toContain('CLAUDE_SYSTEM_PROMPT');
   });
+
+  it('logs request lifecycle metadata without dumping raw stderr objects', () => {
+    const worker = fs.readFileSync(path.join(process.cwd(), 'scripts/claude-worker.mjs'), 'utf8');
+
+    expect(worker).toContain("'request_started'");
+    expect(worker).toContain("'request_completed'");
+    expect(worker).toContain('duration_ms');
+    expect(worker).toContain('request_id');
+    expect(worker).not.toContain("console.error('[claude-worker] claude stderr:'");
+  });
 });

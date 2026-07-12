@@ -98,6 +98,8 @@ NAS_PATH=/volume1/docker/my-site
 NAS_PASSWORD=
 SUBSCRIPTION_CRON_SECRET=
 SUBSCRIPTION_CRON_INTERVAL_SECONDS=86400
+CONTAINER_LOG_MAX_SIZE=10m
+CONTAINER_LOG_MAX_FILES=5
 ```
 
 AI providers are temporarily env-only. `/admin/ai-config` is a read-only verification page for the Claude and Right Code GPT providers configured in `.env.local`; POST/PUT/DELETE provider APIs return 403. By default Claude calls use `https://www.right.codes/claude/v1/messages`, send Anthropic-style text blocks with ephemeral cache control, and stream tokens back to the UI as SSE. AI chat limits provider connection setup to 30 seconds, waits up to 60 seconds for the first visible text, and ends a stream after 30 seconds without additional visible text; override those defaults with `AI_CHAT_CONNECT_TIMEOUT_MS`, `AI_CHAT_FIRST_TOKEN_TIMEOUT_MS`, and `AI_CHAT_STREAM_IDLE_TIMEOUT_MS`. Right Code GPT-5.5 calls use the Responses API at `https://www.right.codes/codex/v1/responses`, send `input_text` message blocks, and stream SSE responses back to the chat UI. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The admin UI also exposes `/admin/claude-code`, which calls an internal Claude Code worker through `/api/claude-code`. The worker maps `CLAUDE_API_KEY`, `CLAUDE_API_HOST`, and `CLAUDE_MODEL` into Claude Code's Anthropic environment variables, defaults to a personal-assistant system prompt, and returns plain text rather than Claude Code JSON events. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it defaults to the right.codes native `/v1/images/generations` endpoint. Set `GPT_IMAGE_API_MODE=chat` only for legacy chat-completions image gateways that still need `GPT_IMAGE_GROUP`.
@@ -140,6 +142,17 @@ docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```
 
 Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`. Claude Code worker deployment also requires `CLAUDE_API_KEY`; `CLAUDE_API_HOST` and `CLAUDE_MODEL` are optional overrides. NAS compose also starts `subscription-cron`, which calls `/api/subscriptions/crawl` daily. Set `SUBSCRIPTION_CRON_SECRET` for a dedicated bearer token, or it will fall back to `ADMIN_PASSWORD`; adjust the cadence with `SUBSCRIPTION_CRON_INTERVAL_SECONDS`.
+
+Container logs use the `json-file` driver with explicit rotation: 10 MB per file and 5 files per service by default. Override these limits with `CONTAINER_LOG_MAX_SIZE` and `CONTAINER_LOG_MAX_FILES`. Deployment verifies the effective logging driver and limits on every NAS container.
+
+Use the sanitized NAS log collector before diagnosing production issues:
+
+```bash
+npm run nas:logs
+npm run nas:logs -- --service app --service claude-worker --since 1h --grep "ai-chat|claude"
+```
+
+Snapshots are written to `log/nas/`. AI Chat, Claude worker, and subscription crawl logs are one-line JSON containing a `request_id`, event name, duration, result counts or output size, and safe error codes. Prompts, credentials, authorization headers, and raw upstream bodies are excluded or redacted. Correlate the same `request_id` across app and worker logs when investigating a request.
 The deploy script writes timestamped logs to `log/deploy/` and always attempts to remove the remote staging directory and close SSH/SFTP sessions before exiting.
 
 For Cloudflare, add cache rules for `/uploads/*` and `/_next/image*` with a one-year edge TTL. Keep the `url`, `w`, and `q` query parameters in the cache key for `/_next/image*`. Bypass cache for `/api/*` and `/admin/*`. Uploaded files already send immutable browser/CDN cache headers, ETags, and range support.

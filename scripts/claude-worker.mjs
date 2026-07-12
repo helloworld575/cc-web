@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { mkdir } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
-import { timingSafeEqual } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
 
 const port = Number(process.env.CLAUDE_WORKER_PORT || 8787);
@@ -11,6 +11,7 @@ const requestTimeoutMs = Number(process.env.CLAUDE_REQUEST_TIMEOUT_MS || 600000)
 const maxOutputBytes = Number(process.env.CLAUDE_MAX_OUTPUT_BYTES || 1024 * 1024);
 const workerToken = process.env.CLAUDE_WORKER_TOKEN || '';
 const WORKER_TOKEN_HEADER = 'X-Claude-Worker-Token';
+const REQUEST_ID_HEADER = 'x-request-id';
 const DEFAULT_PERSONAL_ASSISTANT_PROMPT = [
   '你是 ThomasLee 的个人助理。',
   '你的职责是用直接、清晰、可执行的文本帮助他处理日常事务、写作、代码分析、计划拆解和决策整理。',
@@ -26,6 +27,43 @@ function json(res, status, payload) {
     'X-Content-Type-Options': 'nosniff',
   });
   res.end(JSON.stringify(payload));
+}
+
+function sanitizeDiagnostic(value) {
+  return String(value || '')
+    .replace(/(bearer\s+)[^\s,;]+/gi, '$1[REDACTED]')
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, '[REDACTED]')
+    .replace(/([?&](?:key|token|secret|password)=)[^&#\s]+/gi, '$1[REDACTED]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 500);
+}
+
+function classifyDiagnostic(value) {
+  const text = String(value || '').toLowerCase();
+  if (!text) return undefined;
+  if (/unauthorized|forbidden|api key|authentication/.test(text)) return 'authentication';
+  if (/rate limit|too many requests|429/.test(text)) return 'rate_limit';
+  if (/timed? out|timeout/.test(text)) return 'timeout';
+  if (/network|fetch failed|econn|enotfound|socket/.test(text)) return 'network';
+  if (/permission|not allowed|denied/.test(text)) return 'permission';
+  if (/<!doctype|<html|<body|<head/.test(text)) return 'html_response';
+  return 'other';
+}
+
+function getRequestId(req) {
+  const incoming = String(req.headers[REQUEST_ID_HEADER] || '').trim();
+  return /^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$/.test(incoming) ? incoming : randomUUID();
+}
+
+function logWorkerEvent(level, event, fields = {}) {
+  console[level](JSON.stringify({
+    ts: new Date().toISOString(),
+    level,
+    scope: 'claude-worker',
+    event,
+    ...fields,
+  }));
 }
 
 async function readJson(req) {
@@ -81,7 +119,8 @@ function isAuthorized(req) {
     && timingSafeEqual(expectedBuffer, providedBuffer);
 }
 
-async function handleRun(req, res) {
+async function handleRun(req, res, requestId) {
+  const startedAt = Date.now();
   let body;
   try {
     body = await readJson(req);
@@ -109,6 +148,13 @@ async function handleRun(req, res) {
     return;
   }
 
+  logWorkerEvent('info', 'request_started', {
+    request_id: requestId,
+    prompt_chars: prompt.length,
+    workspace_set: typeof body.cwd === 'string' && Boolean(body.cwd.trim()),
+    model: process.env.CLAUDE_MODEL || process.env.ANTHROPIC_MODEL || 'default',
+  });
+
   const args = [
     '-p',
     prompt,
@@ -129,22 +175,24 @@ async function handleRun(req, res) {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    child.kill('SIGTERM');
-  }, requestTimeoutMs);
-
-  req.on('aborted', () => {
-    child.kill('SIGTERM');
-  });
-
   const stdout = [];
   const stderr = [];
   let stdoutBytes = 0;
   let stderrBytes = 0;
   let timedOut = false;
   let outputTooLarge = false;
+  let aborted = false;
   let finalized = false;
+
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    child.kill('SIGTERM');
+  }, requestTimeoutMs);
+
+  req.on('aborted', () => {
+    aborted = true;
+    child.kill('SIGTERM');
+  });
 
   child.stdout.on('data', chunk => {
     const buffer = Buffer.from(chunk);
@@ -169,28 +217,44 @@ async function handleRun(req, res) {
     finalized = true;
     clearTimeout(timeout);
     const stderrText = Buffer.concat(stderr).toString('utf8').replace(/\s+/g, ' ').slice(0, 2000);
-    if (stderrText) console.error('[claude-worker] claude stderr:', stderrText);
-    if (spawnError) console.error('[claude-worker] spawn failed:', spawnError);
+    const diagnosticFields = {
+      request_id: requestId,
+      duration_ms: Date.now() - startedAt,
+      exit_code: code,
+      stdout_bytes: stdoutBytes,
+      stderr_bytes: stderrBytes,
+      stderr_category: classifyDiagnostic(stderrText),
+      spawn_error: spawnError ? sanitizeDiagnostic(spawnError.message || spawnError) : undefined,
+    };
 
     if (timedOut) {
+      logWorkerEvent('warn', 'request_failed', { ...diagnosticFields, error_code: 'CLAUDE_TIMEOUT' });
       json(res, 504, { code: 'CLAUDE_TIMEOUT', error: 'Claude request timed out.' });
       return;
     }
+    if (aborted) {
+      logWorkerEvent('info', 'request_cancelled', diagnosticFields);
+      return;
+    }
     if (outputTooLarge) {
+      logWorkerEvent('warn', 'request_failed', { ...diagnosticFields, error_code: 'CLAUDE_OUTPUT_TOO_LARGE' });
       json(res, 502, { code: 'CLAUDE_OUTPUT_TOO_LARGE', error: 'Claude response exceeded the safe output limit.' });
       return;
     }
     if (spawnError || code !== 0) {
+      logWorkerEvent('error', 'request_failed', { ...diagnosticFields, error_code: 'CLAUDE_FAILED' });
       json(res, 502, { code: 'CLAUDE_FAILED', error: 'Claude request failed. Check worker logs.' });
       return;
     }
 
     const output = Buffer.concat(stdout).toString('utf8');
     if (/<!doctype|<html|<body|<head/i.test(output)) {
-      console.error('[claude-worker] rejected HTML-like Claude output');
+      logWorkerEvent('warn', 'request_failed', { ...diagnosticFields, error_code: 'CLAUDE_INVALID_RESPONSE' });
       json(res, 502, { code: 'CLAUDE_INVALID_RESPONSE', error: 'Claude returned an invalid response.' });
       return;
     }
+
+    logWorkerEvent('info', 'request_completed', diagnosticFields);
 
     res.writeHead(200, {
       'Content-Type': 'text/plain; charset=utf-8',
@@ -212,15 +276,18 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/run') {
+    const requestId = getRequestId(req);
     if (!workerToken) {
+      logWorkerEvent('error', 'request_rejected', { request_id: requestId, error_code: 'WORKER_NOT_CONFIGURED' });
       json(res, 503, { code: 'WORKER_NOT_CONFIGURED', error: 'Worker authentication is not configured.' });
       return;
     }
     if (!isAuthorized(req)) {
+      logWorkerEvent('warn', 'request_rejected', { request_id: requestId, error_code: 'UNAUTHORIZED' });
       json(res, 401, { code: 'UNAUTHORIZED', error: 'Unauthorized' });
       return;
     }
-    await handleRun(req, res);
+    await handleRun(req, res, requestId);
     return;
   }
 
@@ -229,5 +296,8 @@ const server = createServer(async (req, res) => {
 
 await mkdir(workspaceRoot, { recursive: true });
 server.listen(port, '0.0.0.0', () => {
-  console.log(`Claude Code worker listening on ${port}`);
+  logWorkerEvent('info', 'worker_started', {
+    port,
+    model: process.env.CLAUDE_MODEL || process.env.ANTHROPIC_MODEL || 'default',
+  });
 });

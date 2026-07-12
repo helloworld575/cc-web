@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-11T17:45:28.495Z",
+  "generatedAt": "2026-07-12T02:03:09.129Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -28,6 +28,7 @@
     "e2e": "node scripts/run-managed-command.mjs --label playwright-e2e --clear-port 3001 -- node ./node_modules/playwright/cli.js test",
     "e2e:headed": "node scripts/run-managed-command.mjs --label playwright-e2e-headed --clear-port 3001 -- node ./node_modules/playwright/cli.js test --headed",
     "run:managed": "node scripts/run-managed-command.mjs",
+    "nas:logs": "python scripts/nas-logs.py --audit",
     "codex:skills": "node scripts/normalize-codex-skills.mjs",
     "codex:cache": "node scripts/refresh-codex-cache.mjs",
     "verify": "npm run lint && npm test && npm run build",
@@ -497,6 +498,7 @@
       "lib/openai-compatible.ts",
       "lib/rateLimit.ts",
       "lib/runtime-paths.ts",
+      "lib/server-log.ts",
       "lib/skill-taxonomy.ts",
       "lib/skills.ts",
       "lib/subscription-service.ts",
@@ -1148,6 +1150,7 @@
       "tests/api/uploads/route.test.ts",
       "tests/api/x-post/route.test.ts",
       "tests/config/claude-worker.test.ts",
+      "tests/config/compose-logging.test.ts",
       "tests/config/dockerfile.test.ts",
       "tests/config/platform-modernization.test.ts",
       "tests/config/worker-security.test.ts",
@@ -1158,9 +1161,10 @@
       "tests/lib/rate-limit-security.test.ts",
       "tests/lib/runtime-paths.test.ts",
       "tests/lib/safe-fetch.test.ts",
+      "tests/lib/server-log.test.ts",
       "tests/lib/skill-taxonomy.test.ts",
       "tests/proxy.test.ts"
     ],
-    "count": 46
+    "count": 48
   }
 }

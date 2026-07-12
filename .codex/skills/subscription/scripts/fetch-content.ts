@@ -28,6 +28,22 @@ export interface FetchedContent {
   items?: { title: string; text: string; date?: string; url?: string }[];
 }
 
+function logFetchFailure(fetcher: string, target: string, caught: unknown) {
+  const errorLike = caught as { name?: unknown; code?: unknown };
+  let targetHost = 'invalid-url';
+  try { targetHost = new URL(target).host; } catch {}
+  console.warn(JSON.stringify({
+    ts: new Date().toISOString(),
+    level: 'warn',
+    scope: 'subscription-fetch',
+    event: 'request_failed',
+    fetcher,
+    target_host: targetHost,
+    error_name: typeof errorLike?.name === 'string' ? errorLike.name : 'Error',
+    error_code: typeof errorLike?.code === 'string' ? errorLike.code : undefined,
+  }));
+}
+
 // ─── X / Twitter ────────────────────────────────────────────────────────────
 // Uses Twitter syndication API which returns real tweet HTML without auth
 async function fetchX(url: string): Promise<FetchedContent | null> {
@@ -85,7 +101,7 @@ async function fetchX(url: string): Promise<FetchedContent | null> {
       content: profileDesc ? `Profile: ${profileDesc}\n\nRecent tweets:\n\n${content}` : `Recent tweets from @${username}:\n\n${content}`,
     };
   } catch (err) {
-    console.error(`X fetcher failed for ${username}:`, err);
+    logFetchFailure('x', url, err);
     return fetchGeneric(url);
   }
 }
@@ -268,7 +284,7 @@ export async function fetchGeneric(url: string): Promise<FetchedContent | null> 
     if (!res.ok) return null;
     return extractFromHTML(await res.text(), url);
   } catch (err) {
-    console.error(`Generic fetch failed for ${url}:`, err);
+    logFetchFailure('generic', url, err);
     return null;
   }
 }

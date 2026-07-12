@@ -71,10 +71,10 @@ function mockAnthropicStreamResponse() {
   }));
 }
 
-function makePostReq(body: unknown) {
+function makePostReq(body: unknown, headers: Record<string, string> = {}) {
   return new Request('http://localhost/api/ai-chat', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-forwarded-for': '1.2.3.4' },
+    headers: { 'Content-Type': 'application/json', 'x-forwarded-for': '1.2.3.4', ...headers },
     body: JSON.stringify(body),
   });
 }
@@ -402,7 +402,42 @@ describe('POST /api/ai-chat', () => {
     expect(res.headers.get('Content-Type')).toBe('text/event-stream');
   });
 
+  it('logs the Anthropic request lifecycle without recording message content', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    mockSession(true);
+    const providerId = configureEnvClaudeProvider();
+    mockDbStmt();
+    mockAnthropicStreamResponse();
+    const { POST } = await import('@/app/api/ai-chat/route');
+    const res = await POST(makePostReq({
+      provider_id: providerId,
+      messages: [{ role: 'user', content: 'private prompt must stay out of logs' }],
+    }, { 'x-request-id': 'req-ai-chat-log-123' }));
+    await res.text();
+
+    const entries = info.mock.calls
+      .map(call => String(call[0]))
+      .filter(line => line.startsWith('{'))
+      .map(line => JSON.parse(line));
+    expect(entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        scope: 'ai-chat',
+        event: 'request_started',
+        request_id: 'req-ai-chat-log-123',
+        model: 'claude-opus-4-8',
+      }),
+      expect.objectContaining({
+        scope: 'ai-chat',
+        event: 'request_completed',
+        request_id: 'req-ai-chat-log-123',
+        text_chars: 5,
+      }),
+    ]));
+    expect(info.mock.calls.flat().join('\n')).not.toContain('private prompt must stay out of logs');
+  });
+
   it('times out an Anthropic stream that emits metadata but no text', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     vi.useFakeTimers();
     process.env.AI_CHAT_FIRST_TOKEN_TIMEOUT_MS = '50';
     process.env.AI_CHAT_STREAM_IDLE_TIMEOUT_MS = '20';
@@ -438,6 +473,7 @@ describe('POST /api/ai-chat', () => {
     expect(text).toContain('"code":"upstream_first_token_timeout"');
     expect(text).toContain('"error":"AI provider did not return content in time."');
     expect(text).toContain('"retryable":true');
+    expect(warn.mock.calls.flat().join('\n')).toContain('upstream_first_token_timeout');
     expect(run.mock.calls.flat().filter(value => typeof value === 'string' && value.startsWith('[')))
       .not.toContainEqual(expect.stringContaining('"role":"assistant"'));
   });

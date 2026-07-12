@@ -64,6 +64,7 @@ describe('POST /api/subscriptions/crawl', () => {
   });
 
   it('stores fetched content as a raw subscription item without calling AI', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
     mockSession(true);
     const insertRun = vi.fn(() => ({ lastInsertRowid: 1, changes: 1 }));
     const updateRun = vi.fn(() => ({ changes: 1 }));
@@ -101,5 +102,7 @@ describe('POST /api/subscriptions/crawl', () => {
       ],
     });
     expect(insertRun).toHaveBeenCalledTimes(1);
+    expect(info.mock.calls.flat().join('\n')).toContain('subscription-crawl');
+    expect(info.mock.calls.flat().join('\n')).toContain('request_completed');
   });
 });
