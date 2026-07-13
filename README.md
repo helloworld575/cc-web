@@ -106,7 +106,7 @@ AI providers are temporarily env-only. `/admin/ai-config` is a read-only verific
 
 AI upstream failures are normalized to bounded JSON error codes. Proxy HTML, provider diagnostics, internal hosts, and raw exception messages are never returned to the browser. Image reference files are resized in the browser and encoded as WebP before upload to reduce request latency.
 
-Subscriptions now separate crawling from AI summarization. `/api/subscriptions/crawl` fetches RSS/blog/GitHub/X/Reddit content into `subscription_items` without calling AI. `/api/subscriptions/integrate` reads the latest stored items and creates `subscription_briefs` with the provider-neutral `subscription` skill. The old `/api/subscriptions/fetch` endpoint remains as a compatibility alias for integration.
+Subscriptions now separate crawling from AI summarization. `/api/subscriptions/crawl` fetches RSS/blog/GitHub/X/Reddit content into `subscription_items` without calling AI. `/api/subscriptions/integrate` reads the latest stored items and creates `subscription_briefs` with the provider-neutral `subscription` skill. Provider failures are returned as bounded error codes and are never persisted as brief content; historical failure placeholders are regenerated on the next integration run. The old `/api/subscriptions/fetch` endpoint remains as a compatibility alias for integration.
 
 ## Quality Gates
 

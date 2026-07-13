@@ -45,6 +45,7 @@ export function apiErrorTranslationKey(code: string | null, fallback: Translatio
   if (!normalizedCode) return fallback;
   if (normalizedCode === 'UNAUTHORIZED') return 'apiErrorUnauthorized';
   if (normalizedCode === 'RATE_LIMITED') return 'apiErrorRateLimited';
+  if (normalizedCode === 'PROVIDER_NOT_CONFIGURED') return 'apiErrorProviderNotConfigured';
   if (normalizedCode.includes('IMAGE') && (normalizedCode.includes('FORBIDDEN') || normalizedCode.includes('PERMISSION'))) {
     return 'apiErrorImagePermission';
   }

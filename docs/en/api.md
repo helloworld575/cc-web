@@ -218,12 +218,17 @@ Manage subscription sources.
 { "name": "Hacker News", "url": "https://news.ycombinator.com", "category": "other", "enabled": 1, "fetch_interval": 3600 }
 ```
 
-### `POST /api/subscriptions/fetch`
-Fetch content and generate AI briefs.
+### `POST /api/subscriptions/crawl`
+Fetch content into `subscription_items` without calling AI.
 
 ```json
-{ "source_id": 1 }   // or omit for all
+{ "source_id": 1 }   // or omit for all enabled sources
 ```
+
+### `POST /api/subscriptions/integrate`
+Generate AI briefs from stored crawl items. The endpoint returns HTTP 503 when no AI provider is available. Per-source failures are returned with `success: false` and are never persisted in `subscription_briefs`.
+
+`POST /api/subscriptions/fetch` remains a compatibility alias for `/api/subscriptions/integrate`.
 
 ### `GET /api/subscriptions/briefs`
 List generated briefs. Query param `source_id` to filter.

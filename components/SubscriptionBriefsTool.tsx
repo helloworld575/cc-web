@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import Pagination from '@/components/Pagination';
 import { useLocale } from '@/components/useLocale';
+import { apiErrorTranslationKey, readSafeApiError } from '@/lib/client-api-error';
+import type { TranslationKey } from '@/lib/i18n';
 
 interface Brief {
   id: number;
@@ -31,6 +33,12 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [categories, setCategories] = useState<string[]>([]);
+  const [errorKey, setErrorKey] = useState<TranslationKey | null>(null);
+
+  async function actionError(response: Response) {
+    const safe = await readSafeApiError(response, t('apiErrorGeneric'));
+    setErrorKey(apiErrorTranslationKey(safe.code, 'apiErrorGeneric'));
+  }
 
   async function loadBriefs() {
     setLoading(true);
@@ -48,12 +56,14 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
 
   async function crawlAll() {
     setCrawling(true);
+    setErrorKey(null);
     try {
-      await fetch('/api/subscriptions/crawl', {
+      const response = await fetch('/api/subscriptions/crawl', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
+      if (!response.ok) await actionError(response);
     } finally {
       setCrawling(false);
     }
@@ -61,12 +71,23 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
 
   async function integrateAll() {
     setIntegrating(true);
+    setErrorKey(null);
     try {
-      await fetch('/api/subscriptions/integrate', {
+      const response = await fetch('/api/subscriptions/integrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
+      if (!response.ok) {
+        await actionError(response);
+        return;
+      }
+
+      const result = await response.json() as { results?: Array<{ success?: boolean; code?: string }> };
+      const failed = result.results?.find(item => item.success === false);
+      if (failed) {
+        setErrorKey(apiErrorTranslationKey(failed.code || null, 'apiErrorGeneric'));
+      }
       await loadBriefs();
     } finally {
       setIntegrating(false);
@@ -97,6 +118,15 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
 
   return (
     <div className="space-y-4">
+      {errorKey && (
+        <div
+          role="alert"
+          data-testid="subscription-error"
+          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+        >
+          {t(errorKey)}
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <select

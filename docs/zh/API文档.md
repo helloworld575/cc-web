@@ -201,12 +201,17 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 { "name": "Hacker News", "url": "https://news.ycombinator.com", "category": "other", "enabled": 1, "fetch_interval": 3600 }
 ```
 
-### `POST /api/subscriptions/fetch`
-抓取内容并生成 AI 摘要。
+### `POST /api/subscriptions/crawl`
+抓取内容并保存到 `subscription_items`，不调用 AI。
 
 ```json
-{ "source_id": 1 }   // 省略则抓取全部
+{ "source_id": 1 }   // 省略则处理全部启用的订阅源
 ```
+
+### `POST /api/subscriptions/integrate`
+读取已抓取内容并生成 AI 摘要。没有可用 AI 服务商时返回 HTTP 503；单个订阅源整合失败时，`results` 中对应项为 `success: false`，失败文本不会写入 `subscription_briefs`。
+
+`POST /api/subscriptions/fetch` 保留为 `/api/subscriptions/integrate` 的兼容别名。
 
 ### `GET /api/subscriptions/briefs`
 列出生成的摘要。Query 参数 `source_id` 可过滤。

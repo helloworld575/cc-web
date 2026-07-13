@@ -7,6 +7,7 @@ import { getSkill } from '@/lib/skills';
 import { isInvocableSkill } from '@/lib/skill-taxonomy';
 import {
   getEnabledSubscriptionSources,
+  hasSubscriptionAiProvider,
   integrateSubscriptionSources,
 } from '@/lib/subscription-service';
 
@@ -19,6 +20,14 @@ export async function POST(req: Request) {
   const subscriptionSkill = getSkill('subscription');
   if (!isInvocableSkill(subscriptionSkill)) {
     return Response.json({ error: 'Subscription skill is not invocable' }, { status: 500 });
+  }
+
+  if (!hasSubscriptionAiProvider()) {
+    return Response.json({
+      code: 'provider_not_configured',
+      error: 'AI provider is not configured.',
+      retryable: false,
+    }, { status: 503 });
   }
 
   let body: any;

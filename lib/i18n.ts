@@ -270,6 +270,7 @@ export const translations = {
     apiErrorProviderInvalidResponse: 'The provider returned an invalid response.',
     apiErrorProviderTimeout: 'The provider response timed out. Please try again.',
     apiErrorProviderUnavailable: 'The provider is temporarily unavailable.',
+    apiErrorProviderNotConfigured: 'No AI provider is configured.',
     apiErrorImagePermission: 'The image service rejected this request or is not enabled for this account.',
     apiErrorWorkerFailed: 'The assistant worker could not complete the request.',
 
@@ -694,6 +695,7 @@ export const translations = {
     apiErrorProviderInvalidResponse: '服务商返回了无效响应。',
     apiErrorProviderTimeout: '服务商响应超时，请重试。',
     apiErrorProviderUnavailable: '服务商暂时不可用。',
+    apiErrorProviderNotConfigured: '尚未配置 AI 服务商。',
     apiErrorImagePermission: '生图服务拒绝了此请求，或当前账户尚未开通权限。',
     apiErrorWorkerFailed: '个人助理服务未能完成请求。',
 

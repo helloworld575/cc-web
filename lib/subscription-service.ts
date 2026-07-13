@@ -5,6 +5,14 @@ import { getEnvProviders, type AiProviderConfig } from '@/lib/ai-providers';
 import type { InvocableSkill } from '@/lib/skill-taxonomy';
 import { logServerEvent, summarizeError } from '@/lib/server-log';
 import {
+  readUpstreamFailure,
+  readUpstreamJson,
+  safeFetchError,
+  type SafeUpstreamError,
+  upstreamEmptyResponseError,
+  validateUpstreamSse,
+} from '@/lib/ai-upstream';
+import {
   buildClaudeHeaders,
   buildClaudeMessagesPayload,
   extractClaudeResponseText,
@@ -103,7 +111,26 @@ function getLatestSubscriptionItem(sourceId: number) {
 }
 
 function getDefaultEnvAiProvider() {
-  return getEnvProviders().find(provider => provider.is_default) as AiProviderConfig | undefined;
+  return getEnvProviders()[0] as AiProviderConfig | undefined;
+}
+
+export function hasSubscriptionAiProvider() {
+  return Boolean(getDefaultEnvAiProvider());
+}
+
+type BriefGenerationResult =
+  | { ok: true; brief: string }
+  | ({ ok: false } & SafeUpstreamError);
+
+const LEGACY_FAILURE_BRIEF_PREFIXES = [
+  'No default AI provider configured',
+  'Brief generation failed:',
+];
+
+function isLegacyFailureBrief(brief: string) {
+  const normalized = brief.trim();
+  return normalized === 'No brief generated'
+    || LEGACY_FAILURE_BRIEF_PREFIXES.some(prefix => normalized.startsWith(prefix));
 }
 
 async function readResponsesStreamText(upstreamBody: ReadableStream<Uint8Array>) {
@@ -140,9 +167,9 @@ async function readResponsesStreamText(upstreamBody: ReadableStream<Uint8Array>)
 
 export async function generateBriefWithSkill(
   skill: InvocableSkill,
-  source: { name: string; url: string; category: string },
+  source: { id?: number; name: string; url: string; category: string },
   content: string,
-): Promise<string> {
+): Promise<BriefGenerationResult> {
   const requestId = `subscription-integrate-${crypto.randomUUID()}`;
   const startedAt = Date.now();
   const provider = getDefaultEnvAiProvider();
@@ -152,7 +179,12 @@ export async function generateBriefWithSkill(
       duration_ms: Date.now() - startedAt,
       error_code: 'PROVIDER_NOT_CONFIGURED',
     });
-    return 'No default AI provider configured. Configure CLAUDE_API_KEY and RIGHT_CODE_GPT_API_KEY in .env.local.';
+    return {
+      ok: false,
+      code: 'provider_not_configured',
+      error: 'AI provider is not configured.',
+      retryable: false,
+    };
   }
   const providerType = provider.api_type;
   const providerModel = provider.model;
@@ -161,18 +193,34 @@ export async function generateBriefWithSkill(
     request_id: requestId,
     provider_type: providerType,
     model: providerModel,
+    source_id: source.id,
+    source_name: source.name,
     source_category: source.category,
   });
 
   function completed(text: string) {
+    const brief = text.trim();
+    if (!brief) {
+      const failure = upstreamEmptyResponseError();
+      logServerEvent('warn', 'subscription-integrate', 'request_failed', {
+        request_id: requestId,
+        duration_ms: Date.now() - startedAt,
+        provider_type: providerType,
+        model: providerModel,
+        source_id: source.id,
+        error_code: failure.code,
+      });
+      return { ok: false, ...failure } as BriefGenerationResult;
+    }
     logServerEvent('info', 'subscription-integrate', 'request_completed', {
       request_id: requestId,
       duration_ms: Date.now() - startedAt,
       provider_type: providerType,
       model: providerModel,
-      text_chars: text.length,
+      source_id: source.id,
+      text_chars: brief.length,
     });
-    return text;
+    return { ok: true, brief } as BriefGenerationResult;
   }
 
   const userPrompt = skill.prompt
@@ -243,45 +291,65 @@ export async function generateBriefWithSkill(
     });
 
     if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
+      const failure = await readUpstreamFailure(response);
       logServerEvent('warn', 'subscription-integrate', 'request_failed', {
         request_id: requestId,
         duration_ms: Date.now() - startedAt,
         provider_type: provider.api_type,
         model: provider.model,
+        source_id: source.id,
         upstream_status: response.status,
-        error_code: 'UPSTREAM_REJECTED',
+        error_code: failure.payload.code,
+        upstream_detail: failure.logDetail,
       });
-      return `Brief generation failed: AI API returned ${response.status}`;
+      return { ok: false, ...failure.payload };
     }
 
     if (provider.api_type === 'anthropic') {
-      const data = await response.json();
-      return completed(extractClaudeResponseText(data) || 'No brief generated');
+      const parsed = await readUpstreamJson(response);
+      if (!parsed.ok) {
+        logServerEvent('warn', 'subscription-integrate', 'request_failed', {
+          request_id: requestId,
+          duration_ms: Date.now() - startedAt,
+          provider_type: provider.api_type,
+          model: provider.model,
+          source_id: source.id,
+          error_code: parsed.failure.payload.code,
+          upstream_detail: parsed.failure.logDetail,
+        });
+        return { ok: false, ...parsed.failure.payload };
+      }
+      return completed(extractClaudeResponseText(parsed.data));
     }
 
     if (openAiApiStyle === 'responses') {
       const contentType = response.headers.get('content-type') || '';
       if (contentType.includes('text/event-stream') && response.body) {
-        return completed(await readResponsesStreamText(response.body) || 'No brief generated');
+        const validated = await validateUpstreamSse(response);
+        if (!validated.ok) return { ok: false, ...validated.payload };
+        return completed(await readResponsesStreamText(validated.body));
       }
 
-      const data = await response.json();
-      return completed(extractResponsesText(data) || 'No brief generated');
+      const parsed = await readUpstreamJson(response);
+      if (!parsed.ok) return { ok: false, ...parsed.failure.payload };
+      return completed(extractResponsesText(parsed.data));
     }
 
-    const data = await response.json();
-    return completed(data.choices?.[0]?.message?.content || 'No brief generated');
+    const parsed = await readUpstreamJson(response);
+    if (!parsed.ok) return { ok: false, ...parsed.failure.payload };
+    return completed(parsed.data.choices?.[0]?.message?.content || '');
   } catch (error: unknown) {
-    const errorLike = error as { message?: string };
+    const failure = safeFetchError(error);
     logServerEvent('error', 'subscription-integrate', 'request_failed', {
       request_id: requestId,
       duration_ms: Date.now() - startedAt,
       provider_type: provider.api_type,
       model: provider.model,
+      source_id: source.id,
+      failure_code: failure.code,
       ...summarizeError(error),
     });
-    return `Brief generation failed: ${errorLike?.message || 'Unknown error'}`;
+    return { ok: false, ...failure };
   }
 }
 
@@ -303,23 +371,40 @@ export async function integrateSubscriptionSources(
     }
 
     const existing = db
-      .prepare('SELECT id FROM subscription_briefs WHERE source_id = ? AND content_hash = ?')
-      .get(source.id, item.content_hash);
+      .prepare('SELECT id, brief FROM subscription_briefs WHERE source_id = ? AND content_hash = ? ORDER BY id DESC LIMIT 1')
+      .get(source.id, item.content_hash) as { id: number; brief: string } | undefined;
 
-    if (existing) {
+    if (existing && !isLegacyFailureBrief(existing.brief)) {
       results.push({ source_id: source.id, success: true, cached: true, title: item.title });
       continue;
     }
 
-    const brief = await generateBriefWithSkill(
+    const generated = await generateBriefWithSkill(
       skill,
-      { name: source.name, url: item.url || source.url, category: source.category },
+      { id: source.id, name: source.name, url: item.url || source.url, category: source.category },
       item.content,
     );
 
-    db.prepare(
-      'INSERT INTO subscription_briefs (source_id, title, url, brief, content_hash) VALUES (?, ?, ?, ?, ?)',
-    ).run(source.id, item.title, item.url || source.url, brief, item.content_hash);
+    if (!generated.ok) {
+      results.push({
+        source_id: source.id,
+        success: false,
+        code: generated.code,
+        error: generated.error,
+        retryable: generated.retryable ?? false,
+      });
+      continue;
+    }
+
+    if (existing) {
+      db.prepare(
+        "UPDATE subscription_briefs SET title = ?, url = ?, brief = ?, fetched_at = datetime('now'), created_at = datetime('now') WHERE id = ?",
+      ).run(item.title, item.url || source.url, generated.brief, existing.id);
+    } else {
+      db.prepare(
+        'INSERT INTO subscription_briefs (source_id, title, url, brief, content_hash) VALUES (?, ?, ?, ?, ?)',
+      ).run(source.id, item.title, item.url || source.url, generated.brief, item.content_hash);
+    }
 
     results.push({ source_id: source.id, success: true, title: item.title });
   }

@@ -53,7 +53,7 @@ describe('POST /api/subscriptions/fetch', () => {
     mockFetch.mockResolvedValue(new Response(JSON.stringify({
       content: [{ text: 'Brief from env provider' }],
       model: 'claude-opus-4-8',
-    }), { status: 200 }));
+    }), { status: 200, headers: { 'content-type': 'application/json' } }));
 
     const getSource = vi.fn(() => ({
       id: 1,
@@ -79,7 +79,7 @@ describe('POST /api/subscriptions/fetch', () => {
       if (sql.includes('SELECT * FROM subscription_items')) {
         return { get: getLatestItem };
       }
-      if (sql.includes('SELECT id FROM subscription_briefs')) {
+      if (sql.includes('SELECT id, brief FROM subscription_briefs')) {
         return { get: getExistingBrief };
       }
       if (sql.includes('INSERT INTO subscription_briefs')) {

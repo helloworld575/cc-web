@@ -53,6 +53,39 @@ test('authenticated tools show AI and subscription actions', async ({ page }) =>
   await expect(page.getByTestId('subscription-integrate-all')).toBeVisible();
 });
 
+test('subscription integration shows bounded provider errors in both languages', async ({ page }) => {
+  await login(page);
+  await page.route('**/api/subscriptions/briefs', async route => {
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: '[]',
+    });
+  });
+  await page.route('**/api/subscriptions/integrate', async route => {
+    await route.fulfill({
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: 'provider_not_configured',
+        error: '<html>internal provider diagnostics</html>',
+        retryable: false,
+      }),
+    });
+  });
+
+  await page.goto('/tools');
+  await page.getByTestId('tools-tab-subscriptions').click();
+  await page.getByTestId('subscription-integrate-all').click();
+
+  const alert = page.getByTestId('subscription-error');
+  await expect(alert).toHaveText('No AI provider is configured.');
+  await expect(page.getByText('internal provider diagnostics')).toHaveCount(0);
+
+  await page.getByRole('button', { name: '中文' }).click();
+  await expect(alert).toHaveText('尚未配置 AI 服务商。');
+});
+
 test('subscription briefs are compact, paginated, and filterable', async ({ page }) => {
   await page.route('**/api/subscriptions/briefs', async route => {
     await route.fulfill({
