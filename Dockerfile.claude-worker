@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
 RUN apk add --no-cache bash git libgcc libstdc++ ripgrep && \
     npm install -g @anthropic-ai/claude-code@2.1.210 && \
@@ -7,6 +7,7 @@ RUN apk add --no-cache bash git libgcc libstdc++ ripgrep && \
 
 WORKDIR /worker
 COPY scripts/claude-worker.mjs ./claude-worker.mjs
+COPY scripts/claude-worker-args.mjs ./claude-worker-args.mjs
 
 RUN mkdir -p /workspaces /home/claude/.claude && \
     chown -R claude:claude /worker /workspaces /home/claude

@@ -15,9 +15,13 @@ describe('Claude Code worker configuration', () => {
 
   it('exposes personal assistant defaults in the worker image', () => {
     const dockerfile = fs.readFileSync(path.join(process.cwd(), 'Dockerfile.claude-worker'), 'utf8');
+    const deployScript = fs.readFileSync(path.join(process.cwd(), 'deploy-to-nas.sh'), 'utf8');
 
     expect(dockerfile).toContain('CLAUDE_WORKER_ROLE=personal-assistant');
     expect(dockerfile).toContain('CLAUDE_SYSTEM_PROMPT');
+    expect(dockerfile).toContain('FROM node:22-alpine');
+    expect(dockerfile).toContain('COPY scripts/claude-worker-args.mjs ./claude-worker-args.mjs');
+    expect(deployScript).toContain('"scripts/claude-worker-args.mjs"');
   });
 
   it('logs request lifecycle metadata without dumping raw stderr objects', () => {
