@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { mockSession, mockDbStmt } from '../../helpers';
+import db from '@/lib/db';
 
 describe('GET /api/subscriptions/briefs', () => {
   it('returns stored briefs without requiring a session', async () => {
@@ -37,6 +38,33 @@ describe('GET /api/subscriptions/briefs', () => {
     const data = await res.json();
     expect(data).toHaveLength(1);
     expect(data[0].title).toBe('Test Post');
+  });
+
+  it('returns the AI or security topic separately from the fetch category', async () => {
+    mockSession(false);
+    const all = vi.fn(() => [{
+      id: 2,
+      source_id: 4,
+      source_name: 'CISA',
+      category: 'rss',
+      topic: 'security',
+      title: 'Advisory',
+      url: 'https://www.cisa.gov/example',
+      brief: 'Facts',
+      fetched_at: '2026-07-16 00:00:00',
+    }]);
+    vi.mocked(db.prepare).mockImplementation(((sql: string) => {
+      expect(sql).toContain('s.topic');
+      return { all };
+    }) as never);
+
+    const { GET } = await import('@/app/api/subscriptions/briefs/route');
+    const response = await GET(new Request('http://localhost/api/subscriptions/briefs'));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual([
+      expect.objectContaining({ category: 'rss', topic: 'security' }),
+    ]);
   });
 
   it('filters by source_id', async () => {

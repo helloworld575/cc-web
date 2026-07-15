@@ -20,6 +20,7 @@ declare module '@toast-ui/editor' {
     placeholder?: string;
     autofocus?: boolean;
     usageStatistics?: boolean;
+    extendedAutolinks?: boolean;
     toolbarItems?: string[][];
     hooks?: {
       addImageBlobHook?: (blob: Blob | File, callback: ImageHookCallback) => void;

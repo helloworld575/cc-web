@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import db from '@/lib/db';
-import { fetchByCategory } from '@/lib/fetchers';
+import { fetchByCategory, type FetchedContent, type FetchedItem } from '@/lib/fetchers';
 import { getEnvProviders, type AiProviderConfig } from '@/lib/ai-providers';
 import type { InvocableSkill } from '@/lib/skill-taxonomy';
 import { logServerEvent, summarizeError } from '@/lib/server-log';
@@ -25,22 +25,26 @@ import {
   getOpenAiEndpointUrl,
   isResponsesStreamDone,
 } from '@/lib/openai-compatible';
+import { upsertSubscriptionItem } from '@/lib/subscription-items';
 
 export interface SubscriptionSource {
   id: number;
   name: string;
   url: string;
   category: string;
+  topic: 'ai' | 'security';
   enabled: number;
 }
 
 interface SubscriptionItem {
   id: number;
   source_id: number;
+  external_id: string;
   title: string;
   url: string;
   content: string;
   content_hash: string;
+  published_at?: string;
 }
 
 export function hasValidSubscriptionCronToken(req: Request) {
@@ -65,7 +69,7 @@ export function getEnabledSubscriptionSources(sourceId?: number | string | null)
 }
 
 function hashContent(content: string) {
-  return crypto.createHash('md5').update(content).digest('hex');
+  return crypto.createHash('sha256').update(content).digest('hex');
 }
 
 function markSourceFetched(sourceId: number) {
@@ -76,29 +80,71 @@ export async function crawlSubscriptionSources(sources: SubscriptionSource[]) {
   const results = [];
 
   for (const source of sources) {
-    const fetched = await fetchByCategory(source.url, source.category);
+    let fetched: FetchedContent | null;
+    try {
+      fetched = await fetchByCategory(source.url, source.category);
+    } catch (caught) {
+      logServerEvent('warn', 'subscription-crawl', 'source_failed', {
+        source_id: source.id,
+        source_category: source.category,
+        source_topic: source.topic,
+        ...summarizeError(caught),
+      });
+      results.push({ source_id: source.id, success: false, error: 'Failed to fetch content' });
+      continue;
+    }
     if (!fetched) {
+      logServerEvent('warn', 'subscription-crawl', 'source_failed', {
+        source_id: source.id,
+        source_category: source.category,
+        source_topic: source.topic,
+        error_code: 'EMPTY_FETCH_RESULT',
+      });
       results.push({ source_id: source.id, success: false, error: 'Failed to fetch content' });
       continue;
     }
 
-    const contentHash = hashContent(fetched.content);
-    const existing = db
-      .prepare('SELECT id FROM subscription_items WHERE source_id = ? AND content_hash = ?')
-      .get(source.id, contentHash);
+    const feedItems: FetchedItem[] = fetched.items?.length
+      ? fetched.items
+      : [{
+          external_id: source.url,
+          title: fetched.title,
+          url: source.url,
+          text: fetched.content,
+        }];
+    let newItemCount = 0;
 
-    if (existing) {
-      markSourceFetched(source.id);
-      results.push({ source_id: source.id, success: true, cached: true, title: fetched.title });
-      continue;
+    for (const item of feedItems) {
+      const canonicalUrl = item.url || source.url;
+      const externalId = item.external_id || canonicalUrl;
+      const contentHash = hashContent(JSON.stringify({
+        externalId,
+        title: item.title,
+        url: canonicalUrl,
+        text: item.text,
+        date: item.date || null,
+      }));
+      const stored = upsertSubscriptionItem(db, {
+        sourceId: source.id,
+        externalId,
+        title: item.title,
+        url: canonicalUrl,
+        content: item.text,
+        contentHash,
+        publishedAt: item.date || null,
+      });
+      if (stored.inserted) newItemCount += 1;
     }
 
-    db.prepare(
-      'INSERT INTO subscription_items (source_id, title, url, content, content_hash) VALUES (?, ?, ?, ?, ?)',
-    ).run(source.id, fetched.title, source.url, fetched.content, contentHash);
-
     markSourceFetched(source.id);
-    results.push({ source_id: source.id, success: true, title: fetched.title });
+    results.push({
+      source_id: source.id,
+      success: true,
+      cached: newItemCount === 0,
+      title: fetched.title,
+      item_count: feedItems.length,
+      new_item_count: newItemCount,
+    });
   }
 
   return { results, total: sources.length };

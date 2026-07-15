@@ -69,7 +69,25 @@ test('public navigation and blog publishing flow work end to end', async ({ page
     '### Tiny detail',
     '',
     'Heading navigation should link here too.',
+    '',
+    '| Feature | Status |',
+    '| --- | --- |',
+    '| Shared preview | Ready |',
+    '',
+    '- [x] Published task',
+    '',
+    '~~Retired wording~~',
+    '',
+    'https://example.com/reference',
   ].join('\n'));
+  const editorPreview = page.getByTestId('admin-blog-editor-preview');
+  await expect(editorPreview.locator('table')).toContainText('Shared preview');
+  await expect(editorPreview.locator('li.task-list-item')).toContainText('Published task');
+  await expect(editorPreview.locator('del')).toHaveText('Retired wording');
+  await expect(editorPreview.getByRole('link', { name: 'https://example.com/reference' })).toHaveAttribute(
+    'href',
+    'https://example.com/reference'
+  );
   await page.getByTestId('admin-blog-save').click();
   await expect(page.getByTestId('admin-blog-saved')).toBeVisible();
 
@@ -89,9 +107,34 @@ test('public navigation and blog publishing flow work end to end', async ({ page
   await page.getByRole('button', { name: 'Post comment' }).click();
   await expect(page.getByText('Comment from public blog e2e.')).toBeVisible();
   await expect(page.getByText('This markdown was saved during the browser flow.')).toBeVisible();
+  await expect(page.getByTestId('blog-post-date')).toHaveAttribute('datetime', '2026-04-23');
+  await expect(page.getByTestId('blog-post-date')).toContainText('April 23, 2026');
+  const article = page.getByTestId('blog-post-content');
+  await expect(article.locator('table')).toContainText('Shared preview');
+  await expect(article.locator('input[type="checkbox"]')).toBeChecked();
+  await expect(article.locator('del')).toHaveText('Retired wording');
+  await expect(article.getByRole('link', { name: 'https://example.com/reference' })).toHaveAttribute(
+    'href',
+    'https://example.com/reference'
+  );
 
   await page.goto('/blog');
   await expect(page.getByTestId(`blog-post-views-${slug}`)).toContainText(/views|访问/);
+});
+
+test('public blog defaults to newest-first sorting and paginates older posts', async ({ page }) => {
+  await page.goto('/blog');
+
+  const list = page.getByTestId('blog-post-list');
+  await expect(list.locator('li').first()).toContainText('Seeded Hello');
+  await expect(page.getByTestId('blog-sort')).toHaveValue('newest');
+  await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeVisible();
+
+  await page.getByTestId('blog-sort').selectOption('oldest');
+  await expect(list.locator('li').first()).toContainText('Seeded Archive 01');
+
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(list).toContainText('Seeded Hello');
 });
 
 test('admin blog editor uses TOAST UI markdown editing, image upload, and height-aware skills', async ({ page }, testInfo) => {

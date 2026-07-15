@@ -9,8 +9,8 @@ How to set up, develop, and deploy this site.
 - **Database**: SQLite via `better-sqlite3`
 - **Auth**: NextAuth.js (credentials provider)
 - **Styling**: Tailwind CSS + `@tailwindcss/typography`
-- **Markdown**: `react-markdown` + `gray-matter` for frontmatter
-- **Editor**: `@toast-ui/editor`
+- **Markdown**: `react-markdown` + `remark-gfm`, with `gray-matter` for frontmatter
+- **Editor**: `@toast-ui/editor`; public blog content shares its GFM presentation styles
 - **Testing**: Vitest with node env
 - **Deploy**: Docker + Cloudflared tunnel (for NAS)
 

@@ -18,10 +18,12 @@ A guide to using the features of this personal site.
 ### Blog
 
 - Browse all posts at `/blog`
-- Search posts by title or content using the search bar
-- Filter by date range
+- Search posts by title or brief using the search bar
+- Posts default to newest first; use the sort selector to switch to oldest first
+- Lists are paginated at 10 posts per page after search and sorting
 - Click any post title to read the full article
-- Each post includes: title, date, brief, tags, and full content in markdown
+- Publication dates follow the selected English or Chinese locale without timezone shifts
+- Article Markdown uses the editor-compatible GFM presentation for tables, task lists, strikethrough, and automatic links
 
 ### Files
 
@@ -89,8 +91,9 @@ Track latest updates from blogs, GitHub repos, X accounts, and more.
 3. Fill in:
    - **Name** — display name
    - **URL** — the source URL
-   - **Category** — `github`, `x`, `selfblog`, `rss`, `newsletter`, `reddit`, or `other`
-   - **Fetch interval** — seconds between auto-fetches (default 3600 = 1 hour)
+   - **Subscription topic** — `AI` or `Security`
+   - **Category** — fetch type such as `rss`, `github`, `selfblog`, `newsletter`, or `reddit`
+   - **Fetch interval** — source metadata; daily publishing uses the configured Shanghai schedule
 4. Click **Save**
 
 ### Viewing briefs
@@ -103,6 +106,8 @@ Track latest updates from blogs, GitHub repos, X accounts, and more.
    - **Worth Noting** — trend insight
 
 Each brief is generated using the `subscription` skill, powered by your default AI provider.
+
+The daily scheduler is independent of manual briefs. After crawling finishes it publishes one AI post and one security post. The body always retains explicit, clickable references and uses source-grounded facts; editorial judgment is confined to the intro.
 
 ---
 

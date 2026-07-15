@@ -1,8 +1,9 @@
 import { createServer } from 'node:http';
 import { mkdir } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
+import { buildClaudeArgs, isValidSessionId } from './claude-worker-args.mjs';
 
 const port = Number(process.env.CLAUDE_WORKER_PORT || 8787);
 const workspaceRoot = path.resolve(process.env.CLAUDE_WORKSPACE_ROOT || '/workspaces');
@@ -110,6 +111,10 @@ function getSystemPrompt() {
   return process.env.CLAUDE_SYSTEM_PROMPT?.trim() || DEFAULT_PERSONAL_ASSISTANT_PROMPT;
 }
 
+function hashSessionId(sessionId) {
+  return createHash('sha256').update(sessionId).digest('hex').slice(0, 16);
+}
+
 function isAuthorized(req) {
   const provided = String(req.headers[WORKER_TOKEN_HEADER.toLowerCase()] || '');
   if (!workerToken || !provided) return false;
@@ -138,12 +143,23 @@ async function handleRun(req, res, requestId) {
     json(res, 400, { error: `Prompt must be ${maxPromptChars} characters or fewer` });
     return;
   }
+  const sessionId = typeof body.session_id === 'string' ? body.session_id.trim() : '';
+  if (!isValidSessionId(sessionId)) {
+    logWorkerEvent('warn', 'request_rejected', { request_id: requestId, error_code: 'INVALID_SESSION' });
+    json(res, 400, { code: 'INVALID_SESSION', error: 'Invalid Claude session id.' });
+    return;
+  }
+  const resume = body.resume === true;
+  const turnIndex = Number.isInteger(body.turn_index) && body.turn_index > 0
+    ? body.turn_index
+    : 1;
 
   let cwd;
   try {
     cwd = resolveWorkspace(body.cwd);
     await mkdir(cwd, { recursive: true });
   } catch (caught) {
+    logWorkerEvent('warn', 'request_rejected', { request_id: requestId, error_code: 'INVALID_WORKSPACE' });
     json(res, 400, { error: caught?.message || 'Invalid workspace' });
     return;
   }
@@ -153,16 +169,17 @@ async function handleRun(req, res, requestId) {
     prompt_chars: prompt.length,
     workspace_set: typeof body.cwd === 'string' && Boolean(body.cwd.trim()),
     model: process.env.CLAUDE_MODEL || process.env.ANTHROPIC_MODEL || 'default',
+    session_hash: hashSessionId(sessionId),
+    resumed: resume,
+    turn_index: turnIndex,
   });
 
-  const args = [
-    '-p',
+  const args = buildClaudeArgs({
     prompt,
-    '--output-format',
-    'text',
-    '--append-system-prompt',
-    getSystemPrompt(),
-  ];
+    sessionId,
+    resume,
+    systemPrompt: getSystemPrompt(),
+  });
   if (process.env.CLAUDE_PERMISSION_MODE) {
     args.push('--permission-mode', process.env.CLAUDE_PERMISSION_MODE);
   }
@@ -190,6 +207,11 @@ async function handleRun(req, res, requestId) {
   }, requestTimeoutMs);
 
   req.on('aborted', () => {
+    aborted = true;
+    child.kill('SIGTERM');
+  });
+  res.on('close', () => {
+    if (finalized || res.writableEnded) return;
     aborted = true;
     child.kill('SIGTERM');
   });
@@ -225,6 +247,9 @@ async function handleRun(req, res, requestId) {
       stderr_bytes: stderrBytes,
       stderr_category: classifyDiagnostic(stderrText),
       spawn_error: spawnError ? sanitizeDiagnostic(spawnError.message || spawnError) : undefined,
+      session_hash: hashSessionId(sessionId),
+      resumed: resume,
+      turn_index: turnIndex,
     };
 
     if (timedOut) {

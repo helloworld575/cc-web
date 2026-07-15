@@ -1,20 +1,23 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useLocale } from '@/components/useLocale';
+import {
+  SUBSCRIPTION_FETCH_CATEGORIES,
+  SUBSCRIPTION_TOPICS,
+} from '@/lib/subscription-topics';
 
 interface Source {
   id?: number;
   name: string;
   url: string;
   category: string;
+  topic: 'ai' | 'security';
   enabled: number;
   fetch_interval: number;
   last_fetched_at?: string;
 }
 
-const EMPTY: Source = { name: '', url: '', category: 'other', enabled: 1, fetch_interval: 3600 };
-
-const CATEGORIES = ['github', 'x', 'selfblog', 'rss', 'newsletter', 'reddit', 'other'];
+const EMPTY: Source = { name: '', url: '', category: 'rss', topic: 'ai', enabled: 1, fetch_interval: 86400 };
 
 export default function AdminSubscriptionsPage() {
   const { locale, t } = useLocale();
@@ -118,6 +121,7 @@ export default function AdminSubscriptionsPage() {
         <div className="space-y-3">
           {sources.map(s => (
             <div key={s.id}
+              data-testid="subscription-source-card"
               className={`border rounded-lg px-4 py-3 cursor-pointer transition-colors ${editing?.id === s.id ? 'border-black bg-gray-50' : 'hover:border-gray-400'}`}
               onClick={() => { setEditing({ ...s }); setError(''); }}>
               <div className="flex items-center justify-between">
@@ -125,6 +129,11 @@ export default function AdminSubscriptionsPage() {
                   <span className="font-medium text-sm">{s.name}</span>
                   {!s.enabled && <span className="bg-gray-100 text-gray-500 text-xs px-1.5 py-0.5 rounded">{t('adminSubscriptionsDisabled')}</span>}
                   <span className="bg-blue-50 text-blue-600 text-xs px-1.5 py-0.5 rounded">{s.category}</span>
+                  <span data-testid="subscription-source-topic" className={`text-xs px-1.5 py-0.5 rounded ${s.topic === 'security' ? 'bg-amber-50 text-amber-700' : 'bg-violet-50 text-violet-700'}`}>
+                    {s.topic === 'security'
+                      ? (locale === 'zh' ? '安全订阅' : 'Security')
+                      : (locale === 'zh' ? 'AI 订阅' : 'AI')}
+                  </span>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={e => { e.stopPropagation(); fetchNow(s.id!); }}
@@ -159,12 +168,31 @@ export default function AdminSubscriptionsPage() {
                 className="border rounded px-2 py-1 text-sm w-full font-mono"
                 placeholder="https://example.com/blog" />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">
+                  {locale === 'zh' ? '订阅主题' : 'Subscription topic'}
+                </label>
+                <select
+                  data-testid="subscription-source-topic-select"
+                  value={editing.topic || 'ai'}
+                  onChange={e => setEditing({ ...editing, topic: e.target.value as Source['topic'] })}
+                  className="border rounded px-2 py-1 text-sm w-full"
+                >
+                  {SUBSCRIPTION_TOPICS.map(topic => (
+                    <option key={topic} value={topic}>
+                      {topic === 'security'
+                        ? (locale === 'zh' ? '安全订阅' : 'Security')
+                        : (locale === 'zh' ? 'AI 订阅' : 'AI')}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="text-xs text-gray-500 block mb-1">{t('adminSubscriptionsCategory')}</label>
                 <select value={editing.category} onChange={e => setEditing({ ...editing, category: e.target.value })}
                   className="border rounded px-2 py-1 text-sm w-full">
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {SUBSCRIPTION_FETCH_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>

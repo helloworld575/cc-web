@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
 RUN apk add --no-cache bash git libgcc libstdc++ ripgrep && \
-    npm install -g @anthropic-ai/claude-code@latest && \
+    npm install -g @anthropic-ai/claude-code@2.1.210 && \
     addgroup --system --gid 1002 claude && \
     adduser --system --uid 1002 --ingroup claude claude
 

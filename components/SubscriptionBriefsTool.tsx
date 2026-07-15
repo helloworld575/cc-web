@@ -11,6 +11,7 @@ interface Brief {
   source_id: number;
   source_name: string;
   category: string;
+  topic: 'ai' | 'security';
   title: string;
   url: string;
   brief: string;
@@ -24,7 +25,7 @@ interface SubscriptionBriefsToolProps {
 const SUBSCRIPTION_PAGE_SIZE = 6;
 
 export default function SubscriptionBriefsTool({ canManage = false }: SubscriptionBriefsToolProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [loading, setLoading] = useState(false);
   const [crawling, setCrawling] = useState(false);
@@ -32,7 +33,6 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
   const [filter, setFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
-  const [categories, setCategories] = useState<string[]>([]);
   const [errorKey, setErrorKey] = useState<TranslationKey | null>(null);
 
   async function actionError(response: Response) {
@@ -46,8 +46,7 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
       const res = await fetch('/api/subscriptions/briefs');
       if (res.ok) {
         const data = await res.json() as Brief[];
-        setBriefs(data);
-        setCategories(Array.from(new Set(data.map(brief => brief.category).filter(Boolean))));
+        setBriefs(data.map(brief => ({ ...brief, topic: brief.topic || 'ai' })));
       }
     } finally {
       setLoading(false);
@@ -103,12 +102,12 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
   useEffect(() => { loadBriefs(); }, []);
 
   const sources = Array.from(new Set(briefs.map(brief => brief.source_name).filter(Boolean))).sort();
-  const categoryCounts = new Map<string, number>();
+  const topicCounts = new Map<string, number>();
   for (const brief of briefs) {
-    categoryCounts.set(brief.category, (categoryCounts.get(brief.category) || 0) + 1);
+    topicCounts.set(brief.topic, (topicCounts.get(brief.topic) || 0) + 1);
   }
   const filteredBriefs = briefs
-    .filter(brief => (filter === 'all' ? true : brief.category === filter))
+    .filter(brief => (filter === 'all' ? true : brief.topic === filter))
     .filter(brief => (sourceFilter === 'all' ? true : brief.source_name === sourceFilter));
   const pagedBriefs = filteredBriefs.slice((page - 1) * SUBSCRIPTION_PAGE_SIZE, page * SUBSCRIPTION_PAGE_SIZE);
 
@@ -130,7 +129,7 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <select
-            data-testid="subscription-category-filter"
+            data-testid="subscription-topic-filter"
             value={filter}
             onChange={event => {
               setFilter(event.target.value);
@@ -139,11 +138,12 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
             className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700"
           >
             <option value="all">{t('all')}</option>
-            {categories.map(category => (
-              <option key={category} value={category}>
-                {category} ({categoryCounts.get(category) || 0})
-              </option>
-            ))}
+            <option value="ai">
+              {locale === 'zh' ? 'AI 订阅' : 'AI'} ({topicCounts.get('ai') || 0})
+            </option>
+            <option value="security">
+              {locale === 'zh' ? '安全订阅' : 'Security'} ({topicCounts.get('security') || 0})
+            </option>
           </select>
           <select
             data-testid="subscription-source-filter"
@@ -218,7 +218,12 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
                       >
                         {brief.title}
                       </a>
-                      <span className="rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-600">
+                      <span className={`rounded px-1.5 py-0.5 text-xs ${brief.topic === 'security' ? 'bg-amber-50 text-amber-700' : 'bg-violet-50 text-violet-700'}`}>
+                        {brief.topic === 'security'
+                          ? (locale === 'zh' ? '安全订阅' : 'Security')
+                          : (locale === 'zh' ? 'AI 订阅' : 'AI')}
+                      </span>
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">
                         {brief.category}
                       </span>
                     </div>

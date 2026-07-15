@@ -12,6 +12,7 @@ test('public tools hide AI actions while keeping subscription briefs visible', a
           source_id: 1,
           source_name: 'AI Feed',
           category: 'rss',
+          topic: 'ai',
           title: 'Visible Brief',
           url: 'https://example.com/visible-brief',
           brief: 'Public digest text from a stored result.',
@@ -95,7 +96,8 @@ test('subscription briefs are compact, paginated, and filterable', async ({ page
         id: index + 1,
         source_id: index % 2,
         source_name: index % 2 === 0 ? 'Source A' : 'Source B',
-        category: index % 2 === 0 ? 'ai' : 'infra',
+        category: index % 2 === 0 ? 'rss' : 'github',
+        topic: index % 2 === 0 ? 'ai' : 'security',
         title: `Brief ${index + 1}`,
         url: `https://example.com/brief-${index + 1}`,
         brief: `Stored subscription digest ${index + 1}. `.repeat(12),
@@ -125,11 +127,23 @@ test('subscription briefs are compact, paginated, and filterable', async ({ page
   await expect(page.getByText('Brief 7', { exact: true })).toBeVisible();
   await expect(page.getByText('Brief 1', { exact: true })).toHaveCount(0);
 
-  await page.getByTestId('subscription-category-filter').selectOption('ai');
+  await page.getByTestId('subscription-topic-filter').selectOption('ai');
   await expect(page.getByText('Brief 1', { exact: true })).toBeVisible();
   await expect(page.getByText('Brief 2', { exact: true })).toHaveCount(0);
 
   await page.getByTestId('subscription-source-filter').selectOption('Source B');
   await expect(page.getByText('Brief 1', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Brief 2', { exact: true })).toHaveCount(0);
+});
+
+test('admin subscription sources expose AI and security as topics, not fetch types', async ({ page }) => {
+  await login(page);
+  await page.goto('/admin/subscriptions');
+
+  await expect(page.getByTestId('subscription-source-topic').filter({ hasText: 'AI' }).first()).toBeVisible();
+  const securityCard = page.getByTestId('subscription-source-card').filter({ hasText: 'Security' }).first();
+  await expect(securityCard).toBeVisible();
+  await securityCard.click();
+  await expect(page.getByTestId('subscription-source-topic-select')).toHaveValue('security');
+  await expect(page.getByTestId('subscription-source-topic-select').locator('option[value="security"]')).toHaveText('Security');
 });

@@ -1,19 +1,14 @@
 'use client';
 import { type FormEvent, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import Link from 'next/link';
 import { useLocale } from '@/components/useLocale';
 import { extractMarkdownHeadings } from '@/lib/markdown-headings';
+import { formatBlogDate } from '@/lib/blog-list';
 
 interface Post { slug: string; title: string; date: string; content: string; views?: number; }
 interface Comment { id: number; author: string; content: string; created_at: string; }
-
-function fmtDate(d: string) {
-  if (!d) return '';
-  const [y, m, day] = d.split('-').map(Number);
-  if (!y) return d;
-  return new Date(y, m - 1, day).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-}
 
 export default function PostClient({ post }: { post: Post }) {
   const { locale, t } = useLocale();
@@ -100,13 +95,19 @@ export default function PostClient({ post }: { post: Post }) {
         <div className="min-w-0">
           <h1 className="text-3xl font-bold mb-2">{post.title}</h1>
           <div className="mb-8 flex flex-wrap items-center gap-3 text-sm text-gray-500">
-            <p>{t('publishedOn')} {fmtDate(post.date)}</p>
+            <p>
+              {t('publishedOn')}{' '}
+              <time data-testid="blog-post-date" dateTime={post.date}>
+                {formatBlogDate(post.date, locale)}
+              </time>
+            </p>
             <span data-testid="blog-post-view-count" className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600">
               {views} {viewsLabel}
             </span>
           </div>
-          <article className="prose max-w-none">
+          <article data-testid="blog-post-content" className="toastui-editor-contents max-w-none">
             <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
               components={{
                 img({ ...props }) {
                   return <img {...props} loading="lazy" decoding="async" />;

@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import { getRuntimePaths } from '@/lib/runtime-paths';
+import { migrateSubscriptionItemObservationColumns } from '@/lib/db-migrations';
 
 const isBuildDatabase = process.env.BUILDING_DOCKER_IMAGE === '1'
   || process.env.NEXT_PHASE === 'phase-production-build';
@@ -88,6 +89,7 @@ db.exec(`
     name TEXT NOT NULL,
     url TEXT NOT NULL,
     category TEXT NOT NULL DEFAULT 'general',
+    topic TEXT NOT NULL DEFAULT 'ai' CHECK (topic IN ('ai', 'security')),
     enabled INTEGER NOT NULL DEFAULT 1,
     fetch_interval INTEGER NOT NULL DEFAULT 3600,
     last_fetched_at TEXT,
@@ -106,15 +108,47 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS app_migrations (
+    name TEXT PRIMARY KEY,
+    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS claude_assistant_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_uuid TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL DEFAULT 'New Conversation',
+    cwd TEXT NOT NULL DEFAULT 'default',
+    messages TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'idle' CHECK (status IN ('idle', 'running')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS subscription_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source_id INTEGER NOT NULL REFERENCES subscription_sources(id) ON DELETE CASCADE,
+    external_id TEXT NOT NULL DEFAULT '',
     title TEXT NOT NULL,
     url TEXT NOT NULL,
     content TEXT NOT NULL,
     content_hash TEXT NOT NULL,
+    published_at TEXT,
     fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS subscription_daily_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_date TEXT NOT NULL,
+    topic TEXT NOT NULL CHECK (topic IN ('ai', 'security')),
+    status TEXT NOT NULL CHECK (status IN ('running', 'published', 'failed')),
+    slug TEXT NOT NULL,
+    entry_count INTEGER NOT NULL DEFAULT 0,
+    error_code TEXT,
+    started_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (run_date, topic)
   );
 
   CREATE TABLE IF NOT EXISTS blog_comments (
@@ -151,6 +185,75 @@ try {
   // column already exists, ignore
 }
 
+// Migrate subscriptions from source-type-only classification to AI/security topics.
+try {
+  db.exec("ALTER TABLE subscription_sources ADD COLUMN topic TEXT NOT NULL DEFAULT 'ai' CHECK (topic IN ('ai', 'security'))");
+} catch {
+  // column already exists, ignore
+}
+
+migrateSubscriptionItemObservationColumns(db);
+
+// X feeds have been unreliable in production. Disable the currently configured X feeds
+// once, while preserving later administrator choices, and add stable RSS/Atom alternatives.
+const xSourceMigration = '20260716-disable-unreliable-x-subscriptions';
+const xSourceMigrationApplied = db
+  .prepare('SELECT name FROM app_migrations WHERE name = ?')
+  .get(xSourceMigration);
+if (!xSourceMigrationApplied) {
+  db.prepare(`
+    UPDATE subscription_sources
+    SET enabled = 0, updated_at = datetime('now')
+    WHERE category = 'x' AND enabled = 1
+  `).run();
+  db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(xSourceMigration);
+}
+
+const subscriptionTopicMigration = '20260716-classify-security-subscriptions';
+const subscriptionTopicMigrationApplied = db
+  .prepare('SELECT name FROM app_migrations WHERE name = ?')
+  .get(subscriptionTopicMigration);
+if (!subscriptionTopicMigrationApplied) {
+  db.prepare(`
+    UPDATE subscription_sources
+    SET topic = 'security'
+    WHERE lower(name || ' ' || url) LIKE '%security%'
+       OR lower(name || ' ' || url) LIKE '%cisa%'
+       OR lower(name || ' ' || url) LIKE '%cve%'
+  `).run();
+  db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(subscriptionTopicMigration);
+}
+
+db.exec(`
+  INSERT INTO subscription_sources (name, url, category, topic, enabled, fetch_interval)
+  SELECT 'OpenAI News', 'https://openai.com/news/rss.xml', 'rss', 'ai', 1, 86400
+  WHERE NOT EXISTS (SELECT 1 FROM subscription_sources WHERE url = 'https://openai.com/news/rss.xml');
+
+  INSERT INTO subscription_sources (name, url, category, topic, enabled, fetch_interval)
+  SELECT 'Google DeepMind Blog', 'https://deepmind.google/blog/rss.xml', 'rss', 'ai', 1, 86400
+  WHERE NOT EXISTS (SELECT 1 FROM subscription_sources WHERE url = 'https://deepmind.google/blog/rss.xml');
+
+  INSERT INTO subscription_sources (name, url, category, topic, enabled, fetch_interval)
+  SELECT 'arXiv Artificial Intelligence', 'https://export.arxiv.org/rss/cs.AI', 'rss', 'ai', 1, 86400
+  WHERE NOT EXISTS (SELECT 1 FROM subscription_sources WHERE url = 'https://export.arxiv.org/rss/cs.AI');
+
+  INSERT INTO subscription_sources (name, url, category, topic, enabled, fetch_interval)
+  SELECT 'Google Security Blog', 'https://security.googleblog.com/feeds/posts/default', 'rss', 'security', 1, 86400
+  WHERE NOT EXISTS (SELECT 1 FROM subscription_sources WHERE url = 'https://security.googleblog.com/feeds/posts/default');
+
+  INSERT INTO subscription_sources (name, url, category, topic, enabled, fetch_interval)
+  SELECT 'Microsoft Security Blog', 'https://www.microsoft.com/en-us/security/blog/feed/', 'rss', 'security', 1, 86400
+  WHERE NOT EXISTS (SELECT 1 FROM subscription_sources WHERE url = 'https://www.microsoft.com/en-us/security/blog/feed/');
+
+  INSERT INTO subscription_sources (name, url, category, topic, enabled, fetch_interval)
+  SELECT 'GitHub Security', 'https://github.blog/security/feed/', 'rss', 'security', 1, 86400
+  WHERE NOT EXISTS (SELECT 1 FROM subscription_sources WHERE url = 'https://github.blog/security/feed/');
+
+  INSERT INTO subscription_sources (name, url, category, topic, enabled, fetch_interval)
+  SELECT 'CISA Cybersecurity Advisories', 'https://www.cisa.gov/cybersecurity-advisories/all.xml', 'rss', 'security', 1, 86400
+  WHERE NOT EXISTS (SELECT 1 FROM subscription_sources WHERE url = 'https://www.cisa.gov/cybersecurity-advisories/all.xml');
+`);
+
 // Migrate: keep chat history when providers are edited/deleted and allow env-backed providers.
 try {
   const chatForeignKeys = db.prepare("PRAGMA foreign_key_list('ai_chat_history')").all() as unknown[];
@@ -184,13 +287,21 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_diary_date ON diary(date);
   CREATE INDEX IF NOT EXISTS idx_ai_chat_history_provider ON ai_chat_history(provider_id);
   CREATE INDEX IF NOT EXISTS idx_ai_chat_history_updated ON ai_chat_history(updated_at);
+  CREATE INDEX IF NOT EXISTS idx_claude_assistant_updated ON claude_assistant_sessions(updated_at);
+  CREATE INDEX IF NOT EXISTS idx_claude_assistant_status ON claude_assistant_sessions(status);
   CREATE INDEX IF NOT EXISTS idx_subscription_sources_enabled ON subscription_sources(enabled);
+  CREATE INDEX IF NOT EXISTS idx_subscription_sources_topic_enabled ON subscription_sources(topic, enabled);
   CREATE INDEX IF NOT EXISTS idx_subscription_briefs_source ON subscription_briefs(source_id);
   CREATE INDEX IF NOT EXISTS idx_subscription_briefs_fetched ON subscription_briefs(fetched_at);
   CREATE INDEX IF NOT EXISTS idx_subscription_briefs_hash ON subscription_briefs(content_hash);
   CREATE INDEX IF NOT EXISTS idx_subscription_items_source ON subscription_items(source_id);
   CREATE INDEX IF NOT EXISTS idx_subscription_items_fetched ON subscription_items(fetched_at);
-  CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_items_source_hash ON subscription_items(source_id, content_hash);
+  CREATE INDEX IF NOT EXISTS idx_subscription_items_published ON subscription_items(published_at);
+  DROP INDEX IF EXISTS idx_subscription_items_source_hash;
+  CREATE INDEX IF NOT EXISTS idx_subscription_items_source_hash ON subscription_items(source_id, content_hash);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_items_source_external
+    ON subscription_items(source_id, external_id);
+  CREATE INDEX IF NOT EXISTS idx_subscription_daily_status ON subscription_daily_runs(run_date, status);
   CREATE INDEX IF NOT EXISTS idx_blog_comments_slug_created ON blog_comments(slug, created_at);
   CREATE INDEX IF NOT EXISTS idx_blog_comments_status ON blog_comments(status);
   CREATE INDEX IF NOT EXISTS idx_blog_view_events_slug_created ON blog_view_events(slug, created_at);

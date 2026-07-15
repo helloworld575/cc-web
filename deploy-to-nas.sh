@@ -178,6 +178,7 @@ include_files = [
     "setup.sh",
     "scripts/claude-worker.mjs",
     "scripts/crawl-subscriptions.mjs",
+    "scripts/subscription-schedule.mjs",
     "tailwind.config.ts",
     "tsconfig.json",
 ]

@@ -13,12 +13,12 @@ services:
     environment:
       CLAUDE_CODE_WORKER_URL: http://claude-worker:8787
       TRUST_PROXY_HEADERS: 1
+      SITE_POSTS_DIR: /app/data/posts
+      SITE_BUNDLED_POSTS_DIR: /app/content/posts
     volumes:
       - app-data:/app/data
       - app-uploads:/app/uploads
       - app-next-cache:/app/.next/cache
-      # Optionally override built-in content with local posts:
-      # - ./content:/app/content
     env_file:
       - .env.local
     depends_on:
@@ -32,10 +32,12 @@ services:
     command: ["node", "scripts/crawl-subscriptions.mjs", "--loop", "--target", "http://app:3000"]
     environment:
       SUBSCRIPTION_CRON_TARGET: http://app:3000
-      SUBSCRIPTION_CRON_INTERVAL_SECONDS: ${SUBSCRIPTION_CRON_INTERVAL_SECONDS:-86400}
+      TZ: Asia/Shanghai
+      SUBSCRIPTION_DAILY_HOUR: ${SUBSCRIPTION_DAILY_HOUR:-8}
       SUBSCRIPTION_CRON_RUN_ON_START: ${SUBSCRIPTION_CRON_RUN_ON_START:-1}
       SUBSCRIPTION_CRON_STARTUP_RETRIES: ${SUBSCRIPTION_CRON_STARTUP_RETRIES:-10}
       SUBSCRIPTION_CRON_RETRY_SECONDS: ${SUBSCRIPTION_CRON_RETRY_SECONDS:-30}
+      SUBSCRIPTION_CRON_REQUEST_TIMEOUT_MS: ${SUBSCRIPTION_CRON_REQUEST_TIMEOUT_MS:-600000}
     env_file:
       - .env.local
     depends_on:
@@ -63,6 +65,7 @@ services:
       USE_BUILTIN_RIPGREP: 0
     volumes:
       - claude-workspaces:/workspaces
+      - claude-state:/home/claude/.claude
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -84,3 +87,4 @@ volumes:
   app-uploads:
   app-next-cache:
   claude-workspaces:
+  claude-state:

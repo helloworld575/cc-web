@@ -27,7 +27,7 @@ function resetRuntimeRoot() {
 function seedContent() {
   const seededPost = `---
 title: "Seeded Hello"
-date: 2026-04-20
+date: 2026-04-30
 brief: "A seeded blog entry for Playwright validation."
 ---
 
@@ -37,6 +37,21 @@ This post exists so the e2e suite can verify the public blog list and post detai
 `;
 
   fs.writeFileSync(path.join(contentDir, 'seeded-hello.md'), seededPost, 'utf8');
+
+  for (let day = 1; day <= 11; day += 1) {
+    const paddedDay = String(day).padStart(2, '0');
+    const archivedPost = `---
+title: "Seeded Archive ${paddedDay}"
+date: 2026-04-${paddedDay}
+brief: "Archived post ${paddedDay} for pagination validation."
+---
+
+# Seeded Archive ${paddedDay}
+
+This archived post exists so the e2e suite can exercise public blog pagination.
+`;
+    fs.writeFileSync(path.join(contentDir, `seeded-archive-${paddedDay}.md`), archivedPost, 'utf8');
+  }
 }
 
 function seedUploads() {

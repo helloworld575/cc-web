@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-12T02:03:09.129Z",
+  "generatedAt": "2026-07-15T17:41:30.987Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -353,6 +353,11 @@
         "description": "List or create blog content."
       },
       {
+        "route": "/api/claude-code/[id]",
+        "file": "app/api/claude-code/[id]/route.ts",
+        "description": "API route in the application backend."
+      },
+      {
         "route": "/api/claude-code",
         "file": "app/api/claude-code/route.ts",
         "description": "API route in the application backend."
@@ -416,6 +421,11 @@
         "route": "/api/subscriptions/crawl",
         "file": "app/api/subscriptions/crawl/route.ts",
         "description": "Fetch remote subscription content into raw stored items without AI."
+      },
+      {
+        "route": "/api/subscriptions/daily",
+        "file": "app/api/subscriptions/daily/route.ts",
+        "description": "API route in the application backend."
       },
       {
         "route": "/api/subscriptions/fetch",
@@ -489,7 +499,9 @@
       "lib/auth.ts",
       "lib/bazi.ts",
       "lib/blog-analytics.ts",
+      "lib/blog-list.ts",
       "lib/client-api-error.ts",
+      "lib/db-migrations.ts",
       "lib/db.ts",
       "lib/fetchers.ts",
       "lib/i18n.ts",
@@ -501,7 +513,10 @@
       "lib/server-log.ts",
       "lib/skill-taxonomy.ts",
       "lib/skills.ts",
+      "lib/subscription-daily.ts",
+      "lib/subscription-items.ts",
       "lib/subscription-service.ts",
+      "lib/subscription-topics.ts",
       "lib/toast-ui-editor.d.ts",
       "lib/xapi.ts",
       "lib/yijing.ts",
@@ -528,7 +543,10 @@
       "ai_chat_history",
       "subscription_sources",
       "subscription_briefs",
+      "app_migrations",
+      "claude_assistant_sessions",
       "subscription_items",
+      "subscription_daily_runs",
       "blog_comments",
       "blog_view_events"
     ],
@@ -540,6 +558,10 @@
       {
         "table": "files",
         "column": "album_id"
+      },
+      {
+        "table": "subscription_sources",
+        "column": "topic"
       }
     ],
     "preparedStatements": [
@@ -1129,6 +1151,7 @@
       "tests/api/blog/route.test.ts",
       "tests/api/blog/slug.test.ts",
       "tests/api/blog/views.test.ts",
+      "tests/api/claude-code/id.test.ts",
       "tests/api/claude-code/route.test.ts",
       "tests/api/diary/id.test.ts",
       "tests/api/diary/route.test.ts",
@@ -1141,6 +1164,7 @@
       "tests/api/skills/route.test.ts",
       "tests/api/subscriptions/briefs.test.ts",
       "tests/api/subscriptions/crawl.test.ts",
+      "tests/api/subscriptions/daily.test.ts",
       "tests/api/subscriptions/fetch.test.ts",
       "tests/api/subscriptions/id.test.ts",
       "tests/api/subscriptions/integrate.test.ts",
@@ -1149,22 +1173,31 @@
       "tests/api/todos/route.test.ts",
       "tests/api/uploads/route.test.ts",
       "tests/api/x-post/route.test.ts",
+      "tests/config/claude-worker-session.test.ts",
       "tests/config/claude-worker.test.ts",
       "tests/config/compose-logging.test.ts",
       "tests/config/dockerfile.test.ts",
       "tests/config/platform-modernization.test.ts",
+      "tests/config/subscription-publishing.test.ts",
+      "tests/config/subscription-schedule.test.ts",
       "tests/config/worker-security.test.ts",
       "tests/lib/auth.test.ts",
+      "tests/lib/blog-list.test.ts",
       "tests/lib/client-api-error.test.ts",
+      "tests/lib/db-migrations.test.ts",
       "tests/lib/i18n.test.ts",
       "tests/lib/markdown-headings.test.ts",
+      "tests/lib/markdown.test.ts",
       "tests/lib/rate-limit-security.test.ts",
       "tests/lib/runtime-paths.test.ts",
       "tests/lib/safe-fetch.test.ts",
       "tests/lib/server-log.test.ts",
       "tests/lib/skill-taxonomy.test.ts",
+      "tests/lib/subscription-daily.test.ts",
+      "tests/lib/subscription-feed.test.ts",
+      "tests/lib/subscription-items.test.ts",
       "tests/proxy.test.ts"
     ],
-    "count": 48
+    "count": 59
   }
 }

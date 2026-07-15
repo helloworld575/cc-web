@@ -126,16 +126,31 @@ Lightweight connection test. Body: `{"provider_id": 1}`. Use `{"provider_id": -1
 
 ## Claude Code
 
+### `GET /api/claude-code`
+Returns the latest 50 saved personal-assistant conversations for the signed-in administrator. Claude session UUIDs and message bodies are not included in the list response.
+
+### `GET /api/claude-code/:id`
+Returns one saved conversation with its user-facing message history. Internal Claude session UUIDs are never returned to the browser.
+
+### `DELETE /api/claude-code/:id`
+Deletes an idle conversation. A conversation with an active turn returns `409 CLAUDE_CHAT_BUSY`.
+
 ### `POST /api/claude-code`
-Admin-only streaming proxy to the internal Claude Code worker. The browser calls the site; the site forwards the request to `CLAUDE_CODE_WORKER_URL`.
+Admin-only proxy to the internal Claude Code worker. The browser calls the site; the site forwards the request to `CLAUDE_CODE_WORKER_URL`. The first turn creates a server-owned conversation and Claude session; later turns provide only the numeric `chat_id`.
 
 Request body:
 
 ```json
-{ "prompt": "Summarize this workspace", "cwd": "default" }
+{ "message": "Summarize this workspace", "cwd": "default" }
 ```
 
-Responses use `text/plain` and contain only user-facing text. Docker Compose sets the worker URL to `http://claude-worker:8787`; the worker defaults to a personal-assistant system prompt.
+Follow-up request:
+
+```json
+{ "chat_id": 12, "message": "Now list the three highest risks" }
+```
+
+Successful responses use `text/plain`, include `X-Claude-Chat-ID`, and contain only user-facing text. The workspace cannot change after the first turn. Failed and cancelled turns do not overwrite the last successful transcript. Docker Compose sets the worker URL to `http://claude-worker:8787` and persists the worker's Claude session directory.
 
 ---
 
@@ -215,7 +230,7 @@ Update or delete a saved chat.
 Manage subscription sources.
 
 ```json
-{ "name": "Hacker News", "url": "https://news.ycombinator.com", "category": "other", "enabled": 1, "fetch_interval": 3600 }
+{ "name": "AI News", "url": "https://example.com/feed.xml", "category": "rss", "topic": "ai", "enabled": 1, "fetch_interval": 86400 }
 ```
 
 ### `POST /api/subscriptions/crawl`
@@ -230,8 +245,11 @@ Generate AI briefs from stored crawl items. The endpoint returns HTTP 503 when n
 
 `POST /api/subscriptions/fetch` remains a compatibility alias for `/api/subscriptions/integrate`.
 
+### `POST /api/subscriptions/daily`
+Cron/admin endpoint that crawls all enabled sources first, then idempotently publishes one `ai` and one `security` blog post for the current `Asia/Shanghai` date. Daily post bodies contain deterministic facts and clickable source links; only the intro may contain editorial judgment.
+
 ### `GET /api/subscriptions/briefs`
-List generated briefs. Query param `source_id` to filter.
+List generated briefs, including both fetch `category` and content `topic`. Query param `source_id` to filter.
 
 ### `DELETE /api/subscriptions/briefs?id=<id>`
 

@@ -116,6 +116,21 @@ describe('PUT /api/subscriptions/[id]', () => {
 
     expect(res.status).toBe(400);
   });
+
+  it('rejects an unsupported subscription topic', async () => {
+    mockSession(true);
+    const statement = mockDbStmt({
+      get: vi.fn(() => ({ id: 1, name: 'Old', url: 'https://old.com', category: 'rss', topic: 'ai', enabled: 1 })),
+    });
+    const { PUT } = await import('@/app/api/subscriptions/[id]/route');
+    const response = await PUT(new Request('http://localhost', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'New', url: 'https://new.com/feed.xml', category: 'rss', topic: 'finance' }),
+    }), { params: { id: '1' } });
+
+    expect(response.status).toBe(400);
+    expect(statement.run).not.toHaveBeenCalled();
+  });
 });
 
 describe('DELETE /api/subscriptions/[id]', () => {

@@ -198,7 +198,7 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 管理订阅源。
 
 ```json
-{ "name": "Hacker News", "url": "https://news.ycombinator.com", "category": "other", "enabled": 1, "fetch_interval": 3600 }
+{ "name": "AI News", "url": "https://example.com/feed.xml", "category": "rss", "topic": "ai", "enabled": 1, "fetch_interval": 86400 }
 ```
 
 ### `POST /api/subscriptions/crawl`
@@ -213,8 +213,11 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 
 `POST /api/subscriptions/fetch` 保留为 `/api/subscriptions/integrate` 的兼容别名。
 
+### `POST /api/subscriptions/daily`
+Cron/管理员接口。先等待所有启用源完成抓取，再按当前 `Asia/Shanghai` 日期幂等发布一篇 `ai` 博客和一篇 `security` 博客。日报正文只包含确定性事实和可点击来源，只有片头允许出现编辑判断。
+
 ### `GET /api/subscriptions/briefs`
-列出生成的摘要。Query 参数 `source_id` 可过滤。
+列出生成的摘要，同时返回抓取 `category` 和内容 `topic`。Query 参数 `source_id` 可过滤。
 
 ### `DELETE /api/subscriptions/briefs?id=<id>`
 

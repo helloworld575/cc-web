@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 import { randomUUID } from 'node:crypto';
+import {
+  getNextShanghaiRun,
+  shouldRunOnStart,
+} from './subscription-schedule.mjs';
 
 const args = process.argv.slice(2);
 
@@ -39,9 +43,10 @@ function summarizeError(error) {
 
 const target = normalizeTarget(readArg('--target', process.env.SUBSCRIPTION_CRON_TARGET || 'http://127.0.0.1:3000'));
 const loop = args.includes('--loop');
-const intervalSeconds = Number(readArg('--interval-seconds', process.env.SUBSCRIPTION_CRON_INTERVAL_SECONDS || '86400'));
+const dailyHour = Number(readArg('--daily-hour', process.env.SUBSCRIPTION_DAILY_HOUR || '8'));
 const startupRetries = Number(readArg('--startup-retries', process.env.SUBSCRIPTION_CRON_STARTUP_RETRIES || '10'));
 const retrySeconds = Number(readArg('--retry-seconds', process.env.SUBSCRIPTION_CRON_RETRY_SECONDS || '30'));
+const requestTimeoutMs = Number(readArg('--request-timeout-ms', process.env.SUBSCRIPTION_CRON_REQUEST_TIMEOUT_MS || '600000'));
 const runOnStart = process.env.SUBSCRIPTION_CRON_RUN_ON_START !== '0';
 const token = process.env.SUBSCRIPTION_CRON_SECRET || process.env.ADMIN_PASSWORD || '';
 
@@ -50,21 +55,23 @@ if (!token) {
   process.exit(1);
 }
 
-if (!Number.isFinite(intervalSeconds) || intervalSeconds <= 0) {
-  logEvent('error', 'configuration_invalid', { error_code: 'INTERVAL_INVALID' });
+if (!Number.isInteger(dailyHour) || dailyHour < 0 || dailyHour > 23) {
+  logEvent('error', 'configuration_invalid', { error_code: 'DAILY_HOUR_INVALID' });
   process.exit(1);
 }
 
-if (!Number.isFinite(startupRetries) || startupRetries < 0 || !Number.isFinite(retrySeconds) || retrySeconds <= 0) {
+if (!Number.isFinite(startupRetries) || startupRetries < 0
+  || !Number.isFinite(retrySeconds) || retrySeconds <= 0
+  || !Number.isFinite(requestTimeoutMs) || requestTimeoutMs <= 0) {
   logEvent('error', 'configuration_invalid', { error_code: 'RETRY_CONFIG_INVALID' });
   process.exit(1);
 }
 
-async function crawlOnce() {
+async function publishOnce() {
   const requestId = `subscription-cron-${randomUUID()}`;
   const startedAt = Date.now();
-  logEvent('info', 'crawl_started', { request_id: requestId, target_host: new URL(target).host });
-  const response = await fetch(`${target}/api/subscriptions/crawl`, {
+  logEvent('info', 'publish_started', { request_id: requestId, target_host: new URL(target).host });
+  const response = await fetch(`${target}/api/subscriptions/daily`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -72,32 +79,41 @@ async function crawlOnce() {
       'X-Request-ID': requestId,
     },
     body: '{}',
+    signal: AbortSignal.timeout(requestTimeoutMs),
   });
   const text = await response.text();
   if (!response.ok) {
-    const failure = new Error(`Subscription crawl failed with HTTP ${response.status}`);
+    const failure = new Error(`Subscription daily publishing failed with HTTP ${response.status}`);
     failure.code = `HTTP_${response.status}`;
     throw failure;
   }
   const data = JSON.parse(text);
-  const results = Array.isArray(data?.results) ? data.results : [];
-  const successCount = results.filter(item => item?.success).length;
-  logEvent('info', 'crawl_completed', {
+  const publications = Array.isArray(data?.publications) ? data.publications : [];
+  logEvent('info', 'publish_completed', {
     request_id: requestId,
     duration_ms: Date.now() - startedAt,
-    source_count: Number(data?.total) || results.length,
-    success_count: successCount,
-    failure_count: results.length - successCount,
+    run_date: data?.run_date,
+    status: data?.status,
+    crawl_total: Number(data?.crawl?.total) || 0,
+    crawl_success: Number(data?.crawl?.success) || 0,
+    crawl_failed: Number(data?.crawl?.failed) || 0,
+    ai_status: publications.find(item => item?.topic === 'ai')?.status,
+    security_status: publications.find(item => item?.topic === 'security')?.status,
   });
+  if (data?.status !== 'published') {
+    const failure = new Error(`Subscription daily publishing ended with status ${String(data?.status || 'unknown')}`);
+    failure.code = `DAILY_${String(data?.status || 'unknown').toUpperCase()}`;
+    throw failure;
+  }
 }
 
-async function crawlWithStartupRetry() {
+async function publishWithRetry() {
   for (let attempt = 0; attempt <= startupRetries; attempt += 1) {
     try {
-      await crawlOnce();
+      await publishOnce();
       return;
     } catch (error) {
-      logEvent('warn', 'crawl_attempt_failed', {
+      logEvent('warn', 'publish_attempt_failed', {
         attempt: attempt + 1,
         max_attempts: startupRetries + 1,
         ...summarizeError(error),
@@ -109,25 +125,32 @@ async function crawlWithStartupRetry() {
 }
 
 if (!loop) {
-  await crawlOnce();
+  await publishOnce();
   process.exit(0);
 }
 
 logEvent('info', 'scheduler_started', {
-  interval_seconds: intervalSeconds,
+  timezone: 'Asia/Shanghai',
+  daily_hour: dailyHour,
   run_on_start: runOnStart,
   startup_retries: startupRetries,
 });
 
 if (runOnStart) {
-  await crawlWithStartupRetry();
+  const startupTime = new Date();
+  if (shouldRunOnStart(startupTime, dailyHour)) {
+    await publishWithRetry();
+  } else {
+    logEvent('info', 'startup_run_skipped', {
+      reason: 'before_daily_hour',
+      daily_hour: dailyHour,
+    });
+  }
 }
 
 while (true) {
-  await sleep(intervalSeconds * 1000);
-  try {
-    await crawlOnce();
-  } catch (error) {
-    logEvent('error', 'crawl_failed', summarizeError(error));
-  }
+  const nextRun = getNextShanghaiRun(new Date(), dailyHour);
+  logEvent('info', 'next_run_scheduled', { next_run: nextRun.toISOString() });
+  await sleep(Math.max(0, nextRun.getTime() - Date.now()));
+  await publishWithRetry();
 }

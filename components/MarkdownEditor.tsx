@@ -132,6 +132,7 @@ export default function MarkdownEditor({
         placeholder,
         autofocus: false,
         usageStatistics: false,
+        extendedAutolinks: true,
         toolbarItems: [
           ['heading', 'bold', 'italic', 'strike'],
           ['hr', 'quote'],

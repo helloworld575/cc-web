@@ -28,6 +28,11 @@ This project uses `@toast-ui/editor` as the shared Markdown editor for blog post
 | Image upload insertion | `hooks.addImageBlobHook(blob, callback)` |
 | Chinese UI strings | `@toast-ui/editor/dist/i18n/zh-cn` |
 | Disable telemetry | `usageStatistics: false` |
+| Make plain HTTP(S) references clickable in preview | `extendedAutolinks: true` |
+
+The public blog renderer enables `remark-gfm` and uses the same `.toastui-editor-contents`
+presentation class. This keeps server-rendered article HTML while matching the editor preview
+for tables, task lists, strikethrough, and extended autolinks.
 
 ## Change Rule
 

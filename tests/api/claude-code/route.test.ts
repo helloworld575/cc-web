@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockSession, mockRateLimit429 } from '../../helpers';
 import { rateLimitByIp } from '@/lib/rateLimit';
+import db from '@/lib/db';
 
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
@@ -18,6 +19,7 @@ describe('POST /api/claude-code', () => {
     vi.resetModules();
     vi.mocked(rateLimitByIp).mockReturnValue(null);
     mockFetch.mockReset();
+    vi.mocked(db.prepare).mockClear();
     delete process.env.CLAUDE_CODE_WORKER_URL;
     process.env.NEXTAUTH_SECRET = 'worker-shared-secret';
   });
@@ -133,11 +135,119 @@ describe('POST /api/claude-code', () => {
         'X-Claude-Worker-Token': 'worker-shared-secret',
         'X-Request-ID': 'req-claude-worker-123',
       },
-      body: JSON.stringify({ prompt: 'inspect repo', cwd: 'repo' }),
+      body: expect.any(String),
     }));
+
+    const workerBody = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(workerBody).toMatchObject({
+      prompt: 'inspect repo',
+      cwd: 'repo',
+      resume: false,
+      turn_index: 1,
+    });
+    expect(workerBody.session_id).toMatch(/^[0-9a-f-]{36}$/i);
 
     const text = await res.text();
     expect(text).toBe('ok');
     expect(res.headers.get('X-Request-ID')).toBe('req-claude-worker-123');
+    expect(res.headers.get('X-Claude-Chat-ID')).toBe('1');
+  });
+
+  it('resumes the server-owned Claude session for a follow-up turn', async () => {
+    mockSession(true);
+    process.env.CLAUDE_CODE_WORKER_URL = 'http://claude-worker:8787';
+    const session = {
+      id: 7,
+      session_uuid: '8b8a90d2-9413-4c75-8cd5-a817af66c76f',
+      title: 'First question',
+      cwd: 'repo',
+      messages: JSON.stringify([
+        { role: 'user', content: 'First question' },
+        { role: 'assistant', content: 'First answer' },
+      ]),
+      status: 'idle',
+    };
+    vi.mocked(db.prepare).mockImplementation(((sql: string) => ({
+      get: vi.fn(() => sql.includes('SELECT * FROM claude_assistant_sessions') ? session : undefined),
+      all: vi.fn(() => []),
+      run: vi.fn(() => ({ changes: 1, lastInsertRowid: 0 })),
+    })) as never);
+    mockFetch.mockResolvedValue(new Response('Second answer', {
+      status: 200,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    }));
+
+    const { POST } = await import('@/app/api/claude-code/route');
+    const res = await POST(makePostReq({ chat_id: 7, message: 'Second question', cwd: 'repo' }));
+    expect(res.status).toBe(200);
+    await expect(res.text()).resolves.toBe('Second answer');
+
+    const workerBody = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(workerBody).toEqual({
+      prompt: 'Second question',
+      cwd: 'repo',
+      session_id: session.session_uuid,
+      resume: true,
+      turn_index: 2,
+    });
+    expect(res.headers.get('X-Claude-Chat-ID')).toBe('7');
+    const updateMessagesCall = vi.mocked(db.prepare).mock.calls.find(([sql]) =>
+      String(sql).includes('SET messages = ?'),
+    );
+    expect(updateMessagesCall).toBeTruthy();
+  });
+
+  it('rejects changing the workspace after a conversation has started', async () => {
+    mockSession(true);
+    process.env.CLAUDE_CODE_WORKER_URL = 'http://claude-worker:8787';
+    vi.mocked(db.prepare).mockImplementation(((sql: string) => ({
+      get: vi.fn(() => sql.includes('SELECT * FROM claude_assistant_sessions') ? {
+        id: 7,
+        session_uuid: '8b8a90d2-9413-4c75-8cd5-a817af66c76f',
+        cwd: 'repo',
+        messages: '[]',
+        status: 'idle',
+      } : undefined),
+      all: vi.fn(() => []),
+      run: vi.fn(() => ({ changes: 1, lastInsertRowid: 0 })),
+    })) as never);
+
+    const { POST } = await import('@/app/api/claude-code/route');
+    const res = await POST(makePostReq({ chat_id: 7, message: 'Continue', cwd: 'other' }));
+
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toMatchObject({ code: 'CLAUDE_CWD_LOCKED' });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('keeps previous messages when a follow-up worker call fails', async () => {
+    mockSession(true);
+    process.env.CLAUDE_CODE_WORKER_URL = 'http://claude-worker:8787';
+    const previousMessages = JSON.stringify([
+      { role: 'user', content: 'First question' },
+      { role: 'assistant', content: 'First answer' },
+    ]);
+    vi.mocked(db.prepare).mockImplementation(((sql: string) => ({
+      get: vi.fn(() => sql.includes('SELECT * FROM claude_assistant_sessions') ? {
+        id: 7,
+        session_uuid: '8b8a90d2-9413-4c75-8cd5-a817af66c76f',
+        cwd: 'repo',
+        messages: previousMessages,
+        status: 'idle',
+      } : undefined),
+      all: vi.fn(() => []),
+      run: vi.fn(() => ({ changes: 1, lastInsertRowid: 0 })),
+    })) as never);
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({ code: 'CLAUDE_TIMEOUT' }), {
+      status: 504,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    const { POST } = await import('@/app/api/claude-code/route');
+    const res = await POST(makePostReq({ chat_id: 7, message: 'Second question' }));
+
+    expect(res.status).toBe(504);
+    await expect(res.json()).resolves.toMatchObject({ code: 'CLAUDE_TIMEOUT' });
+    expect(vi.mocked(db.prepare).mock.calls.some(([sql]) => String(sql).includes('SET messages = ?'))).toBe(false);
   });
 });

@@ -4,6 +4,10 @@ import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
 import { validatePublicHttpUrl } from '@/.codex/skills/subscription/scripts/safe-fetch';
+import {
+  isSubscriptionFetchCategory,
+  isSubscriptionTopic,
+} from '@/lib/subscription-topics';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions);
@@ -30,9 +34,22 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { name, url, category, enabled, fetch_interval } = body;
+  const {
+    name,
+    url,
+    category = (existing as { category?: unknown }).category || 'other',
+    topic = (existing as { topic?: unknown }).topic || 'ai',
+    enabled,
+    fetch_interval,
+  } = body;
   if (typeof name !== 'string' || !name.trim() || typeof url !== 'string' || !url.trim()) {
     return Response.json({ error: 'Missing required fields: name, url' }, { status: 400 });
+  }
+  if (!isSubscriptionFetchCategory(category)) {
+    return Response.json({ error: 'Unsupported source type' }, { status: 400 });
+  }
+  if (!isSubscriptionTopic(topic)) {
+    return Response.json({ error: 'Unsupported subscription topic' }, { status: 400 });
   }
 
   let normalizedUrl: string;
@@ -43,8 +60,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   db.prepare(
-    "UPDATE subscription_sources SET name=?, url=?, category=?, enabled=?, fetch_interval=?, updated_at=datetime('now') WHERE id=?"
-  ).run(name.trim(), normalizedUrl, category || 'other', enabled !== undefined ? (enabled ? 1 : 0) : 1, fetch_interval || 3600, id);
+    "UPDATE subscription_sources SET name=?, url=?, category=?, topic=?, enabled=?, fetch_interval=?, updated_at=datetime('now') WHERE id=?"
+  ).run(
+    name.trim(),
+    normalizedUrl,
+    category,
+    topic,
+    enabled !== undefined ? (enabled ? 1 : 0) : 1,
+    fetch_interval || 86400,
+    id,
+  );
 
   return Response.json({ ok: true });
 }

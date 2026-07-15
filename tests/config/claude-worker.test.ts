@@ -5,10 +5,11 @@ import { describe, expect, it } from 'vitest';
 describe('Claude Code worker configuration', () => {
   it('defaults to text output and a personal assistant system prompt', () => {
     const worker = fs.readFileSync(path.join(process.cwd(), 'scripts/claude-worker.mjs'), 'utf8');
+    const workerArgs = fs.readFileSync(path.join(process.cwd(), 'scripts/claude-worker-args.mjs'), 'utf8');
 
-    expect(worker).toContain('--output-format');
-    expect(worker).toContain('text');
-    expect(worker).toContain('--append-system-prompt');
+    expect(workerArgs).toContain('--output-format');
+    expect(workerArgs).toContain('text');
+    expect(workerArgs).toContain('--append-system-prompt');
     expect(worker).toContain('DEFAULT_PERSONAL_ASSISTANT_PROMPT');
   });
 

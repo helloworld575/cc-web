@@ -27,11 +27,11 @@ export async function GET(req: Request) {
   let briefs;
   if (sourceId) {
     briefs = db.prepare(
-      'SELECT b.*, s.name as source_name, s.category FROM subscription_briefs b JOIN subscription_sources s ON b.source_id = s.id WHERE b.source_id = ? ORDER BY b.fetched_at DESC LIMIT ?'
+      'SELECT b.*, s.name as source_name, s.category, s.topic FROM subscription_briefs b JOIN subscription_sources s ON b.source_id = s.id WHERE b.source_id = ? ORDER BY b.fetched_at DESC LIMIT ?'
     ).all(sourceId, limit);
   } else {
     briefs = db.prepare(
-      'SELECT b.*, s.name as source_name, s.category FROM subscription_briefs b JOIN subscription_sources s ON b.source_id = s.id ORDER BY b.fetched_at DESC LIMIT ?'
+      'SELECT b.*, s.name as source_name, s.category, s.topic FROM subscription_briefs b JOIN subscription_sources s ON b.source_id = s.id ORDER BY b.fetched_at DESC LIMIT ?'
     ).all(limit);
   }
 

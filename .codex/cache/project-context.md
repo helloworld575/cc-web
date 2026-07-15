@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-07-12T02:03:09.129Z
+Generated: 2026-07-15T17:41:30.987Z
 
 ## Snapshot
 
@@ -71,7 +71,7 @@ Generated: 2026-07-12T02:03:09.129Z
 - `/` -> `app/page.tsx`: Public homepage.
 - `/tools` -> `app/tools/page.tsx`: Main tool hub.
 
-## API Routes (38)
+## API Routes (40)
 
 - `/api/admin/blog-analytics` -> `app/api/admin/blog-analytics/route.ts`: API route in the application backend.
 - `/api/ai-chat/[id]` -> `app/api/ai-chat/[id]/route.ts`: Read, update, or delete stored AI chat sessions.
@@ -90,6 +90,7 @@ Generated: 2026-07-12T02:03:09.129Z
 - `/api/blog/[slug]` -> `app/api/blog/[slug]/route.ts`: Read, update, or delete a single blog post.
 - `/api/blog/[slug]/view` -> `app/api/blog/[slug]/view/route.ts`: API route in the application backend.
 - `/api/blog` -> `app/api/blog/route.ts`: List or create blog content.
+- `/api/claude-code/[id]` -> `app/api/claude-code/[id]/route.ts`: API route in the application backend.
 - `/api/claude-code` -> `app/api/claude-code/route.ts`: API route in the application backend.
 - `/api/diary/[id]` -> `app/api/diary/[id]/route.ts`: Single diary entry operations.
 - `/api/diary` -> `app/api/diary/route.ts`: Diary entry CRUD.
@@ -103,6 +104,7 @@ Generated: 2026-07-12T02:03:09.129Z
 - `/api/subscriptions/[id]` -> `app/api/subscriptions/[id]/route.ts`: Single subscription source operations.
 - `/api/subscriptions/briefs` -> `app/api/subscriptions/briefs/route.ts`: List stored subscription briefs.
 - `/api/subscriptions/crawl` -> `app/api/subscriptions/crawl/route.ts`: Fetch remote subscription content into raw stored items without AI.
+- `/api/subscriptions/daily` -> `app/api/subscriptions/daily/route.ts`: API route in the application backend.
 - `/api/subscriptions/fetch` -> `app/api/subscriptions/fetch/route.ts`: Compatibility alias for subscription integration.
 - `/api/subscriptions/integrate` -> `app/api/subscriptions/integrate/route.ts`: Generate subscription briefs from stored crawl items.
 - `/api/subscriptions` -> `app/api/subscriptions/route.ts`: Manage subscription sources.
@@ -115,9 +117,9 @@ Generated: 2026-07-12T02:03:09.129Z
 ## Database
 
 - File: `data/site.db`
-- Tables: `todos`, `files`, `albums`, `diary`, `fortune_history`, `ai_providers`, `ai_chat_history`, `subscription_sources`, `subscription_briefs`, `subscription_items`, `blog_comments`, `blog_view_events`
+- Tables: `todos`, `files`, `albums`, `diary`, `fortune_history`, `ai_providers`, `ai_chat_history`, `subscription_sources`, `subscription_briefs`, `app_migrations`, `claude_assistant_sessions`, `subscription_items`, `subscription_daily_runs`, `blog_comments`, `blog_view_events`
 - PRAGMA settings: `journal_mode = WAL`, `busy_timeout = 5000`, `synchronous = NORMAL`, `cache_size = -8000`, `temp_store = MEMORY`, `mmap_size = 67108864`, `page_size = 4096`
-- Simple migrations: `todos.deadline`, `files.album_id`
+- Simple migrations: `todos.deadline`, `files.album_id`, `subscription_sources.topic`
 - Prepared statements: `countFiles`, `listFiles`, `insertFile`, `listFortune`, `insertFortune`, `getFortune`, `deleteFortune`, `listProviders`, `getProvider`, `insertProvider`, `updateProvider`, `deleteProvider`, `clearDefaultProvider`, `listChats`, `listChatsByProvider`, `getChat`, `insertChat`, `updateChat`, `deleteChat`
 
 ## AI Skills (53)
@@ -183,7 +185,7 @@ Generated: 2026-07-12T02:03:09.129Z
 
 ## Tests
 
-- API and helper test files: 48
+- API and helper test files: 59
 - Examples: `tests/api/admin/blog-analytics.test.ts`, `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai-providers/test.test.ts`, `tests/api/ai/route.test.ts`
 
 ## Notes

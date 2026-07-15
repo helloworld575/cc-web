@@ -117,6 +117,24 @@ describe('POST /api/subscriptions', () => {
     expect(data.id).toBe(42);
   });
 
+  it('rejects an unsupported subscription topic', async () => {
+    mockSession(true);
+    const insertStmt = mockDbStmt();
+    const { POST } = await import('@/app/api/subscriptions/route');
+    const response = await POST(new Request('http://localhost', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'Invalid Topic',
+        url: 'https://example.com/feed.xml',
+        category: 'rss',
+        topic: 'finance',
+      }),
+    }));
+
+    expect(response.status).toBe(400);
+    expect(insertStmt.run).not.toHaveBeenCalled();
+  });
+
   it('returns 400 on bad JSON', async () => {
     mockSession(true);
     const { POST } = await import('@/app/api/subscriptions/route');

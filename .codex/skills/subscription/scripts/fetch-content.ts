@@ -25,7 +25,66 @@ import { fetchPublicHttp } from './safe-fetch';
 export interface FetchedContent {
   title: string;
   content: string;
-  items?: { title: string; text: string; date?: string; url?: string }[];
+  items?: FetchedItem[];
+}
+
+export interface FetchedItem {
+  external_id: string;
+  title: string;
+  text: string;
+  date?: string;
+  url: string;
+}
+
+function decodeXml(value: string) {
+  return value
+    .replace(/^<!\[CDATA\[|\]\]>$/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .trim();
+}
+
+function plainText(value: string, maxChars = 1200) {
+  return decodeXml(value)
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxChars);
+}
+
+function tagValue(xml: string, names: string[]) {
+  for (const name of names) {
+    const match = xml.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${name}>`, 'i'));
+    if (match?.[1]) return decodeXml(match[1]);
+  }
+  return '';
+}
+
+function normalizeFeedDate(value: string) {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+}
+
+function resolveFeedUrl(value: string, sourceUrl: string) {
+  if (!value) return sourceUrl;
+  try {
+    const resolved = new URL(decodeXml(value), sourceUrl);
+    return resolved.protocol === 'http:' || resolved.protocol === 'https:'
+      ? resolved.href
+      : sourceUrl;
+  } catch {
+    return sourceUrl;
+  }
+}
+
+function looksLikeFeed(value: string) {
+  return /<(?:rss|feed|rdf:RDF|channel)(?:\s|>)/i.test(value);
 }
 
 function logFetchFailure(fetcher: string, target: string, caught: unknown) {
@@ -192,13 +251,26 @@ async function fetchBlog(url: string): Promise<FetchedContent | null> {
   const baseUrl = url.replace(/\/$/, '');
   const feedPaths = ['/feed', '/rss', '/atom.xml', '/feed.xml', '/rss.xml', '/index.xml'];
 
+  let initialHtml = '';
+  try {
+    const direct = await fetchPublicHttp(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (direct.ok) {
+      const text = await direct.text();
+      if (looksLikeFeed(text)) return parseSubscriptionFeed(text, url);
+      initialHtml = text;
+    }
+  } catch { /* continue with discovery */ }
+
   for (const path of feedPaths) {
     try {
       const res = await fetchPublicHttp(baseUrl + path, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
       if (res.ok) {
         const text = await res.text();
         if (text.includes('<rss') || text.includes('<feed') || text.includes('<channel>')) {
-          return parseRSSFeed(text, url);
+          return parseSubscriptionFeed(text, url);
         }
       }
     } catch { /* try next */ }
@@ -206,9 +278,11 @@ async function fetchBlog(url: string): Promise<FetchedContent | null> {
 
   // Check HTML <link> for feed URL
   try {
-    const res = await fetchPublicHttp(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
-    if (res.ok) {
-      const html = await res.text();
+    const html = initialHtml || await (async () => {
+      const res = await fetchPublicHttp(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15000) });
+      return res.ok ? res.text() : '';
+    })();
+    if (html) {
       const feedLink = html.match(/<link[^>]*type="application\/(rss|atom)\+xml"[^>]*href="([^"]+)"/)?.[2];
       if (feedLink) {
         const feedUrl = feedLink.startsWith('http') ? feedLink : new URL(feedLink, url).href;
@@ -217,7 +291,7 @@ async function fetchBlog(url: string): Promise<FetchedContent | null> {
           if (feedRes.ok) {
             const feedText = await feedRes.text();
             if (feedText.includes('<rss') || feedText.includes('<feed') || feedText.includes('<channel>')) {
-              return parseRSSFeed(feedText, url);
+              return parseSubscriptionFeed(feedText, feedUrl);
             }
           }
         } catch { /* fall through */ }
@@ -229,28 +303,40 @@ async function fetchBlog(url: string): Promise<FetchedContent | null> {
   return fetchGeneric(url);
 }
 
-function parseRSSFeed(xml: string, sourceUrl: string): FetchedContent {
-  const items: string[] = [];
+export function parseSubscriptionFeed(xml: string, sourceUrl: string): FetchedContent {
+  const items: FetchedItem[] = [];
   const entryRegex = /<(?:item|entry)>([\s\S]*?)<\/(?:item|entry)>/gi;
   let match;
   let count = 0;
   while ((match = entryRegex.exec(xml)) !== null && count < 15) {
     const entry = match[1];
-    const title = entry.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)?.[1]?.trim() || '';
-    const pubDate = entry.match(/<(?:pubDate|updated|published)>([^<]+)<\/(?:pubDate|updated|published)>/)?.[1] || '';
-    const desc = (entry.match(/<(?:description|summary|content)[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/(?:description|summary|content)>/)?.[1] || '')
-      .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
-    const link = entry.match(/<link[^>]*href="([^"]+)"/)?.[1] || entry.match(/<link>([^<]+)<\/link>/)?.[1] || '';
+    const title = plainText(tagValue(entry, ['title']), 300);
+    const pubDate = tagValue(entry, ['pubDate', 'updated', 'published', 'dc:date']);
+    const desc = plainText(tagValue(entry, ['description', 'summary', 'content', 'content:encoded']));
+    const link = entry.match(/<link\b[^>]*\brel=["']alternate["'][^>]*\bhref=["']([^"']+)["']/i)?.[1]
+      || entry.match(/<link\b[^>]*\bhref=["']([^"']+)["']/i)?.[1]
+      || tagValue(entry, ['link']);
+    const resolvedUrl = resolveFeedUrl(link, sourceUrl);
+    const externalId = tagValue(entry, ['guid', 'id']) || resolvedUrl;
 
     if (title) {
-      const dateStr = pubDate ? ` (${pubDate.slice(0, 10)})` : '';
-      items.push(`[${title}]${dateStr}\n${desc}${link ? '\n' + link : ''}`);
+      items.push({
+        external_id: externalId,
+        title,
+        text: desc,
+        date: normalizeFeedDate(pubDate),
+        url: resolvedUrl,
+      });
       count++;
     }
   }
 
-  const feedTitle = xml.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)?.[1]?.trim() || sourceUrl;
-  return { title: feedTitle, content: `Latest posts from ${feedTitle}:\n\n${items.join('\n\n')}` };
+  const feedTitle = plainText(tagValue(xml, ['title']), 300) || sourceUrl;
+  const content = items.map(item => {
+    const dateText = item.date ? ` (${item.date.slice(0, 10)})` : '';
+    return `[${item.title}]${dateText}\n${item.text}${item.url ? `\n${item.url}` : ''}`;
+  }).join('\n\n');
+  return { title: feedTitle, content: `Latest posts from ${feedTitle}:\n\n${content}`, items };
 }
 
 // ─── Reddit ─────────────────────────────────────────────────────────────────
