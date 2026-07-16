@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { migrateSubscriptionItemObservationColumns } from '@/lib/db-migrations';
+import {
+  migrateSubscriptionItemObservationColumns,
+  migrateSubscriptionSourceHealthColumns,
+} from '@/lib/db-migrations';
 
 describe('subscription database migrations', () => {
   it('adds and backfills last_seen_at on a real legacy SQLite table', async () => {
@@ -28,6 +31,35 @@ describe('subscription database migrations', () => {
     const row = legacyDb.prepare('SELECT last_seen_at FROM subscription_items WHERE id = 1').get() as { last_seen_at: string };
     expect(columns.map(column => column.name)).toContain('last_seen_at');
     expect(row.last_seen_at).toBe('2026-07-15 01:02:03');
+    legacyDb.close();
+  });
+
+  it('adds subscription source health columns to a real legacy SQLite table', async () => {
+    const actual = await vi.importActual<typeof import('better-sqlite3')>('better-sqlite3');
+    const legacyDb = new actual.default(':memory:');
+    legacyDb.exec(`
+      CREATE TABLE subscription_sources (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        url TEXT NOT NULL,
+        category TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1
+      );
+      INSERT INTO subscription_sources (name, url, category)
+      VALUES ('Legacy', 'https://example.com/feed.xml', 'rss');
+    `);
+
+    migrateSubscriptionSourceHealthColumns(legacyDb);
+
+    const columns = legacyDb.prepare("PRAGMA table_info('subscription_sources')").all() as Array<{ name: string }>;
+    const row = legacyDb.prepare(`
+      SELECT failure_count, last_error_code, last_failed_at
+      FROM subscription_sources WHERE id = 1
+    `).get();
+    expect(columns.map(column => column.name)).toEqual(expect.arrayContaining([
+      'failure_count', 'last_error_code', 'last_failed_at',
+    ]));
+    expect(row).toEqual({ failure_count: 0, last_error_code: null, last_failed_at: null });
     legacyDb.close();
   });
 });

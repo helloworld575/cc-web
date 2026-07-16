@@ -1,6 +1,13 @@
 import Database from 'better-sqlite3';
 import { getRuntimePaths } from '@/lib/runtime-paths';
-import { migrateSubscriptionItemObservationColumns } from '@/lib/db-migrations';
+import {
+  migrateSubscriptionItemObservationColumns,
+  migrateSubscriptionSourceHealthColumns,
+} from '@/lib/db-migrations';
+import {
+  disableKnownUnreliableSourcesOnce,
+  seedChineseSecuritySources,
+} from '@/lib/subscription-source-seeds';
 
 const isBuildDatabase = process.env.BUILDING_DOCKER_IMAGE === '1'
   || process.env.NEXT_PHASE === 'phase-production-build';
@@ -93,6 +100,9 @@ db.exec(`
     enabled INTEGER NOT NULL DEFAULT 1,
     fetch_interval INTEGER NOT NULL DEFAULT 3600,
     last_fetched_at TEXT,
+    failure_count INTEGER NOT NULL DEFAULT 0,
+    last_error_code TEXT,
+    last_failed_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -193,21 +203,7 @@ try {
 }
 
 migrateSubscriptionItemObservationColumns(db);
-
-// X feeds have been unreliable in production. Disable the currently configured X feeds
-// once, while preserving later administrator choices, and add stable RSS/Atom alternatives.
-const xSourceMigration = '20260716-disable-unreliable-x-subscriptions';
-const xSourceMigrationApplied = db
-  .prepare('SELECT name FROM app_migrations WHERE name = ?')
-  .get(xSourceMigration);
-if (!xSourceMigrationApplied) {
-  db.prepare(`
-    UPDATE subscription_sources
-    SET enabled = 0, updated_at = datetime('now')
-    WHERE category = 'x' AND enabled = 1
-  `).run();
-  db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(xSourceMigration);
-}
+migrateSubscriptionSourceHealthColumns(db);
 
 const subscriptionTopicMigration = '20260716-classify-security-subscriptions';
 const subscriptionTopicMigrationApplied = db
@@ -238,21 +234,18 @@ db.exec(`
   WHERE NOT EXISTS (SELECT 1 FROM subscription_sources WHERE url = 'https://export.arxiv.org/rss/cs.AI');
 
   INSERT INTO subscription_sources (name, url, category, topic, enabled, fetch_interval)
-  SELECT 'Google Security Blog', 'https://security.googleblog.com/feeds/posts/default', 'rss', 'security', 1, 86400
-  WHERE NOT EXISTS (SELECT 1 FROM subscription_sources WHERE url = 'https://security.googleblog.com/feeds/posts/default');
-
-  INSERT INTO subscription_sources (name, url, category, topic, enabled, fetch_interval)
   SELECT 'Microsoft Security Blog', 'https://www.microsoft.com/en-us/security/blog/feed/', 'rss', 'security', 1, 86400
   WHERE NOT EXISTS (SELECT 1 FROM subscription_sources WHERE url = 'https://www.microsoft.com/en-us/security/blog/feed/');
-
-  INSERT INTO subscription_sources (name, url, category, topic, enabled, fetch_interval)
-  SELECT 'GitHub Security', 'https://github.blog/security/feed/', 'rss', 'security', 1, 86400
-  WHERE NOT EXISTS (SELECT 1 FROM subscription_sources WHERE url = 'https://github.blog/security/feed/');
 
   INSERT INTO subscription_sources (name, url, category, topic, enabled, fetch_interval)
   SELECT 'CISA Cybersecurity Advisories', 'https://www.cisa.gov/cybersecurity-advisories/all.xml', 'rss', 'security', 1, 86400
   WHERE NOT EXISTS (SELECT 1 FROM subscription_sources WHERE url = 'https://www.cisa.gov/cybersecurity-advisories/all.xml');
 `);
+
+// Seed Chinese security sources once and disable only the exact production URLs
+// known to be failing. Both migrations preserve later administrator edits.
+seedChineseSecuritySources(db);
+disableKnownUnreliableSourcesOnce(db);
 
 // Migrate: keep chat history when providers are edited/deleted and allow env-backed providers.
 try {

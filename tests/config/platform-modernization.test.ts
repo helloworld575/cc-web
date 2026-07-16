@@ -50,6 +50,15 @@ describe('platform modernization', () => {
     expect(config).not.toContain('serverComponentsExternalPackages');
   });
 
+  it('marks private surfaces as noindex while keeping public pages discoverable', () => {
+    const config = read('next.config.mjs');
+
+    expect(config).toContain("key: 'X-Robots-Tag'");
+    for (const pathPrefix of ['/admin/:path*', '/api/:path*', '/tools/:path*', '/login']) {
+      expect(config).toContain(`source: '${pathPrefix}'`);
+    }
+  });
+
   it('keeps setup aligned with the SQLite and Node.js runtime', () => {
     const setup = read('setup.sh');
 

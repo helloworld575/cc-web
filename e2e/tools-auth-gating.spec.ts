@@ -147,3 +147,32 @@ test('admin subscription sources expose AI and security as topics, not fetch typ
   await expect(page.getByTestId('subscription-source-topic-select')).toHaveValue('security');
   await expect(page.getByTestId('subscription-source-topic-select').locator('option[value="security"]')).toHaveText('Security');
 });
+
+test('admin subscription sources show disabled failure health', async ({ page }) => {
+  await page.route('**/api/subscriptions', async route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([{
+        id: 99,
+        name: 'Failing security feed',
+        url: 'https://security.example/feed.xml',
+        category: 'rss',
+        topic: 'security',
+        enabled: 0,
+        fetch_interval: 86400,
+        failure_count: 3,
+        last_error_code: 'CONNECT_TIMEOUT',
+        last_failed_at: '2026-07-16 01:02:03',
+      }]),
+    });
+  });
+  await login(page);
+  await page.goto('/admin/subscriptions');
+
+  const card = page.getByTestId('subscription-source-card').filter({ hasText: 'Failing security feed' });
+  await expect(card).toContainText('Disabled');
+  await expect(card.getByTestId('subscription-source-failure')).toContainText('3');
+  await expect(card.getByTestId('subscription-source-failure')).toContainText('CONNECT_TIMEOUT');
+});

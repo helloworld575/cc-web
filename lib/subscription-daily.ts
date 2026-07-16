@@ -43,6 +43,10 @@ function markdownSafeUrl(value: string) {
   ));
 }
 
+function commonMarkUrl(value: string) {
+  return `<${markdownSafeUrl(value)}>`;
+}
+
 function cleanExcerpt(value: string, maxChars = 600) {
   return value
     .replace(/<[^>]+>/g, ' ')
@@ -53,6 +57,44 @@ function cleanExcerpt(value: string, maxChars = 600) {
 
 function escapeMarkdownText(value: string) {
   return value.replace(/([\\`*{}[\]()#+.!_>~-])/g, '\\$1');
+}
+
+function escapeSecurityFact(value: string) {
+  return value.replace(/([\\`*{}[\]()#+!_>~])/g, '\\$1');
+}
+
+const UNKNOWN_SECURITY_FACT = '原文摘要未明确披露';
+
+function extractLabeledSecurityValue(text: string, labels: string[]) {
+  const labelPattern = labels
+    .map(label => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|');
+  const match = text.match(new RegExp(`(?:${labelPattern})\\s*[:：]\\s*([^。；;\\n]+)`, 'i'));
+  return match?.[1]?.replace(/\s+/g, ' ').trim() || UNKNOWN_SECURITY_FACT;
+}
+
+export function extractSecurityFacts(title: string, excerpt: string) {
+  const text = cleanExcerpt(`${title}\n${excerpt}`, 2000);
+  const vulnerabilityId = text.match(/\b(?:CVE-\d{4}-\d{4,7}|CNVD-\d{4}-\d{3,}|CNNVD-\d{6}-\d{3,})\b/i)?.[0]
+    ?.toUpperCase() || UNKNOWN_SECURITY_FACT;
+  const vulnerabilityType = text.match(
+    /(远程代码执行|任意代码执行|权限提升|信息泄露|拒绝服务|身份验证绕过|认证绕过|SQL\s*注入|命令注入|路径遍历|目录遍历|跨站脚本|XSS|SSRF|CSRF|缓冲区溢出|越界读取|越界写入|任意文件读取|任意文件写入)/i,
+  )?.[1]?.replace(/\s+/g, '') || UNKNOWN_SECURITY_FACT;
+
+  return {
+    vulnerabilityId,
+    vulnerabilityType,
+    affectedSoftware: extractLabeledSecurityValue(text, [
+      '涉及的软件或服务', '涉及软件或服务', '受影响的软件或服务', '受影响软件或服务',
+      '受影响产品', '影响产品',
+    ]),
+    affectedVersions: extractLabeledSecurityValue(text, [
+      '受影响版本', '影响版本', '受影响范围',
+    ]),
+    mitigation: extractLabeledSecurityValue(text, [
+      '修复或缓解措施', '修复措施', '缓解措施', '处置建议', '修复建议',
+    ]),
+  };
 }
 
 function formatReferenceDate(value?: string | null) {
@@ -119,18 +161,28 @@ export function renderDailySubscriptionPost({
     entries.forEach((entry, index) => {
       const rawArticleUrl = safeHttpUrl(entry.url, safeHttpUrl(entry.source_url));
       const rawSourceUrl = safeHttpUrl(entry.source_url, rawArticleUrl);
-      const articleUrl = markdownSafeUrl(rawArticleUrl);
-      const sourceUrl = markdownSafeUrl(rawSourceUrl);
+      const articleUrl = commonMarkUrl(rawArticleUrl);
+      const sourceUrl = commonMarkUrl(rawSourceUrl);
       const title = escapeMarkdownLabel(entry.title || entry.source_name);
       const sourceName = escapeMarkdownLabel(entry.source_name);
       const date = formatReferenceDate(entry.published_at);
       const summary = escapeMarkdownText(summaryByEntry.get(entry.id) || cleanExcerpt(entry.excerpt));
+      const securityFacts = topic === 'security'
+        ? extractSecurityFacts(entry.title, entry.excerpt)
+        : null;
 
       lines.push(
         `### ${index + 1}. [${title}](${articleUrl})`,
         '',
         `- 来源：[${sourceName}](${sourceUrl})`,
         ...(date ? [`- 发布时间：${date}`] : []),
+        ...(securityFacts ? [
+          `- 漏洞编号：${escapeSecurityFact(securityFacts.vulnerabilityId)}`,
+          `- 漏洞类型：${escapeSecurityFact(securityFacts.vulnerabilityType)}`,
+          `- 涉及的软件或服务：${escapeSecurityFact(securityFacts.affectedSoftware)}`,
+          `- 受影响版本：${escapeSecurityFact(securityFacts.affectedVersions)}`,
+          `- 修复或缓解措施：${escapeSecurityFact(securityFacts.mitigation)}`,
+        ] : []),
         `- 内容摘要：${summary || '来源未提供可提取的摘要，请打开原文核对。'}`,
         '',
       );
@@ -144,8 +196,8 @@ export function renderDailySubscriptionPost({
     entries.forEach((entry, index) => {
       const rawArticleUrl = safeHttpUrl(entry.url, safeHttpUrl(entry.source_url));
       const rawSourceUrl = safeHttpUrl(entry.source_url, rawArticleUrl);
-      const articleUrl = markdownSafeUrl(rawArticleUrl);
-      const sourceUrl = markdownSafeUrl(rawSourceUrl);
+      const articleUrl = commonMarkUrl(rawArticleUrl);
+      const sourceUrl = commonMarkUrl(rawSourceUrl);
       lines.push(
         `${index + 1}. [${escapeMarkdownLabel(entry.title)}](${articleUrl}) — [${escapeMarkdownLabel(entry.source_name)}](${sourceUrl})`,
       );

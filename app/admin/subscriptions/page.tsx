@@ -15,9 +15,15 @@ interface Source {
   enabled: number;
   fetch_interval: number;
   last_fetched_at?: string;
+  failure_count: number;
+  last_error_code?: string | null;
+  last_failed_at?: string | null;
 }
 
-const EMPTY: Source = { name: '', url: '', category: 'rss', topic: 'ai', enabled: 1, fetch_interval: 86400 };
+const EMPTY: Source = {
+  name: '', url: '', category: 'rss', topic: 'ai', enabled: 1, fetch_interval: 86400,
+  failure_count: 0, last_error_code: null, last_failed_at: null,
+};
 
 export default function AdminSubscriptionsPage() {
   const { locale, t } = useLocale();
@@ -148,6 +154,13 @@ export default function AdminSubscriptionsPage() {
               <p className="text-xs text-gray-400 font-mono truncate mt-0.5">{s.url}</p>
               {s.last_fetched_at && (
                 <p className="text-xs text-gray-300 mt-0.5">{t('adminSubscriptionsLast')}: {new Date(s.last_fetched_at).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US')}</p>
+              )}
+              {s.failure_count > 0 && (
+                <p data-testid="subscription-source-failure" className="text-xs text-amber-700 mt-0.5">
+                  {t('adminSubscriptionsFailures')}: {s.failure_count}
+                  {s.last_error_code ? ` · ${s.last_error_code}` : ''}
+                  {s.last_failed_at ? ` · ${new Date(s.last_failed_at).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US')}` : ''}
+                </p>
               )}
             </div>
           ))}

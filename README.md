@@ -109,6 +109,10 @@ AI upstream failures are normalized to bounded JSON error codes. Proxy HTML, pro
 
 Subscriptions now separate source topic (`ai` or `security`) from fetch type (`rss`, `github`, and so on). Stable public RSS/Atom alternatives are seeded because the existing X feeds were unreliable. `/api/subscriptions/crawl` stores each feed entry with its canonical link, source, first-seen time, and publication time; stable external IDs prevent edited entries from becoming duplicates. `/api/subscriptions/daily` waits for crawling to finish and then publishes one AI post and one security post for the Shanghai calendar day. The intro is the only editorial section; the body is rendered deterministically from verifiable source facts and clickable links, so provider failures or proxy HTML cannot enter a daily post. Daily run state makes retries idempotent. Manually generated AI briefs remain available through `/api/subscriptions/integrate`; the old `/api/subscriptions/fetch` route is its compatibility alias.
 
+WeChat sources require an administrator to provide a legitimate HTTPS RSS feed in Admin → Subscriptions, such as an RSSHub or WeChat2RSS feed that the administrator operates or has permission to use. The app does not claim official WeChat support and does not automatically scrape or bypass platform restrictions. Recommended accounts to verify before adding a feed include Tencent Security/Xuanwu, Alibaba Security Response, Changting, NSFOCUS, and Qi-Anxin.
+
+Public discovery is exposed through `/sitemap.xml`, `/robots.txt`, and `/feed.xml`. Blog detail pages publish canonical, Open Graph, Twitter, and `BlogPosting` JSON-LD metadata from the saved article fields. Admin, API, tools, and login surfaces are excluded from the sitemap and return `X-Robots-Tag: noindex, nofollow, noarchive`. The navigation theme control switches between light and dark surfaces, follows the system preference on first visit, and persists an explicit choice locally.
+
 ## Quality Gates
 
 Use these checks to keep code style and architecture consistent:

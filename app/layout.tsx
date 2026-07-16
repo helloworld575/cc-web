@@ -8,9 +8,12 @@ import SiteFooter from "@/components/SiteFooter";
 import DeadlineAlert from '@/components/DeadlineAlert';
 import HydrationReady from '@/components/HydrationReady';
 import LocaleProvider from '@/components/LocaleProvider';
+import ThemeProvider from '@/components/ThemeProvider';
 import { localeToHtmlLang, resolveLocale } from '@/lib/i18n';
+import { themeScript } from '@/lib/theme';
+import { SITE_URL } from '@/lib/site';
 
-const siteUrl = 'https://thomaslee.site';
+const siteUrl = SITE_URL;
 const currentYear = new Date().getFullYear();
 
 export const metadata: Metadata = {
@@ -24,12 +27,20 @@ export const metadata: Metadata = {
   authors: [{ name: 'ThomasLee', url: siteUrl }],
   creator: 'ThomasLee',
   publisher: 'ThomasLee',
-  alternates: { canonical: '/' },
+  alternates: {
+    canonical: '/',
+    types: { 'application/rss+xml': '/feed.xml' },
+  },
   keywords: ['ThomasLee', 'thomaslee', 'blog', 'AI tools', 'Next.js', 'SQLite'],
   openGraph: {
     type: 'website',
     url: siteUrl,
     siteName: "ThomasLee's Blog",
+    title: "ThomasLee's Blog",
+    description: "ThomasLee's personal blog for tech notes, tools, AI workflows, and long-form thoughts.",
+  },
+  twitter: {
+    card: 'summary',
     title: "ThomasLee's Blog",
     description: "ThomasLee's personal blog for tech notes, tools, AI workflows, and long-form thoughts.",
   },
@@ -49,19 +60,24 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = resolveLocale(cookieStore.get('locale')?.value);
 
   return (
-    <html lang={localeToHtmlLang(locale)}>
+    <html lang={localeToHtmlLang(locale)} suppressHydrationWarning>
+      <head>
+        <script id="theme-init" dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body inert className="min-h-screen flex flex-col antialiased">
-        <LocaleProvider initialLocale={locale}>
-          <SessionProvider>
-            <HydrationReady />
-            <Nav />
-            <DeadlineAlert />
-            <div className="flex-1">
-              {children}
-            </div>
-            <SiteFooter />
-          </SessionProvider>
-        </LocaleProvider>
+        <ThemeProvider>
+          <LocaleProvider initialLocale={locale}>
+            <SessionProvider>
+              <HydrationReady />
+              <Nav />
+              <DeadlineAlert />
+              <div className="flex-1">
+                {children}
+              </div>
+              <SiteFooter />
+            </SessionProvider>
+          </LocaleProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

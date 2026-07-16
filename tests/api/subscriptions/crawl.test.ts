@@ -74,7 +74,9 @@ describe('POST /api/subscriptions/crawl', () => {
       { id: 1, name: 'AI Source', url: 'https://example.com/ai', category: 'rss', enabled: 1 }
     ));
     const existingItem = vi.fn(() => undefined);
+    const preparedSql: string[] = [];
     (db.prepare as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
+      preparedSql.push(sql);
       if (sql.includes('SELECT * FROM subscription_sources WHERE id = ? AND enabled = 1')) {
         return { get: getSource };
       }
@@ -106,6 +108,49 @@ describe('POST /api/subscriptions/crawl', () => {
     expect(insertRun).toHaveBeenCalledTimes(1);
     expect(info.mock.calls.flat().join('\n')).toContain('subscription-crawl');
     expect(info.mock.calls.flat().join('\n')).toContain('request_completed');
+    expect(preparedSql.some(sql => sql.includes('SET failure_count = 0'))).toBe(true);
+  });
+
+  it('records a safe failure code and reports automatic disabling from source health', async () => {
+    mockSession(true);
+    vi.mocked(fetchByCategory).mockRejectedValueOnce(new Error('connect timeout <html>'));
+    const recordFailure = vi.fn(() => ({ failure_count: 3, enabled: 0 }));
+    (db.prepare as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
+      if (sql.includes('SELECT * FROM subscription_sources WHERE id = ? AND enabled = 1')) {
+        return {
+          get: vi.fn(() => ({
+            id: 4,
+            name: 'Failing Feed',
+            url: 'https://security.example/failing.xml',
+            category: 'rss',
+            topic: 'security',
+            enabled: 1,
+          })),
+        };
+      }
+      if (sql.includes('failure_count = failure_count + 1')) return { get: recordFailure };
+      return { get: vi.fn(), all: vi.fn(() => []), run: vi.fn() };
+    });
+
+    const { POST } = await import('@/app/api/subscriptions/crawl/route');
+    const response = await POST(new Request('http://localhost/api/subscriptions/crawl', {
+      method: 'POST',
+      body: JSON.stringify({ source_id: 4 }),
+    }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      total: 1,
+      results: [{
+        source_id: 4,
+        success: false,
+        code: 'CONNECT_TIMEOUT_HTML',
+        error: 'Failed to fetch content',
+        failure_count: 3,
+        disabled: true,
+      }],
+    });
+    expect(recordFailure).toHaveBeenCalledWith('CONNECT_TIMEOUT_HTML', 4);
   });
 
   it('persists each feed entry with its canonical link and publication time', async () => {

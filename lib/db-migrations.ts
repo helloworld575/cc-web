@@ -42,3 +42,23 @@ export function migrateSubscriptionItemObservationColumns(db: SqliteMigrationDat
       ON subscription_items(source_id, external_id);
   `);
 }
+
+export function migrateSubscriptionSourceHealthColumns(db: SqliteMigrationDatabase) {
+  try {
+    db.exec('ALTER TABLE subscription_sources ADD COLUMN failure_count INTEGER NOT NULL DEFAULT 0');
+  } catch {
+    // column already exists, ignore
+  }
+
+  try {
+    db.exec('ALTER TABLE subscription_sources ADD COLUMN last_error_code TEXT');
+  } catch {
+    // column already exists, ignore
+  }
+
+  try {
+    db.exec('ALTER TABLE subscription_sources ADD COLUMN last_failed_at TEXT');
+  } catch {
+    // column already exists, ignore
+  }
+}

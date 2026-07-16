@@ -4,11 +4,13 @@ import { startTransition, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLocale } from '@/components/useLocale';
+import { useTheme } from '@/components/ThemeProvider';
 
 export default function Nav() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { locale, setLocale, t } = useLocale();
+  const { theme, ready: themeReady, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -24,6 +26,7 @@ export default function Nav() {
       router.refresh();
     });
   };
+  const themeLabel = theme === 'dark' ? t('themeLightMode') : t('themeDarkMode');
 
   return (
     <nav className="relative z-50 border-b bg-white/85 px-4 py-3 backdrop-blur" suppressHydrationWarning>
@@ -65,8 +68,20 @@ export default function Nav() {
               </span>
             )}
           </div>
-          <button type="button" onClick={switchLocale} className="border rounded px-2 py-0.5 text-xs hover:bg-gray-100 transition-colors" suppressHydrationWarning>
+          <button type="button" data-testid="locale-toggle" onClick={switchLocale} className="border rounded px-2 py-0.5 text-xs hover:bg-gray-100 transition-colors" suppressHydrationWarning>
             {locale === 'en' ? '中文' : 'EN'}
+          </button>
+          <button
+            type="button"
+            data-testid="theme-toggle"
+            aria-label={themeLabel}
+            onClick={toggleTheme}
+            disabled={!themeReady}
+            className="hidden items-center gap-1 rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-700 transition hover:bg-slate-100 disabled:cursor-wait disabled:opacity-60 sm:inline-flex"
+            suppressHydrationWarning
+          >
+            <span aria-hidden>{theme === 'dark' ? '☀' : '☾'}</span>
+            <span>{themeLabel}</span>
           </button>
           {/* Hamburger */}
           <button type="button" onClick={() => setOpen(o => !o)} className="sm:hidden p-1 -mr-1" aria-label="Menu">
@@ -92,6 +107,16 @@ export default function Nav() {
           ) : (
             <Link href="/login" onClick={close} className="block rounded-lg px-2 py-2 hover:bg-slate-100">{t('login')}</Link>
           )}
+          <button
+            type="button"
+            data-testid="nav-mobile-theme-toggle"
+            onClick={toggleTheme}
+            disabled={!themeReady}
+            className="rounded-lg px-2 py-2 text-left text-slate-600 hover:bg-slate-100 disabled:cursor-wait disabled:opacity-60"
+            suppressHydrationWarning
+          >
+            {themeLabel}
+          </button>
         </div>
       )}
     </nav>

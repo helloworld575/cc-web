@@ -15,6 +15,11 @@ A guide to using the features of this personal site.
 
 ## Public Features
 
+### Theme
+
+- Use the desktop theme control or the mobile navigation drawer to switch between light and dark modes.
+- The first visit follows the operating system preference; an explicit choice is stored in `localStorage` and restored on reload.
+
 ### Blog
 
 - Browse all posts at `/blog`

@@ -2,6 +2,88 @@ import { expect, test } from './fixtures';
 import { writeFile } from 'node:fs/promises';
 import { login } from './helpers';
 
+test('theme follows system preference, toggles, and persists across reloads', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.addInitScript(() => window.localStorage.removeItem('theme'));
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  await page.getByTestId('theme-toggle').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('theme'))).toBe('light');
+
+  await page.getByTestId('theme-toggle').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('theme'))).toBe('dark');
+  await page.getByTestId('theme-toggle').hover();
+  const hoverBackground = await page.getByTestId('theme-toggle').evaluate(element => (
+    window.getComputedStyle(element).backgroundColor.match(/\d+/g)?.map(Number) ?? [255, 255, 255]
+  ));
+  expect(hoverBackground[0] + hoverBackground[1] + hoverBackground[2]).toBeLessThan(500);
+  const cardColors = await page.locator('article.bg-white').first().evaluate(element => {
+    const cardStyle = window.getComputedStyle(element);
+    const headingStyle = window.getComputedStyle(element.querySelector('h2')!);
+    return {
+      background: cardStyle.backgroundColor.match(/\d+/g)?.map(Number) ?? [255, 255, 255],
+      border: cardStyle.borderTopColor.match(/\d+/g)?.map(Number) ?? [255, 255, 255],
+      heading: headingStyle.color.match(/\d+/g)?.map(Number) ?? [0, 0, 0],
+    };
+  });
+  expect(cardColors.background[0] + cardColors.background[1] + cardColors.background[2]).toBeLessThan(300);
+  expect(cardColors.border[0] + cardColors.border[1] + cardColors.border[2]).toBeLessThan(350);
+  expect(cardColors.heading[0] + cardColors.heading[1] + cardColors.heading[2]).toBeGreaterThan(650);
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+});
+
+test('mobile navigation exposes bilingual theme controls and links', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => window.localStorage.removeItem('theme'));
+  await page.goto('/');
+
+  await page.getByLabel('Menu').click();
+  await expect(page.getByTestId('nav-mobile-theme-toggle')).toBeVisible();
+  await expect(page.getByTestId('nav-mobile-theme-toggle')).toContainText('Dark mode');
+  await expect(page.getByTestId('nav-mobile-tools')).toBeVisible();
+
+  await page.getByTestId('nav-mobile-theme-toggle').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.getByTestId('nav-mobile-theme-toggle')).toContainText('Light mode');
+
+  await page.getByTestId('locale-toggle').click();
+  await page.getByLabel('Menu').click();
+  await expect(page.getByTestId('nav-mobile-theme-toggle')).toContainText('浅色模式');
+});
+
+test('dark theme keeps public markdown and the TOAST UI editor readable', async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem('theme', 'dark'));
+  await page.goto('/blog/seeded-hello');
+
+  const publicContentColors = await page.getByTestId('blog-post-content').evaluate(element => {
+    const style = window.getComputedStyle(element);
+    return {
+      color: style.color.match(/\d+/g)?.map(Number) ?? [0, 0, 0],
+      bodyBackground: window.getComputedStyle(document.body).backgroundColor.match(/\d+/g)?.map(Number) ?? [255, 255, 255],
+    };
+  });
+  expect(publicContentColors.color[0] + publicContentColors.color[1] + publicContentColors.color[2]).toBeGreaterThan(450);
+  expect(publicContentColors.bodyBackground[0] + publicContentColors.bodyBackground[1] + publicContentColors.bodyBackground[2]).toBeLessThan(200);
+
+  await login(page);
+  await page.goto('/admin/blog/seeded-hello');
+  await expect(page.getByTestId('admin-blog-editor-preview')).toBeVisible();
+  const editorColors = await page.locator('.toastui-editor-defaultUI').evaluate(element => {
+    const rootStyle = window.getComputedStyle(element);
+    const toolbarStyle = window.getComputedStyle(element.querySelector('.toastui-editor-toolbar')!);
+    return {
+      rootBackground: rootStyle.backgroundColor.match(/\d+/g)?.map(Number) ?? [255, 255, 255],
+      toolbarBackground: toolbarStyle.backgroundColor.match(/\d+/g)?.map(Number) ?? [255, 255, 255],
+    };
+  });
+  expect(editorColors.rootBackground[0] + editorColors.rootBackground[1] + editorColors.rootBackground[2]).toBeLessThan(220);
+  expect(editorColors.toolbarBackground[0] + editorColors.toolbarBackground[1] + editorColors.toolbarBackground[2]).toBeLessThan(220);
+});
+
 test('language toggle updates immediately and persists across reloads', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');

@@ -1,95 +1,47 @@
-# Brief Output Format Reference
+# 订阅摘要输出格式
 
-This document defines the exact output format for subscription briefs. The AI must follow this structure to ensure consistent, parseable output across all source categories.
-
-## Template
+## 通用模板
 
 ```markdown
-### Latest from [source_name]
+### [订阅源名称] 订阅摘要
 
-**What's New** — [2-3 sentences. Lead with the single most important update. Be specific: names, numbers, dates. This is the hook — if the reader only reads this, they should get the gist.]
+**片头** — [1 至 2 句说明本期选材范围；只有这里允许出现编辑判断。]
 
-**Key Updates**
+**事实更新**
 
-1. **[Concise title]** — [One sentence: what happened + why it matters. Include date if available.]
-2. **[Concise title]** — [Same format.]
-3. **[Concise title]** — [Same format.]
-[3-6 items total, ranked by importance not chronology]
+1. **[标题]** — [可由原文核实的事实，包含日期、版本、数量等具体信息。]
+2. **[标题]** — [可由原文核实的事实。]
 
-**Worth Noting** — [One sentence connecting the dots. What trend or pattern emerges? This is the "so what" — the insight the reader wouldn't get from scanning headlines.]
+**参考信息**
+
+- [原文标题](<https://example.com/original>)
 ```
 
-## Examples
+所有摘要必须使用中文。参考信息必须明确，链接必须可点击。主观判断只能出现在片头，事实更新不得使用“值得关注”“意义重大”“趋势表明”等主观表达。
 
-### Good Example — X/Twitter Source
+## 安全订阅模板
+
+当 `Topic: security` 时，每条事实更新必须包含以下字段：
 
 ```markdown
-### Latest from 宝玉's X
-
-**What's New** — 宝玉近期密集分享AI编程工具对比和实战技巧。最重要的是一篇Claude Code vs Cursor的深度对比（获500+转发），结论是Claude Code在大型重构任务上显著领先。
-
-**Key Updates**
-
-1. **Claude Code vs Cursor深度对比** (4月12日) — 通过同一个React项目重构任务对比两款工具，Claude Code在理解项目上下文和跨文件修改上明显占优，但Cursor的UI交互更友好
-2. **Grok 3越狱提示词** (4月10日) — 公开了一段可绕过Grok 3内容限制的系统提示词，引发安全讨论
-3. **Karpathy LLM课程中文翻译** (4月8日) — 完成了Andrej Karpathy 1小时LLM入门课的双语字幕翻译，涵盖推理、训练、微调和安全
-
-**Worth Noting** — 宝玉的内容重心正从"AI新闻转发"转向"实操指南"，反映出中文AI社区从追热点到求落地的转变。
+1. **[安全更新标题]**
+   - 漏洞编号：[CVE/CNVD/CNNVD 编号，或“原文摘要未明确披露”]
+   - 漏洞类型：[漏洞类型，或“原文摘要未明确披露”]
+   - 涉及的软件或服务：[名称，或“原文摘要未明确披露”]
+   - 受影响版本：[版本范围，或“原文摘要未明确披露”]
+   - 修复或缓解措施：[原文措施，或“原文摘要未明确披露”]
+   - 事实摘要：[只陈述原文事实]
+   - 原文：[标题](<https://example.com/advisory>)
 ```
 
-### Good Example — GitHub Source
+没有披露的内容可以写“未发现”或“原文摘要未明确披露”。不得根据常识补全版本、漏洞类型或修复方案，不得把推测写成事实。
 
-```markdown
-### Latest from anthropics/claude-code
+## 分类规则
 
-**What's New** — 过去一周发布7个版本(v2.1.101–v2.1.110)，重点新增全屏TUI模式、手机推送通知、1小时prompt缓存。发布节奏异常密集，信号明确：团队在冲刺团队级+移动端场景。
+- `ai`：关注模型、产品、研究、开源项目和工程实践的明确更新。
+- `security`：关注漏洞通告、攻击活动、安全产品、供应链风险和防御措施，并执行上述五字段要求。
+- `github`：优先保留发行版本、变更说明和明确的提交信息。
+- `rss` / `newsletter`：按原文发布时间和事实信息整理，不改写来源立场。
+- `x` / `reddit`：只能概述输入中实际存在的帖子，不推断社区整体情绪。
 
-**Key Updates**
-
-1. **全屏TUI模式** (v2.1.110, 4月15日) — 新增`/tui fullscreen`命令，无闪烁渲染，配合`autoScrollEnabled`配置使用
-2. **手机推送通知** (v2.1.110, 4月15日) — Remote Control激活时可向手机推送通知，适合长时间运行任务
-3. **1小时prompt缓存** (v2.1.108, 4月14日) — `ENABLE_PROMPT_CACHING_1H`环境变量支持更长缓存TTL，旧的Bedrock专用flag已废弃
-4. **Session自动回顾** (v2.1.108, 4月14日) — 回到会话时自动提供上下文，可通过`/recap`手动触发
-5. **团队入职指南生成** (v2.1.101, 4月10日) — `/team-onboarding`从本地使用模式生成团队上手指南
-
-**Worth Noting** — 7天7个版本的节奏说明Claude Code正从个人终端工具转型为always-on的团队协作平台。
-```
-
-### Bad Example — Too Vague
-
-```markdown
-### Latest from some-blog
-
-**What's New** — This blog has some interesting recent posts about technology.
-
-**Key Updates**
-
-1. **New post about AI** — An article was published about artificial intelligence.
-2. **Another update** — Something interesting was shared.
-
-**Worth Noting** — The blog is active.
-```
-
-Problems: no dates, no specifics, no names, "interesting" is filler, "active" says nothing.
-
-## Rules
-
-1. **Date everything** — "April 14" or "2 days ago", never just "recently"
-2. **Name names** — People, companies, projects, version numbers
-3. **Quantify** — "500+ retweets", "v2.1.110", "7 releases in 6 days"
-4. **150-250 words total** — Every word earns its place
-5. **Match source language** — Chinese content → Chinese brief, English → English
-6. **Rank by importance** — Not chronology. Lead with what matters most.
-7. **Honest about empty content** — If nothing new, say "No significant updates since last check" in one sentence. Don't pad.
-
-## Category-Specific Guidance
-
-| Category    | What to focus on |
-|-------------|-----------------|
-| `x`         | Most-engaged tweets, group by theme, note RT vs original |
-| `github`    | Latest release headline changes, notable commits, ignore bots |
-| `selfblog`  | Author's actual take (not just topic), what makes their view distinctive |
-| `rss`       | 3-5 most recent entries, one sentence each with the core argument |
-| `newsletter`| Curated highlights, editor's picks |
-| `reddit`    | Top-voted posts, community sentiment (excited? skeptical?) |
-| `other`     | Best-effort extraction of recent, notable content |
+如果没有可核实的新内容，输出一句“未发现可核实的新内容”，不要生成占位条目。

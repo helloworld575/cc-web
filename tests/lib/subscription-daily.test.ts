@@ -6,6 +6,7 @@ import {
   getEnabledSubscriptionSources,
 } from '@/lib/subscription-service';
 import {
+  extractSecurityFacts,
   getShanghaiDayUtcBounds,
   getShanghaiRunDate,
   renderDailySubscriptionPost,
@@ -51,8 +52,8 @@ describe('daily subscription publishing', () => {
 
     expect(markdown).toContain('## 片头');
     expect(markdown).toContain('片头编辑判断只能出现在这里。');
-    expect(markdown).toContain('[Security advisory](https://www.cisa.gov/news-events/cybersecurity-advisories/example)');
-    expect(markdown).toContain('[CISA](https://www.cisa.gov/)');
+    expect(markdown).toContain('[Security advisory](<https://www.cisa.gov/news-events/cybersecurity-advisories/example>)');
+    expect(markdown).toContain('[CISA](<https://www.cisa.gov/>)');
     expect(markdown).toContain('## 参考信息');
     expect(markdown.match(/https:\/\/www\.cisa\.gov\/news-events\/cybersecurity-advisories\/example/g)?.length).toBeGreaterThanOrEqual(2);
   });
@@ -92,7 +93,7 @@ describe('daily subscription publishing', () => {
     expect(markdown).toContain('https://security.example/');
   });
 
-  it('percent-encodes markdown delimiters inside otherwise valid HTTPS URLs', () => {
+  it('wraps valid HTTPS destinations in CommonMark angle brackets', () => {
     const markdown = renderDailySubscriptionPost({
       topic: 'security',
       runDate: '2026-07-16',
@@ -110,7 +111,54 @@ describe('daily subscription publishing', () => {
 
     expect(markdown).not.toContain('![x]');
     expect(markdown).not.toContain('](https://evil.example');
-    expect(markdown).toContain('%29%21%5Bx%5D%28https://evil.example/p.png%29');
+    expect(markdown).toContain('[Advisory](<https://example.com/a%29%21%5Bx%5D%28https://evil.example/p.png%29>)');
+  });
+
+  it('extracts explicit security facts and never invents missing fields', () => {
+    expect(extractSecurityFacts(
+      'CVE-2026-12345 远程代码执行漏洞',
+      '涉及软件或服务：Example Gateway。受影响版本：2.0 至 2.4。修复或缓解措施：升级至 2.4.1。',
+    )).toEqual({
+      vulnerabilityId: 'CVE-2026-12345',
+      vulnerabilityType: '远程代码执行',
+      affectedSoftware: 'Example Gateway',
+      affectedVersions: '2.0 至 2.4',
+      mitigation: '升级至 2.4.1',
+    });
+
+    expect(extractSecurityFacts('安全更新', '原文只说明已发布更新。')).toEqual({
+      vulnerabilityId: '原文摘要未明确披露',
+      vulnerabilityType: '原文摘要未明确披露',
+      affectedSoftware: '原文摘要未明确披露',
+      affectedVersions: '原文摘要未明确披露',
+      mitigation: '原文摘要未明确披露',
+    });
+  });
+
+  it('renders the five required security fields only for security posts', () => {
+    const entry = {
+      id: 10,
+      source_name: 'Security Source',
+      source_url: 'https://security.example/feed.xml',
+      title: 'CVE-2026-12345 远程代码执行漏洞',
+      url: 'https://security.example/advisory',
+      excerpt: '涉及软件或服务：Example Gateway。受影响版本：2.0 至 2.4。修复或缓解措施：升级至 2.4.1。',
+    };
+    const security = renderDailySubscriptionPost({
+      topic: 'security', runDate: '2026-07-16', intro: '片头。', entries: [entry], summaries: [],
+    });
+    const ai = renderDailySubscriptionPost({
+      topic: 'ai', runDate: '2026-07-16', intro: '片头。', entries: [entry], summaries: [],
+    });
+
+    for (const expected of [
+      '- 漏洞编号：CVE-2026-12345',
+      '- 漏洞类型：远程代码执行',
+      '- 涉及的软件或服务：Example Gateway',
+      '- 受影响版本：2.0 至 2.4',
+      '- 修复或缓解措施：升级至 2.4.1',
+    ]) expect(security).toContain(expected);
+    expect(ai).not.toContain('漏洞编号');
   });
 
   it('publishes each topic once per Shanghai day and does not repeat yesterday entries', async () => {

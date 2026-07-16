@@ -58,7 +58,7 @@ describe('POST /api/subscriptions/integrate', () => {
       invocable: true,
       output: 'content',
       system: 'Summarize clearly',
-      prompt: 'Summarize {{source_name}} from {{url}} in {{category}}: {{content}}',
+      prompt: 'Topic: {{topic}}\nSummarize {{source_name}} from {{url}} in {{category}}: {{content}}',
     });
     mockFetch.mockResolvedValue(new Response(JSON.stringify({
       content: [{ text: 'Brief from env provider' }],
@@ -70,6 +70,7 @@ describe('POST /api/subscriptions/integrate', () => {
       name: 'AI Source',
       url: 'https://example.com/ai',
       category: 'rss',
+      topic: 'security',
       enabled: 1,
     }));
     const getLatestItem = vi.fn(() => ({
@@ -108,6 +109,8 @@ describe('POST /api/subscriptions/integrate', () => {
     expect(res.status).toBe(200);
     expect(fetchByCategory).not.toHaveBeenCalled();
     expect(mockFetch).toHaveBeenCalledTimes(1);
+    const requestBody = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(JSON.stringify(requestBody.messages[0].content)).toContain('Topic: security');
     expect(insertBrief).toHaveBeenCalledWith(
       1,
       'Stored crawl',

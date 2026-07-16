@@ -7,15 +7,31 @@
   --foreground: #0f172a;
   --panel-border: rgba(255, 255, 255, 0.7);
   --panel-bg: rgba(255, 255, 255, 0.82);
+  --page-background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 30%),
+    radial-gradient(circle at top right, rgba(249, 115, 22, 0.1), transparent 24%),
+    linear-gradient(180deg, #f8fafc 0%, #f3f4f8 42%, #eef2ff 100%);
+  --panel-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.74));
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  --background: #020617;
+  --foreground: #e2e8f0;
+  --panel-border: rgba(71, 85, 105, 0.7);
+  --panel-bg: rgba(15, 23, 42, 0.9);
+  --page-background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 30%),
+    radial-gradient(circle at top right, rgba(249, 115, 22, 0.08), transparent 24%),
+    linear-gradient(180deg, #020617 0%, #0f172a 46%, #111827 100%);
+  --panel-gradient: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(17, 24, 39, 0.88));
+  color-scheme: dark;
 }
 
 body {
   min-height: 100vh;
   color: var(--foreground);
-  background:
-    radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 30%),
-    radial-gradient(circle at top right, rgba(249, 115, 22, 0.1), transparent 24%),
-    linear-gradient(180deg, #f8fafc 0%, #f3f4f8 42%, #eef2ff 100%);
+  background: var(--page-background);
   font-family: "Avenir Next", "Segoe UI Variable Text", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
 }
 
@@ -27,7 +43,7 @@ body {
 
   .glass-panel {
     border: 1px solid var(--panel-border);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.74));
+    background: var(--panel-gradient);
     box-shadow:
       0 20px 60px rgba(15, 23, 42, 0.08),
       inset 0 1px 0 rgba(255, 255, 255, 0.6);
@@ -139,6 +155,164 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+html[data-theme='dark'] :where(
+  [class~='bg-white'],
+  [class~='bg-white/70'],
+  [class~='bg-white/80'],
+  [class~='bg-white/82'],
+  [class~='bg-white/85'],
+  [class~='bg-white/90'],
+  [class~='bg-white/94'],
+  [class~='bg-white/95'],
+  [class~='bg-white/98'],
+  [class~='bg-slate-50'],
+  [class~='bg-slate-50/70'],
+  [class~='bg-slate-50/80'],
+  [class~='bg-slate-50/90'],
+  [class~='bg-slate-100'],
+  [class~='bg-gray-50'],
+  [class~='bg-gray-100'],
+  [class*='bg-[linear-gradient']
+) {
+  background-color: #0f172a !important;
+  background-image: none !important;
+}
+
+html[data-theme='dark'] :where([class~='bg-slate-200'], [class~='bg-gray-200']) {
+  background-color: #334155 !important;
+}
+
+html[data-theme='dark'] :where(
+  [class~='text-black'],
+  [class~='text-slate-950'],
+  [class~='text-slate-900'],
+  [class~='text-slate-800'],
+  [class~='text-gray-950'],
+  [class~='text-gray-900'],
+  [class~='text-gray-800']
+) {
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] :where(
+  [class~='text-slate-700'],
+  [class~='text-slate-600'],
+  [class~='text-gray-700'],
+  [class~='text-gray-600']
+) {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] :where(
+  [class~='text-slate-500'],
+  [class~='text-slate-400'],
+  [class~='text-gray-500'],
+  [class~='text-gray-400']
+) {
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] :where(
+  [class~='border'],
+  [class~='border-b'],
+  [class~='border-t'],
+  [class~='border-slate-100'],
+  [class~='border-slate-200'],
+  [class~='border-slate-300'],
+  [class~='border-gray-100'],
+  [class~='border-gray-200'],
+  [class~='border-white/70'],
+  [class~='border-white/80']
+) {
+  border-color: #334155 !important;
+}
+
+html[data-theme='dark'] :where(input, textarea, select) {
+  border-color: #334155 !important;
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] :where(input, textarea)::placeholder {
+  color: #64748b;
+}
+
+html[data-theme='dark'] :where(
+  [class~='hover:bg-white']:hover,
+  [class~='hover:bg-slate-50']:hover,
+  [class~='hover:bg-slate-100']:hover,
+  [class~='hover:bg-slate-200']:hover,
+  [class~='hover:bg-gray-50']:hover,
+  [class~='hover:bg-gray-100']:hover,
+  [class~='hover:bg-gray-200']:hover
+) {
+  background-color: #1e293b !important;
+}
+
+html[data-theme='dark'] :where([class~='hover:text-black']:hover, [class~='hover:text-gray-600']:hover) {
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .prose,
+html[data-theme='dark'] .toastui-editor-contents {
+  color: #cbd5e1;
+}
+
+html[data-theme='dark'] :where(.prose, .toastui-editor-contents) :where(h1, h2, h3, h4, strong, th) {
+  color: #f8fafc;
+}
+
+html[data-theme='dark'] :where(.prose, .toastui-editor-contents) :where(a) {
+  color: #7dd3fc;
+}
+
+html[data-theme='dark'] :where(.prose, .toastui-editor-contents) :where(blockquote) {
+  color: #cbd5e1;
+  border-color: #475569;
+}
+
+html[data-theme='dark'] .toastui-editor-defaultUI {
+  border-color: #334155 !important;
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme='dark'] .toastui-editor-toolbar,
+html[data-theme='dark'] .toastui-editor-main,
+html[data-theme='dark'] .toastui-editor-md-container,
+html[data-theme='dark'] .toastui-editor-md-preview,
+html[data-theme='dark'] .toastui-editor-mode-switch {
+  border-color: #334155 !important;
+  background: #0f172a !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme='dark'] .toastui-editor-toolbar-icons {
+  filter: invert(1) grayscale(1);
+}
+
+html[data-theme='dark'] .toastui-editor-toolbar-divider,
+html[data-theme='dark'] .toastui-editor-md-splitter {
+  background-color: #334155 !important;
+}
+
+html[data-theme='dark'] .toastui-editor-mode-switch .tab-item {
+  border-color: #334155 !important;
+  background: #111827 !important;
+  color: #94a3b8 !important;
+}
+
+html[data-theme='dark'] .toastui-editor-mode-switch .tab-item.active {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme='dark'] .toastui-editor-popup {
+  border-color: #334155 !important;
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
 }
 
 @keyframes fadeIn {

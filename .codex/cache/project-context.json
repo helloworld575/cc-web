@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-15T17:41:30.987Z",
+  "generatedAt": "2026-07-16T02:11:42.251Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -488,6 +488,7 @@
       "components/SiteFooter.tsx",
       "components/StreamingMarkdown.tsx",
       "components/SubscriptionBriefsTool.tsx",
+      "components/ThemeProvider.tsx",
       "components/fortune/FortuneVisuals.tsx",
       "components/useLocale.ts"
     ],
@@ -510,13 +511,18 @@
       "lib/openai-compatible.ts",
       "lib/rateLimit.ts",
       "lib/runtime-paths.ts",
+      "lib/seo.ts",
       "lib/server-log.ts",
+      "lib/site.ts",
       "lib/skill-taxonomy.ts",
       "lib/skills.ts",
       "lib/subscription-daily.ts",
       "lib/subscription-items.ts",
       "lib/subscription-service.ts",
+      "lib/subscription-source-health.ts",
+      "lib/subscription-source-seeds.ts",
       "lib/subscription-topics.ts",
+      "lib/theme.ts",
       "lib/toast-ui-editor.d.ts",
       "lib/xapi.ts",
       "lib/yijing.ts",
@@ -1173,13 +1179,17 @@
       "tests/api/todos/route.test.ts",
       "tests/api/uploads/route.test.ts",
       "tests/api/x-post/route.test.ts",
+      "tests/app/seo.test.ts",
       "tests/config/claude-worker-session.test.ts",
       "tests/config/claude-worker.test.ts",
       "tests/config/compose-logging.test.ts",
       "tests/config/dockerfile.test.ts",
       "tests/config/platform-modernization.test.ts",
+      "tests/config/subscription-admin-health.test.ts",
       "tests/config/subscription-publishing.test.ts",
+      "tests/config/subscription-readme.test.ts",
       "tests/config/subscription-schedule.test.ts",
+      "tests/config/subscription-skill.test.ts",
       "tests/config/worker-security.test.ts",
       "tests/lib/auth.test.ts",
       "tests/lib/blog-list.test.ts",
@@ -1196,8 +1206,11 @@
       "tests/lib/subscription-daily.test.ts",
       "tests/lib/subscription-feed.test.ts",
       "tests/lib/subscription-items.test.ts",
+      "tests/lib/subscription-source-health.test.ts",
+      "tests/lib/subscription-source-seeds.test.ts",
+      "tests/lib/theme.test.ts",
       "tests/proxy.test.ts"
     ],
-    "count": 59
+    "count": 66
   }
 }

@@ -49,6 +49,8 @@ export const translations = {
 
     backToBlog: '← Back to Blog',
     publishedOn: 'Published on',
+    themeDarkMode: 'Dark mode',
+    themeLightMode: 'Light mode',
     sortBy: 'Sort posts',
     newestFirst: 'Newest first',
     oldestFirst: 'Oldest first',
@@ -225,6 +227,7 @@ export const translations = {
     adminSubscriptionsUpToDate: 'Already up to date',
     adminSubscriptionsFetched: 'Fetched',
     adminSubscriptionsFailed: 'Failed',
+    adminSubscriptionsFailures: 'Consecutive failures',
 
     adminBlogAnalyticsTitle: 'Blog Analytics',
     adminBlogAnalyticsDesc: 'Views, referrers, and recent comments across published posts.',
@@ -489,6 +492,8 @@ export const translations = {
 
     backToBlog: '← 返回博客',
     publishedOn: '发布于',
+    themeDarkMode: '深色模式',
+    themeLightMode: '浅色模式',
     sortBy: '博客排序',
     newestFirst: '最新优先',
     oldestFirst: '最早优先',
@@ -665,6 +670,7 @@ export const translations = {
     adminSubscriptionsUpToDate: '已是最新内容',
     adminSubscriptionsFetched: '已抓取',
     adminSubscriptionsFailed: '失败',
+    adminSubscriptionsFailures: '连续失败',
 
     adminBlogAnalyticsTitle: '博客分析',
     adminBlogAnalyticsDesc: '查看已发布文章的访问量、来源和最新评论。',
