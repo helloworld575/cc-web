@@ -115,7 +115,9 @@ const SKILL_DESCRIPTION_OVERRIDES = {
   'liuyao-fortune': 'Liu Yao / I Ching divination skill with helper scripts.',
   'meihua-fortune': 'Meihua Yishu numerology divination skill with helper scripts.',
   'source-credibility-check': 'Evaluate fetched sources for reliability, freshness, conflicts, and verification needs.',
-  'subscription': 'Summarize the latest updates from subscribed sources such as blogs, GitHub, X, RSS, or Reddit.',
+  'subscription': 'Route subscription generation to the dedicated AI or security leaf skill.',
+  'subscription-ai': 'Generate category-specific Chinese AI subscription briefs.',
+  'subscription-security': 'Generate category-specific Chinese security subscription briefs.',
   'web-research-brief': 'Summarize fetched web, RSS, search, or crawler output into a source-grounded research brief.',
   'ziwei-fortune': 'Zi Wei Dou Shu astrology analysis skill with helper scripts.',
 };

@@ -1,6 +1,19 @@
 export const SUBSCRIPTION_TOPICS = ['ai', 'security'] as const;
 export type SubscriptionTopic = (typeof SUBSCRIPTION_TOPICS)[number];
 
+const SUBSCRIPTION_GENERATION_SKILLS = {
+  ai: 'subscription-ai',
+  security: 'subscription-security',
+} as const satisfies Record<SubscriptionTopic, string>;
+
+export type SubscriptionGenerationSkillId = (
+  typeof SUBSCRIPTION_GENERATION_SKILLS
+)[SubscriptionTopic];
+
+export function getSubscriptionGenerationSkillId(topic: SubscriptionTopic) {
+  return SUBSCRIPTION_GENERATION_SKILLS[topic];
+}
+
 export const SUBSCRIPTION_FETCH_CATEGORIES = [
   'github',
   'x',

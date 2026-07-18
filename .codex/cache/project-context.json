@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-16T02:11:42.251Z",
+  "generatedAt": "2026-07-18T11:51:20.109Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -516,6 +516,7 @@
       "lib/site.ts",
       "lib/skill-taxonomy.ts",
       "lib/skills.ts",
+      "lib/subscription-content-types.ts",
       "lib/subscription-daily.ts",
       "lib/subscription-items.ts",
       "lib/subscription-service.ts",
@@ -1039,11 +1040,31 @@
       {
         "id": "subscription",
         "name": "subscription",
-        "description": "Summarize the latest updates from subscribed sources such as blogs, GitHub, X, RSS, or Reddit.",
+        "description": "Route subscription generation to the dedicated AI or security leaf skill.",
+        "hasSystem": false,
+        "hasPrompt": false,
+        "output": null,
+        "hasScripts": true,
+        "hasReferences": true
+      },
+      {
+        "id": "subscription-ai",
+        "name": "subscription-ai",
+        "description": "Generate category-specific Chinese AI subscription briefs.",
         "hasSystem": true,
         "hasPrompt": true,
         "output": "content",
-        "hasScripts": true,
+        "hasScripts": false,
+        "hasReferences": true
+      },
+      {
+        "id": "subscription-security",
+        "name": "subscription-security",
+        "description": "Generate category-specific Chinese security subscription briefs.",
+        "hasSystem": true,
+        "hasPrompt": true,
+        "output": "content",
+        "hasScripts": false,
         "hasReferences": true
       },
       {
@@ -1208,9 +1229,10 @@
       "tests/lib/subscription-items.test.ts",
       "tests/lib/subscription-source-health.test.ts",
       "tests/lib/subscription-source-seeds.test.ts",
+      "tests/lib/subscription-topics.test.ts",
       "tests/lib/theme.test.ts",
       "tests/proxy.test.ts"
     ],
-    "count": 66
+    "count": 67
   }
 }

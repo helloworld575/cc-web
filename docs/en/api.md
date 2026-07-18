@@ -241,7 +241,7 @@ Fetch content into `subscription_items` without calling AI.
 ```
 
 ### `POST /api/subscriptions/integrate`
-Generate AI briefs from stored crawl items. The endpoint returns HTTP 503 when no AI provider is available. Per-source failures are returned with `success: false` and are never persisted in `subscription_briefs`.
+Generate briefs from stored crawl items with `subscription-ai` or `subscription-security`, selected from each source topic. Mixed batches preflight every required skill before any provider request; an unavailable skill returns HTTP 500 with `subscription_skill_unavailable` and causes no brief writes. The endpoint returns HTTP 503 when no AI provider is available. Per-source failures are returned with `success: false` and are never persisted in `subscription_briefs`.
 
 `POST /api/subscriptions/fetch` remains a compatibility alias for `/api/subscriptions/integrate`.
 

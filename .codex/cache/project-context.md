@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-07-16T02:11:42.251Z
+Generated: 2026-07-18T11:51:20.109Z
 
 ## Snapshot
 
@@ -122,7 +122,7 @@ Generated: 2026-07-16T02:11:42.251Z
 - Simple migrations: `todos.deadline`, `files.album_id`, `subscription_sources.topic`
 - Prepared statements: `countFiles`, `listFiles`, `insertFile`, `listFortune`, `insertFortune`, `getFortune`, `deleteFortune`, `listProviders`, `getProvider`, `insertProvider`, `updateProvider`, `deleteProvider`, `clearDefaultProvider`, `listChats`, `listChatsByProvider`, `getChat`, `insertChat`, `updateChat`, `deleteChat`
 
-## AI Skills (53)
+## AI Skills (55)
 
 - `agent-browser`: >-
 - `agent-router`: >-
@@ -168,7 +168,9 @@ Generated: 2026-07-16T02:11:42.251Z
 - `source-credibility-check`: Evaluate fetched sources for reliability, freshness, conflicts, and verification needs.
 - `spark-prairie-fire`: >
 - `strategy-router`: >-
-- `subscription`: Summarize the latest updates from subscribed sources such as blogs, GitHub, X, RSS, or Reddit. Includes scripts. Includes references.
+- `subscription`: Route subscription generation to the dedicated AI or security leaf skill. Includes scripts. Includes references.
+- `subscription-ai`: Generate category-specific Chinese AI subscription briefs. Includes references.
+- `subscription-security`: Generate category-specific Chinese security subscription briefs. Includes references.
 - `summarize`: >-
 - `technical-blog-writer`: >-
 - `tmux`: >- Includes scripts.
@@ -185,7 +187,7 @@ Generated: 2026-07-16T02:11:42.251Z
 
 ## Tests
 
-- API and helper test files: 66
+- API and helper test files: 67
 - Examples: `tests/api/admin/blog-analytics.test.ts`, `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai-providers/test.test.ts`, `tests/api/ai/route.test.ts`
 
 ## Notes

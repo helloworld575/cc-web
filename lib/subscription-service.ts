@@ -30,6 +30,7 @@ import {
   recordSubscriptionSourceFailure,
   recordSubscriptionSourceSuccess,
 } from '@/lib/subscription-source-health';
+import type { SubscriptionTopic } from '@/lib/subscription-topics';
 
 export interface SubscriptionSource {
   id: number;
@@ -42,6 +43,8 @@ export interface SubscriptionSource {
   last_error_code?: string | null;
   last_failed_at?: string | null;
 }
+
+export type SubscriptionGenerationSkillMap = Partial<Record<SubscriptionTopic, InvocableSkill>>;
 
 interface SubscriptionItem {
   id: number;
@@ -292,6 +295,7 @@ export async function generateBriefWithSkill(
     source_id: source.id,
     source_name: source.name,
     source_category: source.category,
+    skill_id: skill.id,
   });
 
   function completed(text: string) {
@@ -320,11 +324,11 @@ export async function generateBriefWithSkill(
   }
 
   const userPrompt = skill.prompt
-    .replace('{{content}}', content)
-    .replace('{{source_name}}', source.name)
-    .replace('{{category}}', source.category)
-    .replace('{{topic}}', source.topic || 'ai')
-    .replace('{{url}}', source.url);
+    .replaceAll('{{content}}', content)
+    .replaceAll('{{source_name}}', source.name)
+    .replaceAll('{{category}}', source.category)
+    .replaceAll('{{topic}}', source.topic || 'ai')
+    .replaceAll('{{url}}', source.url);
 
   try {
     let payload: Record<string, unknown> = {};
@@ -451,12 +455,19 @@ export async function generateBriefWithSkill(
 }
 
 export async function integrateSubscriptionSources(
-  skill: InvocableSkill,
+  skillsByTopic: SubscriptionGenerationSkillMap,
   sources: SubscriptionSource[],
 ) {
+  for (const source of sources) {
+    if (!skillsByTopic[source.topic]) {
+      throw new Error(`Missing invocable subscription skill for topic: ${source.topic}`);
+    }
+  }
+
   const results = [];
 
   for (const source of sources) {
+    const skill = skillsByTopic[source.topic]!;
     const item = getLatestSubscriptionItem(source.id);
     if (!item) {
       results.push({
@@ -467,9 +478,23 @@ export async function integrateSubscriptionSources(
       continue;
     }
 
-    const existing = db
+    const briefContentHash = hashContent(JSON.stringify({
+      source_content_hash: item.content_hash,
+      skill_id: skill.id,
+      skill_system: skill.system || '',
+      skill_prompt: skill.prompt,
+      skill_output: skill.output,
+    }));
+    let existing = db
       .prepare('SELECT id, brief FROM subscription_briefs WHERE source_id = ? AND content_hash = ? ORDER BY id DESC LIMIT 1')
-      .get(source.id, item.content_hash) as { id: number; brief: string } | undefined;
+      .get(source.id, briefContentHash) as { id: number; brief: string } | undefined;
+
+    if (!existing) {
+      const legacyFailure = db
+        .prepare('SELECT id, brief FROM subscription_briefs WHERE source_id = ? AND content_hash = ? ORDER BY id DESC LIMIT 1')
+        .get(source.id, item.content_hash) as { id: number; brief: string } | undefined;
+      if (legacyFailure && isLegacyFailureBrief(legacyFailure.brief)) existing = legacyFailure;
+    }
 
     if (existing && !isLegacyFailureBrief(existing.brief)) {
       results.push({ source_id: source.id, success: true, cached: true, title: item.title });
@@ -501,12 +526,12 @@ export async function integrateSubscriptionSources(
 
     if (existing) {
       db.prepare(
-        "UPDATE subscription_briefs SET title = ?, url = ?, brief = ?, fetched_at = datetime('now'), created_at = datetime('now') WHERE id = ?",
-      ).run(item.title, item.url || source.url, generated.brief, existing.id);
+        "UPDATE subscription_briefs SET title = ?, url = ?, brief = ?, content_hash = ?, fetched_at = datetime('now'), created_at = datetime('now') WHERE id = ?",
+      ).run(item.title, item.url || source.url, generated.brief, briefContentHash, existing.id);
     } else {
       db.prepare(
         'INSERT INTO subscription_briefs (source_id, title, url, brief, content_hash) VALUES (?, ?, ?, ?, ?)',
-      ).run(source.id, item.title, item.url || source.url, generated.brief, item.content_hash);
+      ).run(source.id, item.title, item.url || source.url, generated.brief, briefContentHash);
     }
 
     results.push({ source_id: source.id, success: true, title: item.title });

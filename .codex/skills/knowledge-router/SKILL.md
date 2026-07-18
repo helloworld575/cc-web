@@ -44,7 +44,7 @@ orchestration:
       when: >-
         Use when the user wants the latest updates or digests from subscribed
         feeds and tracked sources.
-      mode: direct
+      mode: route
     - skill: web-research-brief
       when: >-
         Use when fetched web, RSS, search, or crawler output needs a concise

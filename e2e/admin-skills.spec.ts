@@ -57,3 +57,26 @@ test('admin skills finder resolves grouped skill metadata', async ({ page }) => 
   await expect(page.getByTestId('admin-skill-route-skill-0')).toHaveValue('article-faq');
   await expect(page.getByTestId('admin-skill-route-when-0')).toHaveValue(/FAQ/i);
 });
+
+test('subscription skill is a router with dedicated AI and security leaves', async ({ page }) => {
+  await login(page);
+  await page.goto('/admin/skills');
+
+  await page.getByTestId('admin-skills-search').fill('subscription');
+  await page.getByRole('button', { name: /^subscription\s+Knowledge/i }).click();
+  await expect(page.getByTestId('admin-skill-id')).toHaveValue('subscription');
+  await expect(page.getByTestId('admin-skill-role')).toHaveValue('router');
+  await expect(page.getByTestId('admin-skill-mode')).toHaveValue('route');
+  await expect(page.getByTestId('admin-skill-route-skill-0')).toHaveValue('subscription-ai');
+  await expect(page.getByTestId('admin-skill-route-skill-1')).toHaveValue('subscription-security');
+
+  await page.getByRole('button', { name: /^subscription-security\s+Knowledge/i }).click();
+  await expect(page.getByTestId('admin-skill-id')).toHaveValue('subscription-security');
+  await expect(page.getByTestId('admin-skill-role')).toHaveValue('leaf');
+  await expect(page.getByTestId('admin-skill-mode')).toHaveValue('direct');
+
+  await page.getByRole('button', { name: /^subscription-ai\s+Knowledge/i }).click();
+  await expect(page.getByTestId('admin-skill-id')).toHaveValue('subscription-ai');
+  await expect(page.getByTestId('admin-skill-role')).toHaveValue('leaf');
+  await expect(page.getByTestId('admin-skill-mode')).toHaveValue('direct');
+});

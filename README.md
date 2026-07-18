@@ -107,7 +107,7 @@ AI providers are temporarily env-only. `/admin/ai-config` is a read-only verific
 
 AI upstream failures are normalized to bounded JSON error codes. Proxy HTML, provider diagnostics, internal hosts, and raw exception messages are never returned to the browser. Image reference files are resized in the browser and encoded as WebP before upload to reduce request latency.
 
-Subscriptions now separate source topic (`ai` or `security`) from fetch type (`rss`, `github`, and so on). Stable public RSS/Atom alternatives are seeded because the existing X feeds were unreliable. `/api/subscriptions/crawl` stores each feed entry with its canonical link, source, first-seen time, and publication time; stable external IDs prevent edited entries from becoming duplicates. `/api/subscriptions/daily` waits for crawling to finish and then publishes one AI post and one security post for the Shanghai calendar day. The intro is the only editorial section; the body is rendered deterministically from verifiable source facts and clickable links, so provider failures or proxy HTML cannot enter a daily post. Daily run state makes retries idempotent. Manually generated AI briefs remain available through `/api/subscriptions/integrate`; the old `/api/subscriptions/fetch` route is its compatibility alias.
+Subscriptions now separate source topic (`ai` or `security`) from fetch type (`rss`, `github`, and so on). Stable public RSS/Atom alternatives are seeded because the existing X feeds were unreliable. `/api/subscriptions/crawl` stores each feed entry with its canonical link, source, first-seen time, and publication time; stable external IDs prevent edited entries from becoming duplicates. `/api/subscriptions/daily` waits for crawling to finish and then publishes one AI post and one security post for the Shanghai calendar day. Security entries are classified as vulnerability advisories, threat intelligence, security incidents, or defensive research; AI entries are classified as model/product, research/evaluation, open-source engineering, or industry/governance. Each class has its own factual fields and balanced selection quota, with source round-robin inside each class. The intro is the only editorial section; the body is rendered deterministically from verifiable source facts and clickable links, so provider failures or proxy HTML cannot enter a daily post. Daily run state makes retries idempotent. Manually generated briefs use the matching `subscription-ai` or `subscription-security` leaf skill through `/api/subscriptions/integrate`; the old `/api/subscriptions/fetch` route is its compatibility alias.
 
 WeChat sources require an administrator to provide a legitimate HTTPS RSS feed in Admin → Subscriptions, such as an RSSHub or WeChat2RSS feed that the administrator operates or has permission to use. The app does not claim official WeChat support and does not automatically scrape or bypass platform restrictions. Recommended accounts to verify before adding a feed include Tencent Security/Xuanwu, Alibaba Security Response, Changting, NSFOCUS, and Qi-Anxin.
 
@@ -172,7 +172,7 @@ npm run e2e:headed
 npm run test:watch
 ```
 
-The current suite contains 238 Vitest tests across 42 files plus 23 Playwright e2e flows covering API routes, auth, rate limiting, streaming responses, editors, uploads, and the tools workspace.
+The current suite contains 399 Vitest tests across 67 files plus 39 Playwright e2e flows covering API routes, auth, rate limiting, streaming responses, editors, uploads, skills, subscriptions, and the tools workspace.
 The Playwright suite runs against `.tmp/e2e-runtime`, uses mock streaming for AI chat and fortune flows, and always goes through the managed runner so port `3001`, child processes, and temp artifacts are cleaned up after each run.
 
 Use the managed runner when a command may leave ports or child processes behind:
@@ -243,7 +243,9 @@ Built-in skills:
 | `article-tags` | Extract tags |
 | `article-title` | Generate SEO titles |
 | `article-translate-en` | Translate ZH → EN |
-| `subscription` | News-focused brief of subscribed content |
+| `subscription` | Routes subscription generation by source topic |
+| `subscription-ai` | Category-specific AI subscription brief |
+| `subscription-security` | Category-specific security subscription brief |
 | `blog-to-x` | Convert blog/diary → tweets/threads |
 | `bazi-fortune`, `ziwei-fortune`, `liuyao-fortune`, `meihua-fortune` | Chinese divination |
 

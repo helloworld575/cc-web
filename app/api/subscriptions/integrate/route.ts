@@ -9,18 +9,18 @@ import {
   getEnabledSubscriptionSources,
   hasSubscriptionAiProvider,
   integrateSubscriptionSources,
+  type SubscriptionGenerationSkillMap,
 } from '@/lib/subscription-service';
+import {
+  getSubscriptionGenerationSkillId,
+  type SubscriptionTopic,
+} from '@/lib/subscription-topics';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   const rl = rateLimitByIp(req, 'subscriptions-integrate', 5);
   if (rl) return rl;
-
-  const subscriptionSkill = getSkill('subscription');
-  if (!isInvocableSkill(subscriptionSkill)) {
-    return Response.json({ error: 'Subscription skill is not invocable' }, { status: 500 });
-  }
 
   if (!hasSubscriptionAiProvider()) {
     return Response.json({
@@ -38,5 +38,20 @@ export async function POST(req: Request) {
     return Response.json({ error: 'No enabled sources found' }, { status: 404 });
   }
 
-  return Response.json(await integrateSubscriptionSources(subscriptionSkill, sources));
+  const topics = Array.from(new Set(sources.map(source => source.topic))) as SubscriptionTopic[];
+  const skillsByTopic: SubscriptionGenerationSkillMap = {};
+  for (const topic of topics) {
+    const skill = getSkill(getSubscriptionGenerationSkillId(topic));
+    if (!isInvocableSkill(skill)) {
+      const label = topic === 'security' ? 'Security' : 'AI';
+      return Response.json({
+        code: 'subscription_skill_unavailable',
+        error: `${label} subscription skill is not invocable`,
+        topic,
+      }, { status: 500 });
+    }
+    skillsByTopic[topic] = skill;
+  }
+
+  return Response.json(await integrateSubscriptionSources(skillsByTopic, sources));
 }

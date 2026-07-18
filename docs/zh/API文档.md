@@ -209,7 +209,7 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 ```
 
 ### `POST /api/subscriptions/integrate`
-读取已抓取内容并生成 AI 摘要。没有可用 AI 服务商时返回 HTTP 503；单个订阅源整合失败时，`results` 中对应项为 `success: false`，失败文本不会写入 `subscription_briefs`。
+读取已抓取内容并按来源主题调用 `subscription-ai` 或 `subscription-security` 生成摘要。混合批次会在调用服务商前预检全部必需 Skill；任一 Skill 不可调用时返回 HTTP 500 和 `subscription_skill_unavailable`，不会产生上游请求或摘要写入。没有可用 AI 服务商时返回 HTTP 503；单个订阅源整合失败时，`results` 中对应项为 `success: false`，失败文本不会写入 `subscription_briefs`。
 
 `POST /api/subscriptions/fetch` 保留为 `/api/subscriptions/integrate` 的兼容别名。
 

@@ -12,6 +12,7 @@ describe('POST /api/subscriptions/fetch', () => {
   beforeEach(() => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
     vi.mocked(fetchByCategory).mockClear();
+    vi.mocked(getSkill).mockReset();
     mockFetch.mockReset();
     process.env.CLAUDE_API_KEY = 'test-claude-key';
     process.env.CLAUDE_MODEL = 'claude-opus-4-8';
@@ -25,24 +26,30 @@ describe('POST /api/subscriptions/fetch', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 500 when the subscription skill is not invocable', async () => {
+  it('returns 500 when the selected topic skill is not invocable', async () => {
     mockSession(true);
-    (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
-      id: 'subscription',
-      name: 'Subscription',
-      description: 'Guide only',
-      invocable: false,
+    (getSkill as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    (db.prepare as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
+      if (sql.includes('SELECT * FROM subscription_sources')) {
+        return { all: vi.fn(() => [{
+          id: 1, name: 'AI Source', url: 'https://ai.example', category: 'rss', topic: 'ai', enabled: 1,
+        }]) };
+      }
+      return { get: vi.fn(), all: vi.fn(() => []), run: vi.fn() };
     });
     const { POST } = await import('@/app/api/subscriptions/fetch/route');
     const res = await POST(new Request('http://localhost/api/subscriptions/fetch', { method: 'POST', body: '{}' }));
     expect(res.status).toBe(500);
-    await expect(res.json()).resolves.toEqual({ error: 'Subscription skill is not invocable' });
+    await expect(res.json()).resolves.toMatchObject({
+      code: 'subscription_skill_unavailable', topic: 'ai',
+    });
+    expect(getSkill).toHaveBeenCalledWith('subscription-ai');
   });
 
   it('acts as a compatibility alias that integrates stored crawl items', async () => {
     mockSession(true);
     (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
-      id: 'subscription',
+      id: 'subscription-ai',
       name: 'Subscription',
       description: 'Summarize subscription content',
       invocable: true,
@@ -60,6 +67,7 @@ describe('POST /api/subscriptions/fetch', () => {
       name: 'AI Source',
       url: 'https://example.com/ai',
       category: 'rss',
+      topic: 'ai',
       enabled: 1,
     }));
     const getLatestItem = vi.fn(() => ({
@@ -95,6 +103,7 @@ describe('POST /api/subscriptions/fetch', () => {
     }));
 
     expect(res.status).toBe(200);
+    expect(getSkill).toHaveBeenCalledWith('subscription-ai');
     expect(fetchByCategory).not.toHaveBeenCalled();
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, init] = mockFetch.mock.calls[0];
@@ -119,7 +128,7 @@ describe('POST /api/subscriptions/fetch', () => {
       'Stored crawl',
       'https://example.com/ai',
       'Brief from env provider',
-      'stored-hash',
+      expect.stringMatching(/^[a-f0-9]{64}$/),
     );
   });
 });
