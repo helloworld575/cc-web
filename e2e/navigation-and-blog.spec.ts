@@ -20,7 +20,9 @@ test('theme follows system preference, toggles, and persists across reloads', as
     window.getComputedStyle(element).backgroundColor.match(/\d+/g)?.map(Number) ?? [255, 255, 255]
   ));
   expect(hoverBackground[0] + hoverBackground[1] + hoverBackground[2]).toBeLessThan(500);
-  const cardColors = await page.locator('article.bg-white').first().evaluate(element => {
+  const firstArticleCard = page.locator('article.bg-white').first();
+  await firstArticleCard.hover();
+  const cardColors = await firstArticleCard.evaluate(element => {
     const cardStyle = window.getComputedStyle(element);
     const headingStyle = window.getComputedStyle(element.querySelector('h2')!);
     return {
@@ -53,6 +55,36 @@ test('mobile navigation exposes bilingual theme controls and links', async ({ pa
   await page.getByTestId('locale-toggle').click();
   await page.getByLabel('Menu').click();
   await expect(page.getByTestId('nav-mobile-theme-toggle')).toContainText('浅色模式');
+});
+
+test('light and dark themes keep article text and every heading in contrast', async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem('theme', 'light'));
+  await page.goto('/blog/seeded-hello');
+
+  const readColors = () => page.evaluate(() => {
+    const rgb = (element: Element | null) => (
+      element ? window.getComputedStyle(element).color.match(/\d+/g)?.map(Number) ?? [0, 0, 0] : [0, 0, 0]
+    );
+    const article = document.querySelector('[data-testid="blog-post-content"]');
+    return {
+      pageTitle: rgb(document.querySelector('main h1')),
+      articleHeading: rgb(article?.querySelector('h1, h2, h3, h4, h5, h6') ?? null),
+      paragraph: rgb(article?.querySelector('p') ?? null),
+    };
+  });
+  const brightness = (rgb: number[]) => rgb[0] + rgb[1] + rgb[2];
+
+  const lightColors = await readColors();
+  expect(brightness(lightColors.pageTitle)).toBeLessThan(400);
+  expect(brightness(lightColors.articleHeading)).toBeLessThan(400);
+  expect(brightness(lightColors.paragraph)).toBeLessThan(400);
+
+  await page.getByTestId('theme-toggle').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  const darkColors = await readColors();
+  expect(brightness(darkColors.pageTitle)).toBeGreaterThan(550);
+  expect(brightness(darkColors.articleHeading)).toBeGreaterThan(550);
+  expect(brightness(darkColors.paragraph)).toBeGreaterThan(550);
 });
 
 test('dark theme keeps public markdown and the TOAST UI editor readable', async ({ page }) => {
