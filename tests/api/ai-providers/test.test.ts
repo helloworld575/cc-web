@@ -70,7 +70,7 @@ describe('POST /api/ai-providers/test', () => {
     expect(init.headers['x-api-key']).toBe('test-claude-key');
   });
 
-  it('tests env-backed Claude through the default right.codes messages request shape', async () => {
+  it('tests env-backed Claude through the default rightapi.ai messages request shape', async () => {
     mockSession(true);
     process.env.CLAUDE_API_KEY = 'test-claude-key';
     process.env.CLAUDE_MODEL = 'claude-opus-4-8';
@@ -85,7 +85,7 @@ describe('POST /api/ai-providers/test', () => {
 
     expect(res.status).toBe(200);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/claude/v1/messages');
+    expect(url).toBe('https://www.rightapi.ai/claude/v1/messages');
     expect(JSON.parse(init.body)).toMatchObject({
       model: 'claude-opus-4-8',
       max_tokens: 32,
@@ -107,7 +107,7 @@ describe('POST /api/ai-providers/test', () => {
   it('tests the env-backed Right Code GPT-5.5 provider with Responses API requests', async () => {
     mockSession(true);
     process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
-    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.rightapi.ai/codex';
     process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
     mockResponsesStreamText('ok');
 
@@ -118,7 +118,7 @@ describe('POST /api/ai-providers/test', () => {
     const data = await res.json();
     expect(data).toEqual({ ok: true, text: 'ok', model: 'gpt-5.5' });
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/codex/v1/responses');
+    expect(url).toBe('https://www.rightapi.ai/codex/v1/responses');
     expect(init.headers.Authorization).toBe('Bearer test-right-code-key');
     expect(JSON.parse(init.body)).toMatchObject({
       model: 'gpt-5.5',
@@ -141,7 +141,7 @@ describe('POST /api/ai-providers/test', () => {
         id: 7,
         name: 'Right Code GPT-5.5',
         api_type: 'openai',
-        api_url: 'https://www.right.codes/codex',
+        api_url: 'https://www.rightapi.ai/codex',
         api_key: 'saved-right-code-key',
         model: 'gpt-5.5',
         system_prompt: '',

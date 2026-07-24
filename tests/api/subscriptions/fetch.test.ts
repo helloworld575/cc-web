@@ -16,7 +16,7 @@ describe('POST /api/subscriptions/fetch', () => {
     mockFetch.mockReset();
     process.env.CLAUDE_API_KEY = 'test-claude-key';
     process.env.CLAUDE_MODEL = 'claude-opus-4-8';
-    process.env.CLAUDE_API_HOST = 'https://www.right.codes/claude';
+    process.env.CLAUDE_API_HOST = 'https://www.rightapi.ai/claude';
   });
 
   it('returns 401 without session', async () => {
@@ -107,7 +107,7 @@ describe('POST /api/subscriptions/fetch', () => {
     expect(fetchByCategory).not.toHaveBeenCalled();
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/claude/v1/messages');
+    expect(url).toBe('https://www.rightapi.ai/claude/v1/messages');
     expect(init.headers['x-api-key']).toBe('test-claude-key');
     expect(JSON.parse(init.body)).toMatchObject({
       model: 'claude-opus-4-8',

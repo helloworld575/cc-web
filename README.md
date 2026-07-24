@@ -63,10 +63,10 @@ X_ACCESS_TOKEN_SECRET=
 # Cloudflare Tunnel (for deploy)
 CLOUDFLARE_TUNNEL_TOKEN=
 
-# Optional fallback Claude provider (right.codes messages API by default)
+# Optional fallback Claude provider (rightapi.ai messages API by default)
 CLAUDE_API_KEY=
 CLAUDE_MODEL=claude-opus-4-8
-CLAUDE_API_HOST=https://www.right.codes/claude
+CLAUDE_API_HOST=https://www.rightapi.ai/claude
 CLAUDE_MAX_TOKENS=32000
 AI_CHAT_CONNECT_TIMEOUT_MS=30000
 AI_CHAT_FIRST_TOKEN_TIMEOUT_MS=60000
@@ -79,14 +79,14 @@ CLAUDE_SYSTEM_PROMPT=You are ThomasLee's personal assistant.
 
 # Optional Right Code GPT-5.5 provider
 RIGHT_CODE_GPT_API_KEY=
-RIGHT_CODE_GPT_API_URL=https://www.right.codes/codex
+RIGHT_CODE_GPT_API_URL=https://www.rightapi.ai/codex
 RIGHT_CODE_GPT_MODEL=gpt-5.5
 RIGHT_CODE_GPT_MAX_TOKENS=32000
 RIGHT_CODE_GPT_API_STYLE=responses
 
 # Optional AI image tool
 GPT_IMAGE_API_KEY=
-GPT_IMAGE_API_URL=https://www.right.codes/draw
+GPT_IMAGE_API_URL=https://www.rightapi.ai/draw
 GPT_IMAGE_MODEL=gpt-image-2-pro
 GPT_IMAGE_API_MODE=images
 GPT_IMAGE_GROUP=vip_2_image
@@ -103,11 +103,11 @@ CONTAINER_LOG_MAX_SIZE=10m
 CONTAINER_LOG_MAX_FILES=5
 ```
 
-AI providers are temporarily env-only. `/admin/ai-config` is a read-only verification page for the Claude and Right Code GPT providers configured in `.env.local`; POST/PUT/DELETE provider APIs return 403. By default Claude calls use `https://www.right.codes/claude/v1/messages`, send Anthropic-style text blocks with ephemeral cache control, and stream tokens back to the UI as SSE. AI chat limits provider connection setup to 30 seconds, waits up to 60 seconds for the first visible text, and ends a stream after 30 seconds without additional visible text; override those defaults with `AI_CHAT_CONNECT_TIMEOUT_MS`, `AI_CHAT_FIRST_TOKEN_TIMEOUT_MS`, and `AI_CHAT_STREAM_IDLE_TIMEOUT_MS`. Right Code GPT-5.5 calls use the Responses API at `https://www.right.codes/codex/v1/responses`, send `input_text` message blocks, and stream SSE responses back to the chat UI. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The admin UI also exposes `/admin/claude-code`, which calls an internal Claude Code worker through `/api/claude-code`. Personal-assistant conversations are stored in SQLite; the server owns each Claude session UUID, starts the first turn with `--session-id`, resumes later turns with `--resume`, and locks the workspace for the lifetime of a conversation. The worker maps `CLAUDE_API_KEY`, `CLAUDE_API_HOST`, and `CLAUDE_MODEL` into Claude Code's Anthropic environment variables, defaults to a personal-assistant system prompt, and returns only user-facing text. Docker Compose persists both `/workspaces` and Claude's `/home/claude/.claude` session state. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it defaults to the right.codes native `/v1/images/generations` endpoint. Set `GPT_IMAGE_API_MODE=chat` only for legacy chat-completions image gateways that still need `GPT_IMAGE_GROUP`.
+AI providers are temporarily env-only. `/admin/ai-config` is a read-only verification page for the Claude and Right Code GPT providers configured in `.env.local`; POST/PUT/DELETE provider APIs return 403. By default Claude calls use `https://www.rightapi.ai/claude/v1/messages`, send Anthropic-style text blocks with ephemeral cache control, and stream tokens back to the UI as SSE. AI chat limits provider connection setup to 30 seconds, waits up to 60 seconds for the first visible text, and ends a stream after 30 seconds without additional visible text; override those defaults with `AI_CHAT_CONNECT_TIMEOUT_MS`, `AI_CHAT_FIRST_TOKEN_TIMEOUT_MS`, and `AI_CHAT_STREAM_IDLE_TIMEOUT_MS`. Right Code GPT-5.5 calls use the Responses API at `https://www.rightapi.ai/codex/v1/responses`, send `input_text` message blocks, and stream SSE responses back to the chat UI. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The admin UI also exposes `/admin/claude-code`, which calls an internal Claude Code worker through `/api/claude-code`. Personal-assistant conversations are stored in SQLite; the server owns each Claude session UUID, starts the first turn with `--session-id`, resumes later turns with `--resume`, and locks the workspace for the lifetime of a conversation. The worker maps `CLAUDE_API_KEY`, `CLAUDE_API_HOST`, and `CLAUDE_MODEL` into Claude Code's Anthropic environment variables, defaults to a personal-assistant system prompt, and returns only user-facing text. Docker Compose persists both `/workspaces` and Claude's `/home/claude/.claude` session state. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it defaults to the rightapi.ai native `/v1/images/generations` endpoint. Set `GPT_IMAGE_API_MODE=chat` only for legacy chat-completions image gateways that still need `GPT_IMAGE_GROUP`.
 
 AI upstream failures are normalized to bounded JSON error codes. Proxy HTML, provider diagnostics, internal hosts, and raw exception messages are never returned to the browser. Image reference files are resized in the browser and encoded as WebP before upload to reduce request latency.
 
-Subscriptions now separate source topic (`ai` or `security`) from fetch type (`rss`, `github`, and so on). Stable public RSS/Atom alternatives are seeded because the existing X feeds were unreliable. `/api/subscriptions/crawl` stores each feed entry with its canonical link, source, first-seen time, and publication time; stable external IDs prevent edited entries from becoming duplicates. `/api/subscriptions/daily` waits for crawling to finish and then publishes one AI post and one security post for the Shanghai calendar day. Security entries are classified as vulnerability advisories, threat intelligence, security incidents, or defensive research; AI entries are classified as model/product, research/evaluation, open-source engineering, or industry/governance. Each class has its own factual fields and balanced selection quota, with source round-robin inside each class. The intro is the only editorial section; the body is rendered deterministically from verifiable source facts and clickable links, so provider failures or proxy HTML cannot enter a daily post. Daily run state makes retries idempotent. Manually generated briefs use the matching `subscription-ai` or `subscription-security` leaf skill through `/api/subscriptions/integrate`; the old `/api/subscriptions/fetch` route is its compatibility alias.
+Subscriptions now separate source topic (`ai` or `security`) from fetch type (`rss`, `json`, `github`, `x`, and so on). Structured JSON sources support common list payloads and Next.js `__NEXT_DATA__`, with stable item IDs and official detail links; unrecognized schemas and WAF challenge pages fail closed instead of becoming article content. The security seed set includes the 360 Vulnerability Research Institute RSS feed, ThreatBook's official technical blog, Kirill Firsov's verified `@k_firsov` X account, and the Changting Emergency Response Center. Changting currently requires an interactive SafeLine WAF challenge, so that exact source is recorded but disabled with `WAF_CHALLENGE` until an authorized machine-readable feed is available. The public X timeline endpoint also failed live verification, so Kirill Firsov is recorded but disabled with `X_UPSTREAM_UNAVAILABLE` instead of repeatedly producing crawl failures. `/api/subscriptions/crawl` stores each feed entry with its canonical link, source, first-seen time, and publication time; stable external IDs prevent edited entries from becoming duplicates. `/api/subscriptions/daily` waits for crawling to finish and then publishes one AI post and one security post for the Shanghai calendar day. Security entries are classified as vulnerability advisories, threat intelligence, security incidents, or defensive research; AI entries are classified as model/product, research/evaluation, open-source engineering, or industry/governance. Each class has its own factual fields and balanced selection quota, with source round-robin inside each class. The intro is the only editorial section; the body is rendered deterministically from verifiable source facts and clickable links, so provider failures or proxy HTML cannot enter a daily post. Daily run state makes retries idempotent. Manually generated briefs use the matching `subscription-ai` or `subscription-security` leaf skill through `/api/subscriptions/integrate`; the old `/api/subscriptions/fetch` route is its compatibility alias.
 
 WeChat sources require an administrator to provide a legitimate HTTPS RSS feed in Admin → Subscriptions, such as an RSSHub or WeChat2RSS feed that the administrator operates or has permission to use. The app does not claim official WeChat support and does not automatically scrape or bypass platform restrictions. Recommended accounts to verify before adding a feed include Tencent Security/Xuanwu, Alibaba Security Response, Changting, NSFOCUS, and Qi-Anxin.
 
@@ -259,7 +259,7 @@ See [docs/en/development.md](./docs/en/development.md#adding-an-ai-skill) for ho
 | Hydration mismatch in Nav | Make sure locale cookie matches or clear cookies |
 | AI proxy rejects streaming test | Use `/api/ai-providers/test` endpoint (non-streaming) |
 | AI image returns a provider or invalid-response error | Check `GPT_IMAGE_API_URL` and account image-channel permission; raw upstream HTML is intentionally hidden |
-| AI image never starts | Default `GPT_IMAGE_API_URL` should point at a native images base such as `https://www.right.codes/draw`; set `GPT_IMAGE_API_MODE=chat` only for legacy `/v1/chat/completions` gateways |
+| AI image never starts | Default `GPT_IMAGE_API_URL` should point at a native images base such as `https://www.rightapi.ai/draw`; set `GPT_IMAGE_API_MODE=chat` only for legacy `/v1/chat/completions` gateways |
 | X post fails with empty `{}` | Check app has Read+Write permissions, regenerate access tokens |
 | Fortune streaming stops early | Increase `CLAUDE_MAX_TOKENS` in `.env.local` |
 

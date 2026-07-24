@@ -1,11 +1,10 @@
 'use client';
 import { type FormEvent, useEffect, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import Link from 'next/link';
 import { useLocale } from '@/components/useLocale';
 import { extractMarkdownHeadings } from '@/lib/markdown-headings';
 import { formatBlogDate } from '@/lib/blog-list';
+import MarkdownViewer from '@/components/MarkdownViewer';
 
 interface Post { slug: string; title: string; date: string; content: string; views?: number; }
 interface Comment { id: number; author: string; content: string; created_at: string; }
@@ -20,7 +19,6 @@ export default function PostClient({ post }: { post: Post }) {
   const [commentError, setCommentError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const headings = extractMarkdownHeadings(post.content);
-  const headingQueue = [...headings];
   const tocTitle = locale === 'zh' ? '目录' : 'On this page';
   const viewsLabel = locale === 'zh' ? '次访问' : 'views';
   const commentsTitle = locale === 'zh' ? '评论' : 'Comments';
@@ -105,33 +103,8 @@ export default function PostClient({ post }: { post: Post }) {
               {views} {viewsLabel}
             </span>
           </div>
-          <article data-testid="blog-post-content" className="toastui-editor-contents max-w-none">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                img({ ...props }) {
-                  return <img {...props} loading="lazy" decoding="async" />;
-                },
-                h2({ children }) {
-                  const heading = headingQueue.shift();
-                  return (
-                    <h2 id={heading?.id} className="scroll-mt-24">
-                      {children}
-                    </h2>
-                  );
-                },
-                h3({ children }) {
-                  const heading = headingQueue.shift();
-                  return (
-                    <h3 id={heading?.id} className="scroll-mt-24">
-                      {children}
-                    </h3>
-                  );
-                },
-              }}
-            >
-              {post.content}
-            </ReactMarkdown>
+          <article>
+            <MarkdownViewer content={post.content} />
           </article>
 
           <section data-testid="blog-comments" className="mt-12 border-t border-slate-200 pt-8">

@@ -62,7 +62,7 @@ X_ACCESS_TOKEN_SECRET=
 # Claude 默认 AI 对话服务商（可选）
 CLAUDE_API_KEY=
 CLAUDE_MODEL=claude-opus-4-8
-CLAUDE_API_HOST=https://www.right.codes/claude
+CLAUDE_API_HOST=https://www.rightapi.ai/claude
 CLAUDE_MAX_TOKENS=32000
 AI_CHAT_CONNECT_TIMEOUT_MS=30000
 AI_CHAT_FIRST_TOKEN_TIMEOUT_MS=60000
@@ -74,14 +74,14 @@ CLAUDE_DISALLOWED_TOOLS=Bash,Edit,Write,NotebookEdit
 
 # Right Code GPT-5.5（可选）
 RIGHT_CODE_GPT_API_KEY=
-RIGHT_CODE_GPT_API_URL=https://www.right.codes/codex
+RIGHT_CODE_GPT_API_URL=https://www.rightapi.ai/codex
 RIGHT_CODE_GPT_MODEL=gpt-5.5
 RIGHT_CODE_GPT_MAX_TOKENS=32000
 RIGHT_CODE_GPT_API_STYLE=responses
 
 # AI 生图工具（可选）
 GPT_IMAGE_API_KEY=
-GPT_IMAGE_API_URL=https://www.right.codes/draw
+GPT_IMAGE_API_URL=https://www.rightapi.ai/draw
 GPT_IMAGE_MODEL=gpt-image-2-pro
 GPT_IMAGE_API_MODE=images
 GPT_IMAGE_GROUP=vip_2_image
@@ -101,11 +101,11 @@ CONTAINER_LOG_MAX_SIZE=10m
 CONTAINER_LOG_MAX_FILES=5
 ```
 
-AI 服务商暂时改为 `.env.local` 只读配置。`/admin/ai-config` 只展示并测试 Claude 与 Right Code GPT，新增、编辑、删除 provider API 会返回 403。Claude 默认调用 `https://www.right.codes/claude/v1/messages` 和 `claude-opus-4-8`。AI 对话默认允许 30 秒建立上游连接、60 秒等待首个可见文本，并在连续 30 秒没有新可见文本时结束流；可通过 `AI_CHAT_CONNECT_TIMEOUT_MS`、`AI_CHAT_FIRST_TOKEN_TIMEOUT_MS`、`AI_CHAT_STREAM_IDLE_TIMEOUT_MS` 调整。AI 对话会保存完整历史，但只把最近的对话窗口发送给上游模型，以降低上下文占用。生图默认调用 right.codes 原生 `/v1/images/generations`；只有旧网关需要 chat-completions 时才设置 `GPT_IMAGE_API_MODE=chat`。
+AI 服务商暂时改为 `.env.local` 只读配置。`/admin/ai-config` 只展示并测试 Claude 与 Right Code GPT，新增、编辑、删除 provider API 会返回 403。Claude 默认调用 `https://www.rightapi.ai/claude/v1/messages` 和 `claude-opus-4-8`。AI 对话默认允许 30 秒建立上游连接、60 秒等待首个可见文本，并在连续 30 秒没有新可见文本时结束流；可通过 `AI_CHAT_CONNECT_TIMEOUT_MS`、`AI_CHAT_FIRST_TOKEN_TIMEOUT_MS`、`AI_CHAT_STREAM_IDLE_TIMEOUT_MS` 调整。AI 对话会保存完整历史，但只把最近的对话窗口发送给上游模型，以降低上下文占用。生图默认调用 rightapi.ai 原生 `/v1/images/generations`；只有旧网关需要 chat-completions 时才设置 `GPT_IMAGE_API_MODE=chat`。
 
 所有 AI 上游失败都会转换成长度受限的 JSON 错误码，浏览器不会收到代理 HTML、服务商诊断、内部地址或底层异常文本。参考图会先在浏览器缩放并转为 WebP，再发送到生图接口。
 
-订阅现在把内容主题（`ai` 或 `security`）与抓取类型（`rss`、`github` 等）分开。由于现有 X 源不稳定，系统会初始化公开 RSS/Atom 替代源。`/api/subscriptions/crawl` 逐条保存原文链接、来源、首次发现时间和发布时间，并使用稳定 external ID 避免更新后重复入库。`/api/subscriptions/daily` 会等待抓取完成，再按上海自然日各发布一篇 AI 日报和安全日报。安全内容分为漏洞通告、威胁情报、安全事件、防御研究，AI 内容分为模型与产品、研究与评测、开源工程、行业与治理；每类使用独立事实字段和均衡选取配额，分类内部按来源轮询选取。片头是唯一允许编辑判断的区域；正文由可核实条目和可点击原文链接确定性渲染，AI 服务异常或代理 HTML 不会写进日报。每日主题状态可保证重试幂等。手动摘要由 `/api/subscriptions/integrate` 按主题调用 `subscription-ai` 或 `subscription-security` 叶子 Skill，旧 `/api/subscriptions/fetch` 是兼容入口。
+订阅现在把内容主题（`ai` 或 `security`）与抓取类型（`rss`、`json`、`github`、`x` 等）分开。结构化 JSON 源支持常见列表字段和 Next.js `__NEXT_DATA__`，会保留稳定条目 ID 与官方详情链接；无法识别的结构或 WAF 挑战页会直接失败，不会被当成博客正文。安全源新增 360 漏洞研究院官方 RSS、微步在线官方技术博客、Kirill Firsov 的已验证 X 账号 `@k_firsov` 和长亭应急响应中心。长亭当前要求交互式雷池 WAF 挑战，因此精确来源已登记但以 `WAF_CHALLENGE` 状态停用，待获得授权的机器可读 feed 后再启用。X 公开时间线也未通过本次实时抓取验证，因此 Kirill Firsov 来源以 `X_UPSTREAM_UNAVAILABLE` 状态登记并停用，避免持续产生失败任务。`/api/subscriptions/crawl` 逐条保存原文链接、来源、首次发现时间和发布时间，并使用稳定 external ID 避免更新后重复入库。`/api/subscriptions/daily` 会等待抓取完成，再按上海自然日各发布一篇 AI 日报和安全日报。安全内容分为漏洞通告、威胁情报、安全事件、防御研究，AI 内容分为模型与产品、研究与评测、开源工程、行业与治理；每类使用独立事实字段和均衡选取配额，分类内部按来源轮询选取。片头是唯一允许编辑判断的区域；正文由可核实条目和可点击原文链接确定性渲染，AI 服务异常或代理 HTML 不会写进日报。每日主题状态可保证重试幂等。手动摘要由 `/api/subscriptions/integrate` 按主题调用 `subscription-ai` 或 `subscription-security` 叶子 Skill，旧 `/api/subscriptions/fetch` 是兼容入口。
 
 微信订阅需要管理员在“管理 — 订阅”中手动提供合法的 HTTPS RSS 地址，例如由管理员自行部署或确认来源的 RSSHub、WeChat2RSS feed。系统不提供官方微信接口，也不会自动抓取或绕过平台限制；推荐先核验腾讯安全/玄武、阿里安全响应、长亭、绿盟、奇安信等账号的授权 feed，再录入 URL。
 

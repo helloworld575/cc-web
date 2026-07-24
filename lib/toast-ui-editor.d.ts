@@ -38,3 +38,18 @@ declare module '@toast-ui/editor' {
 }
 
 declare module '@toast-ui/editor/dist/i18n/zh-cn';
+
+declare module '@toast-ui/editor/viewer' {
+  export interface ViewerOptions {
+    el: HTMLElement;
+    initialValue?: string;
+    usageStatistics?: boolean;
+    extendedAutolinks?: boolean;
+  }
+
+  export default class Viewer {
+    constructor(options: ViewerOptions);
+    setMarkdown(markdown: string): void;
+    destroy(): void;
+  }
+}

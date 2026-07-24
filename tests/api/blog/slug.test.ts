@@ -50,6 +50,22 @@ describe('PUT /api/blog/[slug]', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/blog');
     expect(revalidatePath).toHaveBeenCalledWith('/blog/hello');
   });
+
+  it('rejects timestamp dates so edits preserve the selected calendar day', async () => {
+    mockSession(true);
+    const { PUT } = await import('@/app/api/blog/[slug]/route');
+    const res = await PUT(new Request('http://localhost', {
+      method: 'PUT',
+      body: JSON.stringify({
+        title: 'T',
+        date: '2026-07-17T00:00:00+08:00',
+        content: 'c',
+      }),
+    }), params);
+
+    expect(res.status).toBe(400);
+    expect(savePost).not.toHaveBeenCalled();
+  });
 });
 
 describe('DELETE /api/blog/[slug]', () => {

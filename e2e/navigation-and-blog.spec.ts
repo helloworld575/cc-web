@@ -193,15 +193,19 @@ test('public navigation and blog publishing flow work end to end', async ({ page
     '~~Retired wording~~',
     '',
     'https://example.com/reference',
+    '',
+    '<details><summary>More evidence</summary><mark>Editor-defined highlight</mark></details>',
   ].join('\n'));
   const editorPreview = page.getByTestId('admin-blog-editor-preview');
   await expect(editorPreview.locator('table')).toContainText('Shared preview');
-  await expect(editorPreview.locator('li.task-list-item')).toContainText('Published task');
+  await expect(editorPreview.locator('li.task-list-item[data-task-checked]')).toContainText('Published task');
   await expect(editorPreview.locator('del')).toHaveText('Retired wording');
   await expect(editorPreview.getByRole('link', { name: 'https://example.com/reference' })).toHaveAttribute(
     'href',
     'https://example.com/reference'
   );
+  await expect(editorPreview.locator('details')).toContainText('More evidence');
+  await expect(editorPreview.locator('mark')).toHaveText('Editor-defined highlight');
   await page.getByTestId('admin-blog-save').click();
   await expect(page.getByTestId('admin-blog-saved')).toBeVisible();
 
@@ -225,12 +229,14 @@ test('public navigation and blog publishing flow work end to end', async ({ page
   await expect(page.getByTestId('blog-post-date')).toContainText('April 23, 2026');
   const article = page.getByTestId('blog-post-content');
   await expect(article.locator('table')).toContainText('Shared preview');
-  await expect(article.locator('input[type="checkbox"]')).toBeChecked();
+  await expect(article.locator('li.task-list-item[data-task-checked]')).toContainText('Published task');
   await expect(article.locator('del')).toHaveText('Retired wording');
   await expect(article.getByRole('link', { name: 'https://example.com/reference' })).toHaveAttribute(
     'href',
     'https://example.com/reference'
   );
+  await expect(article.locator('details')).toContainText('More evidence');
+  await expect(article.locator('mark')).toHaveText('Editor-defined highlight');
 
   await page.goto('/blog');
   await expect(page.getByTestId(`blog-post-views-${slug}`)).toContainText(/views|访问/);

@@ -61,10 +61,10 @@ services:
       CLAUDE_MAX_BUDGET_USD: ${CLAUDE_MAX_BUDGET_USD:-}
       CLAUDE_WORKER_TOKEN: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:?CLAUDE_API_KEY is required}
-      CLAUDE_API_HOST: ${CLAUDE_API_HOST:-https://www.right.codes/claude}
+      CLAUDE_API_HOST: ${CLAUDE_API_HOST:-https://www.rightapi.ai/claude}
       CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-opus-4-8}
       ANTHROPIC_API_KEY: ${CLAUDE_API_KEY:?CLAUDE_API_KEY is required}
-      ANTHROPIC_BASE_URL: ${CLAUDE_API_HOST:-https://www.right.codes/claude}
+      ANTHROPIC_BASE_URL: ${CLAUDE_API_HOST:-https://www.rightapi.ai/claude}
       ANTHROPIC_MODEL: ${CLAUDE_MODEL:-claude-opus-4-8}
       USE_BUILTIN_RIPGREP: 0
     volumes:

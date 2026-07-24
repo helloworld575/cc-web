@@ -108,13 +108,15 @@ describe('platform modernization', () => {
     const imageTool = read('components/AIImageTool.tsx');
     const xPost = read('app/admin/x-post/page.tsx');
     const blogPost = read('app/blog/[slug]/PostClient.tsx');
+    const blogViewer = read('components/MarkdownViewer.tsx');
     const streamingMarkdown = read('components/StreamingMarkdown.tsx');
 
     expect(imageTool).toContain('compressReferenceImage');
     expect(imageTool).toContain("'image/webp'");
     expect(xPost).not.toContain('/api/uploads/');
-    expect(blogPost).toContain('loading="lazy"');
-    expect(blogPost).toContain('decoding="async"');
+    expect(blogPost).toContain('MarkdownViewer');
+    expect(blogViewer).toContain("image.loading = 'lazy'");
+    expect(blogViewer).toContain("image.decoding = 'async'");
     expect(streamingMarkdown).toContain('loading="lazy"');
     expect(streamingMarkdown).toContain('decoding="async"');
   });

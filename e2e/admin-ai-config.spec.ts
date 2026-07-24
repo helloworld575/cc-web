@@ -25,6 +25,6 @@ test('admin AI providers page shows the Right Code GPT-5.5 env provider', async 
   await expect(rightCodeCard).toContainText('openai');
   await expect(rightCodeCard).toContainText('gpt-5.5');
   await expect(rightCodeCard).toContainText('32000 max tokens');
-  await expect(rightCodeCard).toContainText('https://www.right.codes/codex');
+  await expect(rightCodeCard).toContainText('https://www.rightapi.ai/codex');
   await expect(rightCodeCard.getByRole('button', { name: 'Test' })).toBeVisible();
 });

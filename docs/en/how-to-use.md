@@ -74,14 +74,14 @@ Admin pages:
 3. Use a Right Code preset or fill in:
    - **Name** — e.g., "Claude"
    - **API Type** — `openai` or `anthropic`
-   - **API URL** — base URL (e.g., `https://www.right.codes/codex` or `https://www.right.codes/claude`)
+   - **API URL** — base URL (e.g., `https://www.rightapi.ai/codex` or `https://www.rightapi.ai/claude`)
    - **API Key** — your secret key
    - **Model** — e.g., `gpt-5.5` or `claude-opus-4-8`
 4. Check **Set as default** for at least one provider
 5. Click **Test Connection** to verify
 6. Click **Save**
 
-Then go to **Tools → AI Chat** and select your provider from the dropdown. If `CLAUDE_API_KEY` or `RIGHT_CODE_GPT_API_KEY` is set in `.env.local`, env-backed providers stay at the top and the first configured env provider stays as the default while saved providers remain selectable. Right Code GPT-5.5 uses the Responses API at `https://www.right.codes/codex/v1/responses`; saved presets can keep the base URL `https://www.right.codes/codex` because the backend detects it automatically. Completed chats are saved automatically, grouped by provider, and can be reopened or deleted from the history list. The chat panel keeps the composer anchored while the message timeline scrolls, can expand to fullscreen, and markdown tables or fenced CSV/TSV output render as readable tables. Full transcripts stay in history, while only the recent conversation window is sent to the upstream model to reduce context usage.
+Then go to **Tools → AI Chat** and select your provider from the dropdown. If `CLAUDE_API_KEY` or `RIGHT_CODE_GPT_API_KEY` is set in `.env.local`, env-backed providers stay at the top and the first configured env provider stays as the default while saved providers remain selectable. Right Code GPT-5.5 uses the Responses API at `https://www.rightapi.ai/codex/v1/responses`; saved presets can keep the base URL `https://www.rightapi.ai/codex` because the backend detects it automatically. Completed chats are saved automatically, grouped by provider, and can be reopened or deleted from the history list. The chat panel keeps the composer anchored while the message timeline scrolls, can expand to fullscreen, and markdown tables or fenced CSV/TSV output render as readable tables. Full transcripts stay in history, while only the recent conversation window is sent to the upstream model to reduce context usage.
 
 ---
 

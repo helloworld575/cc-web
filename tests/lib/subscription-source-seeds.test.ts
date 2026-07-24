@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type Database from 'better-sqlite3';
 import {
   CHINESE_SECURITY_RSS_SOURCES,
+  SECURITY_SOURCE_ADDITIONS,
   disableKnownUnreliableSourcesOnce,
+  seedSecuritySourceAdditions,
   seedChineseSecuritySources,
 } from '@/lib/subscription-source-seeds';
 
@@ -51,6 +53,30 @@ describe('subscription source seeds', () => {
       expect.objectContaining({ name: '安全客', url: 'https://api.anquanke.com/data/v1/rss' }),
       expect.objectContaining({ name: '离别歌', url: 'https://www.leavesongs.com/rss/' }),
     ]));
+  });
+
+  it('defines the requested official security sources with explicit fetch strategies', () => {
+    expect(SECURITY_SOURCE_ADDITIONS).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: '长亭应急响应中心', url: 'https://rivers.chaitin.cn/', category: 'json', topic: 'security', enabled: 0, lastErrorCode: 'WAF_CHALLENGE' }),
+      expect.objectContaining({ name: '360漏洞研究院', url: 'https://vul.360.net/feed/', category: 'rss', topic: 'security' }),
+      expect.objectContaining({ name: '微步在线技术博客', url: 'https://www.threatbook.cn/techblog', category: 'json', topic: 'security' }),
+      expect.objectContaining({ name: 'Kirill Firsov (@k_firsov)', url: 'https://x.com/k_firsov', category: 'x', topic: 'security', enabled: 0, lastErrorCode: 'X_UPSTREAM_UNAVAILABLE' }),
+    ]));
+  });
+
+  it('seeds source additions even when the original v1 migration already exists', async () => {
+    db = await createDb();
+    db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run('20260716-seed-chinese-security-rss-v1');
+    seedSecuritySourceAdditions(db);
+    seedSecuritySourceAdditions(db);
+
+    expect(db.prepare('SELECT COUNT(*) AS count FROM subscription_sources').get()).toEqual({ count: 4 });
+    expect(db.prepare('SELECT category, topic FROM subscription_sources WHERE name = ?').get('微步在线技术博客'))
+      .toEqual({ category: 'json', topic: 'security' });
+    expect(db.prepare('SELECT enabled, last_error_code FROM subscription_sources WHERE name = ?').get('长亭应急响应中心'))
+      .toEqual({ enabled: 0, last_error_code: 'WAF_CHALLENGE' });
+    expect(db.prepare('SELECT enabled, last_error_code FROM subscription_sources WHERE name = ?').get('Kirill Firsov (@k_firsov)'))
+      .toEqual({ enabled: 0, last_error_code: 'X_UPSTREAM_UNAVAILABLE' });
   });
 
   it('does not recreate the exact production failures from the persistent default seed block', () => {

@@ -30,9 +30,11 @@ This project uses `@toast-ui/editor` as the shared Markdown editor for blog post
 | Disable telemetry | `usageStatistics: false` |
 | Make plain HTTP(S) references clickable in preview | `extendedAutolinks: true` |
 
-The public blog renderer enables `remark-gfm` and uses the same `.toastui-editor-contents`
-presentation class. This keeps server-rendered article HTML while matching the editor preview
-for tables, task lists, strikethrough, and extended autolinks.
+The public blog uses the upstream TOAST UI Viewer with the same `extendedAutolinks` setting as
+the editor preview. A server-rendered React Markdown fallback keeps article content available
+before hydration, then the Viewer becomes the display source of truth. This preserves editor
+semantics for GFM and supported HTML blocks instead of relying on CSS alone to hide parser
+differences.
 
 ## Change Rule
 

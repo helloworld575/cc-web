@@ -65,7 +65,7 @@ export function getEnvRightCodeGptProvider(): AiProviderConfig | null {
     id: ENV_RIGHT_CODE_GPT_PROVIDER_ID,
     name: 'Right Code GPT-5.5 Env',
     api_type: 'openai',
-    api_url: (process.env.RIGHT_CODE_GPT_API_URL || process.env.RIGHT_CODE_API_URL || 'https://www.right.codes/codex').replace(/\/+$/, ''),
+    api_url: (process.env.RIGHT_CODE_GPT_API_URL || process.env.RIGHT_CODE_API_URL || 'https://www.rightapi.ai/codex').replace(/\/+$/, ''),
     api_key: apiKey,
     model: process.env.RIGHT_CODE_GPT_MODEL || 'gpt-5.5',
     system_prompt: '',

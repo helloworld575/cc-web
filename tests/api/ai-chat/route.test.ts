@@ -210,7 +210,7 @@ describe('POST /api/ai-chat', () => {
     expect(JSON.parse(init.body).model).toBe('claude-opus-4-6');
   });
 
-  it('defaults env-backed Claude requests to the right.codes messages API shape', async () => {
+  it('defaults env-backed Claude requests to the rightapi.ai messages API shape', async () => {
     process.env.CLAUDE_API_KEY = 'test-claude-key';
     process.env.CLAUDE_MODEL = 'claude-opus-4-8';
     process.env.CLAUDE_MAX_TOKENS = '32000';
@@ -226,7 +226,7 @@ describe('POST /api/ai-chat', () => {
 
     expect(res.status).toBe(200);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/claude/v1/messages');
+    expect(url).toBe('https://www.rightapi.ai/claude/v1/messages');
     expect(init.headers['x-api-key']).toBe('test-claude-key');
     expect(init.headers['content-type']).toBe('application/json');
     expect(JSON.parse(init.body)).toMatchObject({
@@ -277,7 +277,7 @@ describe('POST /api/ai-chat', () => {
   it('streams the env-backed Right Code GPT-5.5 provider through the Responses API', async () => {
     mockSession(true);
     process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
-    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.rightapi.ai/codex';
     process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
     process.env.RIGHT_CODE_GPT_MAX_TOKENS = '32000';
     mockResponsesStreamResponse();
@@ -290,7 +290,7 @@ describe('POST /api/ai-chat', () => {
 
     expect(res.status).toBe(200);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/codex/v1/responses');
+    expect(url).toBe('https://www.rightapi.ai/codex/v1/responses');
     expect(init.headers.Authorization).toBe('Bearer test-right-code-key');
     expect(JSON.parse(init.body)).toMatchObject({
       model: 'gpt-5.5',
@@ -321,7 +321,7 @@ describe('POST /api/ai-chat', () => {
   it('emits a catchable SSE error when a Right Code stream read fails', async () => {
     mockSession(true);
     process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
-    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.rightapi.ai/codex';
     process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
     mockBrokenResponsesStreamResponse();
 
@@ -350,7 +350,7 @@ describe('POST /api/ai-chat', () => {
   it('injects the selected skill into AI chat requests', async () => {
     mockSession(true);
     process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
-    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.rightapi.ai/codex';
     process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
     (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
       id: 'article-polish',

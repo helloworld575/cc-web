@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getPosts, savePost } from '@/lib/markdown';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { isCanonicalBlogDate } from '@/lib/blog-list';
 
 export async function GET() {
   return NextResponse.json(getPosts());
@@ -17,6 +18,7 @@ export async function POST(req: Request) {
   const { slug, title, date, content } = body;
   if (!slug || !title) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   if (!/^[a-z0-9-]+$/.test(slug)) return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
+  if (!isCanonicalBlogDate(date)) return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
   savePost(slug, title, date, content);
   revalidatePath('/blog');
   revalidatePath(`/blog/${slug}`);

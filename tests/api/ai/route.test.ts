@@ -123,7 +123,7 @@ describe('POST /api/ai', () => {
     expect(streamText).toContain('"model":"claude-sonnet-4-6"');
   });
 
-  it('sends skill prompts to Claude with the right.codes messages request shape', async () => {
+  it('sends skill prompts to Claude with the rightapi.ai messages request shape', async () => {
     mockSession(true);
     delete process.env.CLAUDE_API_HOST;
     process.env.CLAUDE_MODEL = 'claude-opus-4-8';
@@ -146,7 +146,7 @@ describe('POST /api/ai', () => {
 
     expect(res.status).toBe(200);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/claude/v1/messages');
+    expect(url).toBe('https://www.rightapi.ai/claude/v1/messages');
     expect(JSON.parse(init.body)).toMatchObject({
       model: 'claude-opus-4-8',
       max_tokens: 32000,
@@ -171,7 +171,7 @@ describe('POST /api/ai', () => {
     mockSession(true);
     delete process.env.CLAUDE_API_KEY;
     process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
-    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.rightapi.ai/codex';
     process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
     process.env.RIGHT_CODE_GPT_API_STYLE = 'responses';
     (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -203,7 +203,7 @@ describe('POST /api/ai', () => {
 
     expect(res.status).toBe(200);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/codex/v1/responses');
+    expect(url).toBe('https://www.rightapi.ai/codex/v1/responses');
     expect(init.headers.Authorization).toBe('Bearer test-right-code-key');
     expect(JSON.parse(init.body)).toMatchObject({
       model: 'gpt-5.5',
@@ -229,7 +229,7 @@ describe('POST /api/ai', () => {
     process.env.CLAUDE_API_KEY = 'test-claude-key';
     process.env.CLAUDE_MODEL = 'claude-opus-4-8';
     process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
-    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.rightapi.ai/codex';
     process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
     process.env.RIGHT_CODE_GPT_API_STYLE = 'responses';
     (getSkill as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -261,7 +261,7 @@ describe('POST /api/ai', () => {
 
     expect(res.status).toBe(200);
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/codex/v1/responses');
+    expect(url).toBe('https://www.rightapi.ai/codex/v1/responses');
     expect(init.headers.Authorization).toBe('Bearer test-right-code-key');
     expect(JSON.parse(init.body)).toMatchObject({
       model: 'gpt-5.5',

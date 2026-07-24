@@ -34,6 +34,9 @@ Create a new post.
 { "slug": "my-post", "title": "...", "date": "2026-04-16", "content": "...", "brief": "..." }
 ```
 
+`date` is a calendar date and must use the exact `YYYY-MM-DD` form. Timestamp
+values are rejected so the published day cannot change across time zones.
+
 ### `PUT /api/blog/[slug]` / `DELETE /api/blog/[slug]`
 Update/delete a post.
 
@@ -106,7 +109,7 @@ List configured providers (API keys are masked). If `CLAUDE_API_KEY` or `RIGHT_C
 {
   "name": "Claude",
   "api_type": "anthropic",
-  "api_url": "https://www.right.codes/claude",
+  "api_url": "https://www.rightapi.ai/claude",
   "api_key": "sk-...",
   "model": "claude-opus-4-8",
   "system_prompt": "",
@@ -120,7 +123,7 @@ List configured providers (API keys are masked). If `CLAUDE_API_KEY` or `RIGHT_C
 When an env-backed provider is present, newly saved or updated database providers are stored as non-default even if `is_default` is submitted.
 
 ### `POST /api/ai-providers/test`
-Lightweight connection test. Body: `{"provider_id": 1}`. Use `{"provider_id": -1}` to test the env-backed Claude provider or `{"provider_id": -2}` to test the env-backed Right Code GPT-5.5 provider. Right Code GPT-5.5 is tested through `https://www.right.codes/codex/v1/responses`. Returns `{"ok": true, "text": "...", "model": "..."}`.
+Lightweight connection test. Body: `{"provider_id": 1}`. Use `{"provider_id": -1}` to test the env-backed Claude provider or `{"provider_id": -2}` to test the env-backed Right Code GPT-5.5 provider. Right Code GPT-5.5 is tested through `https://www.rightapi.ai/codex/v1/responses`. Returns `{"ok": true, "text": "...", "model": "..."}`.
 
 ---
 
@@ -157,7 +160,7 @@ Successful responses use `text/plain`, include `X-Claude-Chat-ID`, and contain o
 ## AI Image
 
 ### `POST /api/ai-image`
-Generate an image with the configured `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY`. By default the backend calls the right.codes native images endpoint at `/v1/images/generations` and returns JSON to the browser. Set `GPT_IMAGE_API_MODE=chat` only for legacy gateways that require `/v1/chat/completions`.
+Generate an image with the configured `GPT_IMAGE_API_URL` / `GPT_IMAGE_API_KEY`. By default the backend calls the rightapi.ai native images endpoint at `/v1/images/generations` and returns JSON to the browser. Set `GPT_IMAGE_API_MODE=chat` only for legacy gateways that require `/v1/chat/completions`.
 
 Request body:
 
@@ -202,7 +205,7 @@ List saved chat summaries, newest first. Optional query param: `provider_id`.
 ```
 
 ### `POST /api/ai-chat`
-Streaming chat endpoint. Returns SSE (`text/event-stream`) and saves the completed transcript to `ai_chat_history`. The stored transcript remains complete, but the upstream model request is compacted to the recent conversation window. Right Code GPT-5.5 providers with base URL `https://www.right.codes/codex` use the Responses API (`/v1/responses`) and stream `response.output_text.delta` events.
+Streaming chat endpoint. Returns SSE (`text/event-stream`) and saves the completed transcript to `ai_chat_history`. The stored transcript remains complete, but the upstream model request is compacted to the recent conversation window. Right Code GPT-5.5 providers with base URL `https://www.rightapi.ai/codex` use the Responses API (`/v1/responses`) and stream `response.output_text.delta` events.
 
 ```json
 {
@@ -228,6 +231,8 @@ Update or delete a saved chat.
 
 ### `GET /api/subscriptions` / `POST /api/subscriptions`
 Manage subscription sources.
+
+Supported `category` values include `rss`, `json`, `github`, `x`, `blog`, `selfblog`, `newsletter`, `reddit`, `general`, and `other`. The `json` fetcher accepts common list payloads and Next.js `__NEXT_DATA__`; schema mismatches and WAF challenge HTML fail without persisting the page as content.
 
 ```json
 { "name": "AI News", "url": "https://example.com/feed.xml", "category": "rss", "topic": "ai", "enabled": 1, "fetch_interval": 86400 }

@@ -20,6 +20,7 @@ export const SUBSCRIPTION_FETCH_CATEGORIES = [
   'blog',
   'selfblog',
   'rss',
+  'json',
   'newsletter',
   'reddit',
   'general',

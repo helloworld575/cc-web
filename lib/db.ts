@@ -7,6 +7,7 @@ import {
 import {
   disableKnownUnreliableSourcesOnce,
   seedChineseSecuritySources,
+  seedSecuritySourceAdditions,
 } from '@/lib/subscription-source-seeds';
 
 const isBuildDatabase = process.env.BUILDING_DOCKER_IMAGE === '1'
@@ -245,6 +246,7 @@ db.exec(`
 // Seed Chinese security sources once and disable only the exact production URLs
 // known to be failing. Both migrations preserve later administrator edits.
 seedChineseSecuritySources(db);
+seedSecuritySourceAdditions(db);
 disableKnownUnreliableSourcesOnce(db);
 
 // Migrate: keep chat history when providers are edited/deleted and allow env-backed providers.

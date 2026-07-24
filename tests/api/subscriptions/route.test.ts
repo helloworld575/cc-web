@@ -117,6 +117,17 @@ describe('POST /api/subscriptions', () => {
     expect(data.id).toBe(42);
   });
 
+  it('accepts the structured JSON source category', async () => {
+    mockSession(true);
+    mockDbStmt({ run: vi.fn(() => ({ lastInsertRowid: 43, changes: 1 })) });
+    const { POST } = await import('@/app/api/subscriptions/route');
+    const res = await POST(new Request('http://localhost', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'ThreatBook', url: 'https://www.threatbook.cn/techblog', category: 'json', topic: 'security' }),
+    }));
+    expect(res.status).toBe(201);
+  });
+
   it('rejects an unsupported subscription topic', async () => {
     mockSession(true);
     const insertStmt = mockDbStmt();

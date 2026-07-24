@@ -21,7 +21,7 @@ const MAX_IMAGE_STREAM_BYTES = 16 * 1024 * 1024;
 const IMAGE_REQUEST_TIMEOUT_MS = 180000;
 
 function getImageGenerationUrl() {
-  const configured = (process.env.GPT_IMAGE_API_URL || 'https://www.right.codes/draw').replace(/\/+$/, '');
+  const configured = (process.env.GPT_IMAGE_API_URL || 'https://www.rightapi.ai/draw').replace(/\/+$/, '');
   if (configured.endsWith('/v1/images/generations')) return configured;
   if (configured.endsWith('/images/generations')) return configured;
   if (configured.endsWith('/v1')) return `${configured}/images/generations`;
@@ -29,7 +29,7 @@ function getImageGenerationUrl() {
 }
 
 function getChatImageGenerationUrl() {
-  const configured = (process.env.GPT_IMAGE_API_URL || 'https://www.right.codes/draw').replace(/\/+$/, '');
+  const configured = (process.env.GPT_IMAGE_API_URL || 'https://www.rightapi.ai/draw').replace(/\/+$/, '');
   if (configured.endsWith('/v1/chat/completions')) return configured;
   if (configured.endsWith('/chat/completions')) return configured;
   if (configured.endsWith('/v1')) return `${configured}/chat/completions`;

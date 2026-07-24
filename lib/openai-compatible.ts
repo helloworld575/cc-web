@@ -17,11 +17,13 @@ function normalizeOpenAiApiStyle(value: unknown): OpenAiApiStyle | null {
 function isRightCodeCodexUrl(apiUrl: string) {
   try {
     const parsed = new URL(apiUrl);
-    return parsed.hostname === 'www.right.codes'
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    return (hostname === 'rightapi.ai' || hostname === 'right.codes')
       && parsed.pathname.toLowerCase().split('/').includes('codex');
   } catch {
     const normalized = apiUrl.toLowerCase();
-    return normalized.includes('right.codes') && normalized.includes('/codex');
+    return (normalized.includes('rightapi.ai') || normalized.includes('right.codes'))
+      && normalized.includes('/codex');
   }
 }
 

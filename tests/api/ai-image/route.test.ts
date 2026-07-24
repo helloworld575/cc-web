@@ -21,7 +21,7 @@ describe('POST /api/ai-image', () => {
     vi.mocked(rateLimitByIp).mockReturnValue(null);
     mockFetch.mockReset();
     process.env.GPT_IMAGE_API_KEY = 'test-image-key';
-    process.env.GPT_IMAGE_API_URL = 'https://right.codes';
+    process.env.GPT_IMAGE_API_URL = 'https://rightapi.ai';
     delete process.env.GPT_IMAGE_MODEL;
     delete process.env.GPT_IMAGE_GROUP;
   });
@@ -93,7 +93,7 @@ describe('POST /api/ai-image', () => {
     expect(data.model).toBe('gpt-image-2-pro');
 
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://right.codes/v1/chat/completions');
+    expect(url).toBe('https://rightapi.ai/v1/chat/completions');
     expect(init.headers.Authorization).toBe('Bearer test-image-key');
     expect(init.headers['New-Api-Group']).toBe('vip_2_image');
     expect(JSON.parse(init.body)).toEqual({
@@ -112,9 +112,9 @@ describe('POST /api/ai-image', () => {
     });
   });
 
-  it('generates an image through the right.codes native images endpoint by default', async () => {
+  it('generates an image through the rightapi.ai native images endpoint by default', async () => {
     mockSession(true);
-    process.env.GPT_IMAGE_API_URL = 'https://www.right.codes/draw';
+    process.env.GPT_IMAGE_API_URL = 'https://www.rightapi.ai/draw';
     mockFetch.mockResolvedValue(new Response(JSON.stringify({
       data: [{
         url: 'https://cdn.example.com/native.png',
@@ -132,7 +132,7 @@ describe('POST /api/ai-image', () => {
     expect(data.revised_prompt).toBe('a tiny robot, polished');
 
     const [url, init] = mockFetch.mock.calls[0];
-    expect(url).toBe('https://www.right.codes/draw/v1/images/generations');
+    expect(url).toBe('https://www.rightapi.ai/draw/v1/images/generations');
     expect(init.headers.Authorization).toBe('Bearer test-image-key');
     expect(init.headers['New-Api-Group']).toBeUndefined();
     expect(JSON.parse(init.body)).toEqual({
@@ -205,7 +205,7 @@ describe('POST /api/ai-image', () => {
   it('does not double-prefix /gpt when the configured URL already includes it', async () => {
     mockSession(true);
     process.env.GPT_IMAGE_API_MODE = 'chat';
-    process.env.GPT_IMAGE_API_URL = 'https://right.codes/gpt';
+    process.env.GPT_IMAGE_API_URL = 'https://rightapi.ai/gpt';
     mockFetch.mockResolvedValue(new Response(JSON.stringify({
       data: [{ b64_json: Buffer.from('fake-image').toString('base64') }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
@@ -213,7 +213,7 @@ describe('POST /api/ai-image', () => {
     const { POST } = await import('@/app/api/ai-image/route');
     await POST(makePostReq({ prompt: 'a tiny robot' }));
 
-    expect(mockFetch.mock.calls[0][0]).toBe('https://right.codes/gpt/v1/chat/completions');
+    expect(mockFetch.mock.calls[0][0]).toBe('https://rightapi.ai/gpt/v1/chat/completions');
   });
 
   it('normalizes root provider URLs to the standard v1 chat completions path', async () => {
@@ -233,7 +233,7 @@ describe('POST /api/ai-image', () => {
   it('normalizes configured URLs that already include the chat completions API path', async () => {
     mockSession(true);
     process.env.GPT_IMAGE_API_MODE = 'chat';
-    process.env.GPT_IMAGE_API_URL = 'https://right.codes/gpt/v1/chat/completions';
+    process.env.GPT_IMAGE_API_URL = 'https://rightapi.ai/gpt/v1/chat/completions';
     mockFetch.mockResolvedValue(new Response(JSON.stringify({
       data: [{ b64_json: Buffer.from('fake-image').toString('base64') }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
@@ -241,7 +241,7 @@ describe('POST /api/ai-image', () => {
     const { POST } = await import('@/app/api/ai-image/route');
     await POST(makePostReq({ prompt: 'a tiny robot' }));
 
-    expect(mockFetch.mock.calls[0][0]).toBe('https://right.codes/gpt/v1/chat/completions');
+    expect(mockFetch.mock.calls[0][0]).toBe('https://rightapi.ai/gpt/v1/chat/completions');
   });
 
   it('allows image model and group to be configured by env', async () => {

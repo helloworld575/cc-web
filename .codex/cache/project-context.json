@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-18T11:51:20.109Z",
+  "generatedAt": "2026-07-24T02:01:51.512Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -482,6 +482,7 @@
       "components/HydrationReady.tsx",
       "components/LocaleProvider.tsx",
       "components/MarkdownEditor.tsx",
+      "components/MarkdownViewer.tsx",
       "components/Nav.tsx",
       "components/Pagination.tsx",
       "components/SessionProvider.tsx",
@@ -1219,6 +1220,7 @@
       "tests/lib/i18n.test.ts",
       "tests/lib/markdown-headings.test.ts",
       "tests/lib/markdown.test.ts",
+      "tests/lib/openai-compatible.test.ts",
       "tests/lib/rate-limit-security.test.ts",
       "tests/lib/runtime-paths.test.ts",
       "tests/lib/safe-fetch.test.ts",
@@ -1233,6 +1235,6 @@
       "tests/lib/theme.test.ts",
       "tests/proxy.test.ts"
     ],
-    "count": 67
+    "count": 68
   }
 }

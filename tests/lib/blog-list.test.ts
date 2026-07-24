@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatBlogDate,
+  getBlogCalendarDate,
   orderBlogPosts,
   paginateBlogPosts,
   type BlogListPost,
@@ -25,5 +26,10 @@ describe('blog list ordering and dates', () => {
   it('formats the canonical date in English and Chinese without timezone drift', () => {
     expect(formatBlogDate('2026-04-23', 'en')).toBe('April 23, 2026');
     expect(formatBlogDate('2026-04-23', 'zh')).toBe('2026年4月23日');
+  });
+
+  it('uses the Asia/Shanghai calendar day when creating a new post', () => {
+    expect(getBlogCalendarDate(new Date('2026-07-23T16:30:00.000Z'))).toBe('2026-07-24');
+    expect(getBlogCalendarDate(new Date('2026-07-24T15:59:59.999Z'))).toBe('2026-07-24');
   });
 });

@@ -3,7 +3,7 @@ import path from 'path';
 import matter from 'gray-matter';
 import { getRuntimePaths } from '@/lib/runtime-paths';
 import { getBlogViewCount, getBlogViewCounts } from '@/lib/blog-analytics';
-import { orderBlogPosts } from '@/lib/blog-list';
+import { getBlogCalendarDate, isCanonicalBlogDate, orderBlogPosts } from '@/lib/blog-list';
 
 const { postsDir } = getRuntimePaths();
 const bundledPostsDir = process.env.SITE_BUNDLED_POSTS_DIR?.trim() || '';
@@ -36,14 +36,18 @@ function resolvePostFile(slug: string) {
 
 export function normalizePostDate(value: unknown) {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10);
+    return getBlogCalendarDate(value);
   }
 
   const text = String(value ?? '').trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  if (isCanonicalBlogDate(text)) return text;
 
-  const legacyDate = new Date(text);
-  return Number.isNaN(legacyDate.getTime()) ? '' : legacyDate.toISOString().slice(0, 10);
+  const timestamp = /^\d{4}-\d{2}-\d{2}T/.test(text) && !/(?:Z|[+-]\d{2}:?\d{2})$/i.test(text)
+    ? `${text}+08:00`
+    : text;
+  const legacyDate = new Date(timestamp);
+
+  return Number.isNaN(legacyDate.getTime()) ? '' : getBlogCalendarDate(legacyDate);
 }
 
 export function getPosts(): PostMeta[] {

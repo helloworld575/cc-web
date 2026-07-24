@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Pagination from '@/components/Pagination';
 import DateRangeFilter from '@/components/DateRangeFilter';
 import { useLocale } from '@/components/useLocale';
+import { getBlogCalendarDate } from '@/lib/blog-list';
 
 interface PostMeta { slug: string; title: string; date: string; brief?: string; }
 const PAGE_SIZE = 20;
@@ -47,7 +48,7 @@ export default function AdminBlogPage() {
     const res = await fetch('/api/blog', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug, title, date: new Date().toISOString().slice(0, 10), content: '' }),
+      body: JSON.stringify({ slug, title, date: getBlogCalendarDate(), content: '' }),
     });
     if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Failed'); return; }
     router.push(`/admin/blog/${slug}`);

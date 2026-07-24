@@ -58,6 +58,14 @@ describe('blog markdown persistence', () => {
     expect(getPost('round-trip')?.date).toBe('2026-04-23');
   });
 
+  it('normalizes timestamp dates to the Asia/Shanghai calendar day', async () => {
+    const { normalizePostDate } = await loadMarkdownModule();
+
+    expect(normalizePostDate('2026-07-17T00:00:00+08:00')).toBe('2026-07-17');
+    expect(normalizePostDate('2026-07-17T16:30:00.000Z')).toBe('2026-07-18');
+    expect(normalizePostDate(new Date('2026-07-17T16:30:00.000Z'))).toBe('2026-07-18');
+  });
+
   it('reads bundled posts and lets persistent generated posts override the same slug', async () => {
     process.env.SITE_BUNDLED_POSTS_DIR = bundledPostsDir;
     actualFs.writeFileSync(path.join(bundledPostsDir, 'bundled.md'), post('Bundled', '2026-07-15'));

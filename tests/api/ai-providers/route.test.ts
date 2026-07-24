@@ -20,7 +20,7 @@ describe('GET /api/ai-providers', () => {
     process.env.CLAUDE_MODEL = 'claude-opus-4-6';
     process.env.CLAUDE_API_HOST = 'https://claude-proxy.example';
     process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
-    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.rightapi.ai/codex';
     process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
     mockDbStmt({
       all: vi.fn(() => [
@@ -68,7 +68,7 @@ describe('GET /api/ai-providers', () => {
   it('returns an env-backed Right Code GPT-5.5 provider when configured', async () => {
     mockSession(true);
     process.env.RIGHT_CODE_GPT_API_KEY = 'test-right-code-key';
-    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.right.codes/codex';
+    process.env.RIGHT_CODE_GPT_API_URL = 'https://www.rightapi.ai/codex';
     process.env.RIGHT_CODE_GPT_MODEL = 'gpt-5.5';
     process.env.RIGHT_CODE_GPT_MAX_TOKENS = '32000';
     mockDbStmt({ all: vi.fn(() => []) });
@@ -82,7 +82,7 @@ describe('GET /api/ai-providers', () => {
       id: -2,
       name: 'Right Code GPT-5.5 Env',
       api_type: 'openai',
-      api_url: 'https://www.right.codes/codex',
+      api_url: 'https://www.rightapi.ai/codex',
       api_key: '****-key',
       model: 'gpt-5.5',
       max_tokens: 32000,

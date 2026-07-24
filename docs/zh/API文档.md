@@ -34,6 +34,8 @@
 { "slug": "my-post", "title": "...", "date": "2026-04-16", "content": "...", "brief": "..." }
 ```
 
+`date` 是日历日期，必须严格使用 `YYYY-MM-DD` 格式。接口会拒绝时间戳，避免发布日期因时区转换发生偏移。
+
 ### `PUT /api/blog/[slug]` / `DELETE /api/blog/[slug]`
 更新 / 删除文章。
 
@@ -106,7 +108,7 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 {
   "name": "Claude",
   "api_type": "anthropic",
-  "api_url": "https://www.right.codes/claude",
+  "api_url": "https://www.rightapi.ai/claude",
   "api_key": "sk-...",
   "model": "claude-opus-4-8",
   "system_prompt": "",
@@ -127,7 +129,7 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 ## AI 图像
 
 ### `POST /api/ai-image`
-默认会调用 right.codes 原生 `/v1/images/generations` 图像接口。只有旧网关必须走 `/v1/chat/completions` 时，才设置 `GPT_IMAGE_API_MODE=chat`。
+默认会调用 rightapi.ai 原生 `/v1/images/generations` 图像接口。只有旧网关必须走 `/v1/chat/completions` 时，才设置 `GPT_IMAGE_API_MODE=chat`。
 
 请求体：
 
@@ -196,6 +198,8 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 
 ### `GET /api/subscriptions` / `POST /api/subscriptions`
 管理订阅源。
+
+`category` 支持 `rss`、`json`、`github`、`x`、`blog`、`selfblog`、`newsletter`、`reddit`、`general` 和 `other`。`json` 抓取器支持常见列表结构与 Next.js `__NEXT_DATA__`；结构变化或 WAF 挑战 HTML 会失败，不会将页面保存为订阅正文。
 
 ```json
 { "name": "AI News", "url": "https://example.com/feed.xml", "category": "rss", "topic": "ai", "enabled": 1, "fetch_interval": 86400 }

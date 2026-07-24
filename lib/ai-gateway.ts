@@ -1,4 +1,4 @@
-export const DEFAULT_CLAUDE_API_HOST = 'https://www.right.codes/claude';
+export const DEFAULT_CLAUDE_API_HOST = 'https://www.rightapi.ai/claude';
 export const DEFAULT_CLAUDE_MODEL = 'claude-opus-4-8';
 export const DEFAULT_CLAUDE_MAX_TOKENS = 32000;
 

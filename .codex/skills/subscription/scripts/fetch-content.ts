@@ -8,13 +8,14 @@
  * Usage:
  *   npx tsx fetch-content.ts <url> [category]
  *
- * Categories: x, github, selfblog, rss, newsletter, reddit, other
+ * Categories: x, github, selfblog, rss, json, newsletter, reddit, other
  *
  * Strategies:
  *   x          → Twitter syndication API + fxtwitter profile API
  *   github     → Atom feeds (releases.atom, commits.atom)
  *   selfblog   → Auto-discover RSS/Atom → parse entries → fallback HTML
  *   rss        → Same as selfblog
+ *   json       → Structured JSON or Next.js __NEXT_DATA__ feeds
  *   newsletter → Same as selfblog
  *   reddit     → Reddit JSON API (append .json)
  *   other      → Try RSS first, fallback to HTML text extraction
@@ -44,6 +45,8 @@ function decodeXml(value: string) {
     .replace(/&amp;/g, '&')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&quot;/g, '"')
+    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCodePoint(Number.parseInt(code, 16)))
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number.parseInt(code, 10)))
     .trim();
 }
 
@@ -69,6 +72,12 @@ function normalizeFeedDate(value: string) {
   if (!value) return undefined;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString();
+}
+
+function subscriptionFetchError(code: string, message: string) {
+  const error = new Error(message) as Error & { code?: string };
+  error.code = code;
+  return error;
 }
 
 function resolveFeedUrl(value: string, sourceUrl: string) {
@@ -339,6 +348,141 @@ export function parseSubscriptionFeed(xml: string, sourceUrl: string): FetchedCo
   return { title: feedTitle, content: `Latest posts from ${feedTitle}:\n\n${content}`, items };
 }
 
+function readJsonText(record: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  }
+  return '';
+}
+
+function readJsonItems(data: any): unknown[] {
+  const candidates = [
+    data?.data?.list,
+    data?.data?.items,
+    data?.data?.results,
+    data?.pageProps?.blogList,
+    data?.props?.pageProps?.blogList,
+    data?.items,
+    data?.results,
+    data?.list,
+  ];
+  return candidates.find(Array.isArray) || [];
+}
+
+function resolveStructuredItemUrl(record: Record<string, unknown>, sourceUrl: string, id: string) {
+  const explicitUrl = readJsonText(record, ['url', 'link', 'href']);
+  if (explicitUrl) return resolveFeedUrl(explicitUrl, sourceUrl);
+
+  try {
+    const source = new URL(sourceUrl);
+    const hostname = source.hostname.toLowerCase().replace(/^www\./, '');
+    if (hostname === 'stack.chaitin.com' && id) {
+      return `https://stack.chaitin.com/techblog/detail/${encodeURIComponent(id)}`;
+    }
+    if ((hostname === 'threatbook.cn' || hostname === 'threatbook.com') && id) {
+      return `${source.origin}/techBlogInfo/${encodeURIComponent(id)}`;
+    }
+  } catch { /* use the source URL */ }
+
+  return sourceUrl;
+}
+
+function normalizeStructuredDate(value: string, sourceUrl: string) {
+  if (!value) return undefined;
+  let normalized = value;
+  try {
+    const hostname = new URL(sourceUrl).hostname.toLowerCase();
+    if (hostname.includes('threatbook.')
+      && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(value)) {
+      normalized = `${value}+08:00`;
+    }
+  } catch { /* normalize as supplied */ }
+  return normalizeFeedDate(normalized);
+}
+
+export function parseSubscriptionJsonPayload(payload: string, sourceUrl: string): FetchedContent | null {
+  let data: any;
+  try {
+    data = JSON.parse(payload);
+  } catch {
+    const nextData = payload.match(/<script\b[^>]*\bid=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i)?.[1];
+    if (!nextData) return null;
+    try {
+      data = JSON.parse(nextData);
+    } catch {
+      return null;
+    }
+  }
+
+  const items: FetchedItem[] = [];
+  for (const candidate of readJsonItems(data).slice(0, 15)) {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) continue;
+    const record = candidate as Record<string, unknown>;
+    const title = plainText(readJsonText(record, ['title', 'name']), 300);
+    if (!title) continue;
+
+    const id = readJsonText(record, ['id', 'guid', 'external_id']);
+    const url = resolveStructuredItemUrl(record, sourceUrl, id);
+    const text = plainText(readJsonText(record, [
+      'subDesc',
+      'summary',
+      'description',
+      'content',
+      'text',
+      'desc',
+    ]), 5000);
+    const dateValue = readJsonText(record, [
+      'created_time',
+      'published_at',
+      'date',
+      'time',
+      'updated_at',
+      'last_modify_time',
+    ]);
+
+    items.push({
+      external_id: id || url,
+      title,
+      text,
+      date: normalizeStructuredDate(dateValue, sourceUrl),
+      url,
+    });
+  }
+
+  if (items.length === 0) return null;
+  const sourceTitle = readJsonText(data?.data || {}, ['title', 'name']) || new URL(sourceUrl).hostname;
+  const content = items.map(item => {
+    const dateText = item.date ? ` (${item.date.slice(0, 10)})` : '';
+    return `[${item.title}]${dateText}\n${item.text}${item.url ? `\n${item.url}` : ''}`;
+  }).join('\n\n');
+  return { title: sourceTitle, content: `Latest posts from ${sourceTitle}:\n\n${content}`, items };
+}
+
+async function fetchJson(url: string): Promise<FetchedContent> {
+  const response = await fetchPublicHttp(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!response.ok) {
+    if (response.status === 468) {
+      throw subscriptionFetchError('WAF_CHALLENGE', 'Subscription source requires an interactive WAF challenge');
+    }
+    throw subscriptionFetchError(`HTTP_${response.status}`, `Subscription JSON source returned HTTP ${response.status}`);
+  }
+
+  const payload = await response.text();
+  if (/SafeLineChallenge|\.safeline\/challenge/i.test(payload)) {
+    throw subscriptionFetchError('WAF_CHALLENGE', 'Subscription source requires an interactive WAF challenge');
+  }
+  const parsed = parseSubscriptionJsonPayload(payload, url);
+  if (!parsed) {
+    throw subscriptionFetchError('SOURCE_SCHEMA_CHANGED', 'Subscription JSON source schema is not recognized');
+  }
+  return parsed;
+}
+
 // ─── Reddit ─────────────────────────────────────────────────────────────────
 async function fetchReddit(url: string): Promise<FetchedContent | null> {
   const jsonUrl = url.replace(/\/$/, '') + '.json';
@@ -401,6 +545,7 @@ export async function fetchByCategory(url: string, category: string): Promise<Fe
     case 'selfblog':
     case 'rss':
     case 'newsletter': return fetchBlog(url);
+    case 'json': return fetchJson(url);
     case 'reddit': return fetchReddit(url);
     default: return fetchBlog(url);
   }
@@ -412,7 +557,7 @@ if (isMain) {
   const [,, url, category = 'other'] = process.argv;
   if (!url) {
     console.error('Usage: npx tsx fetch-content.ts <url> [category]');
-    console.error('Categories: x, github, selfblog, rss, newsletter, reddit, other');
+    console.error('Categories: x, github, selfblog, rss, json, newsletter, reddit, other');
     process.exit(1);
   }
   fetchByCategory(url, category).then(result => {

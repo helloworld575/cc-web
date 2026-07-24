@@ -28,7 +28,7 @@ describe('POST /api/subscriptions/integrate', () => {
     mockFetch.mockReset();
     process.env.CLAUDE_API_KEY = 'test-claude-key';
     process.env.CLAUDE_MODEL = 'claude-opus-4-8';
-    process.env.CLAUDE_API_HOST = 'https://www.right.codes/claude';
+    process.env.CLAUDE_API_HOST = 'https://www.rightapi.ai/claude';
     delete process.env.RIGHT_CODE_GPT_API_KEY;
     delete process.env.RIGHT_CODE_API_KEY;
     delete process.env.RIGHT_CODE_GPT_API_STYLE;
