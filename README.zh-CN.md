@@ -11,7 +11,7 @@
 - ✅ **待办** — 任务列表，支持截止日期
 - 🖼️ **文件** — 图片上传，按相册组织
 - 🤖 **AI 对话** — 多服务商聊天（OpenAI + Anthropic），支持流式响应和历史记录
-- 📰 **订阅** — 定时抓取网页/RSS，按需整合 AI 摘要
+- 📰 **订阅** — 管理网页/RSS 来源，按需手动抓取并查看已存摘要
 - 🐦 **发布到 X** — 把博客或日记转成推文/推文串，可附加站点图片
 - 🔮 **命理** — 中国传统占卜（八字、紫微、六爻、梅花易数）
 
@@ -94,9 +94,6 @@ NAS_HOST=
 NAS_USER=
 NAS_PATH=/volume1/docker/my-site
 NAS_PASSWORD=
-SUBSCRIPTION_CRON_SECRET=
-SUBSCRIPTION_DAILY_HOUR=8
-SUBSCRIPTION_CRON_REQUEST_TIMEOUT_MS=600000
 CONTAINER_LOG_MAX_SIZE=10m
 CONTAINER_LOG_MAX_FILES=5
 ```
@@ -104,8 +101,6 @@ CONTAINER_LOG_MAX_FILES=5
 AI 服务商暂时改为 `.env.local` 只读配置。`/admin/ai-config` 只展示并测试 Claude 与 Right Code GPT，新增、编辑、删除 provider API 会返回 403。Claude 默认调用 `https://www.rightapi.ai/claude/v1/messages` 和 `claude-opus-4-8`。AI 对话默认允许 30 秒建立上游连接、60 秒等待首个可见文本，并在连续 30 秒没有新可见文本时结束流；可通过 `AI_CHAT_CONNECT_TIMEOUT_MS`、`AI_CHAT_FIRST_TOKEN_TIMEOUT_MS`、`AI_CHAT_STREAM_IDLE_TIMEOUT_MS` 调整。AI 对话会保存完整历史，但只把最近的对话窗口发送给上游模型，以降低上下文占用。生图默认调用 rightapi.ai 原生 `/v1/images/generations`；只有旧网关需要 chat-completions 时才设置 `GPT_IMAGE_API_MODE=chat`。
 
 所有 AI 上游失败都会转换成长度受限的 JSON 错误码，浏览器不会收到代理 HTML、服务商诊断、内部地址或底层异常文本。参考图会先在浏览器缩放并转为 WebP，再发送到生图接口。
-
-订阅现在把内容主题（`ai` 或 `security`）与抓取类型（`rss`、`json`、`github`、`x` 等）分开。结构化 JSON 源支持常见列表字段和 Next.js `__NEXT_DATA__`，会保留稳定条目 ID 与官方详情链接；无法识别的结构或 WAF 挑战页会直接失败，不会被当成博客正文。安全源新增 360 漏洞研究院官方 RSS、微步在线官方技术博客、Kirill Firsov 的已验证 X 账号 `@k_firsov` 和长亭应急响应中心。长亭当前要求交互式雷池 WAF 挑战，因此精确来源已登记但以 `WAF_CHALLENGE` 状态停用，待获得授权的机器可读 feed 后再启用。X 公开时间线也未通过本次实时抓取验证，因此 Kirill Firsov 来源以 `X_UPSTREAM_UNAVAILABLE` 状态登记并停用，避免持续产生失败任务。`/api/subscriptions/crawl` 逐条保存原文链接、来源、首次发现时间和发布时间，并使用稳定 external ID 避免更新后重复入库。`/api/subscriptions/daily` 会等待抓取完成，再按上海自然日各发布一篇 AI 日报和安全日报。安全内容分为漏洞通告、威胁情报、安全事件、防御研究，AI 内容分为模型与产品、研究与评测、开源工程、行业与治理；每类使用独立事实字段和均衡选取配额，分类内部按来源轮询选取。片头是唯一允许编辑判断的区域；正文由可核实条目和可点击原文链接确定性渲染，AI 服务异常或代理 HTML 不会写进日报。每日主题状态可保证重试幂等。手动摘要由 `/api/subscriptions/integrate` 按主题调用 `subscription-ai` 或 `subscription-security` 叶子 Skill，旧 `/api/subscriptions/fetch` 是兼容入口。
 
 微信订阅需要管理员在“管理 — 订阅”中手动提供合法的 HTTPS RSS 地址，例如由管理员自行部署或确认来源的 RSSHub、WeChat2RSS feed。系统不提供官方微信接口，也不会自动抓取或绕过平台限制；推荐先核验腾讯安全/玄武、阿里安全响应、长亭、绿盟、奇安信等账号的授权 feed，再录入 URL。
 
@@ -144,7 +139,6 @@ docker compose up -d
 docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```
 
-部署所需变量统一放在 `.env.local`：`NAS_HOST`、`NAS_USER`、`NAS_PATH`、`NAS_PASSWORD`、`CLOUDFLARE_TUNNEL_TOKEN`。NAS compose 会额外启动 `subscription-cron`，在 `Asia/Shanghai` 时区的 `SUBSCRIPTION_DAILY_HOUR`（默认 08:00）调用 `/api/subscriptions/daily`。建议配置独立的 `SUBSCRIPTION_CRON_SECRET`，兼容回退值为 `ADMIN_PASSWORD`。自动文章写入持久目录，并与镜像内置文章分层读取，因此容器升级后两类文章都不会丢失。
 部署日志会按时间写入 `log/deploy/`，脚本退出前会尽量清理远端暂存目录并关闭 SSH / SFTP 会话。
 
 容器日志统一使用带轮转的 `json-file` 驱动，默认每个文件 10 MB、每个服务保留 5 个文件；可用 `CONTAINER_LOG_MAX_SIZE` 和 `CONTAINER_LOG_MAX_FILES` 调整。部署脚本会验证 NAS 上每个容器实际生效的日志驱动和容量限制。
@@ -233,9 +227,6 @@ AI 行为以可复用的"技能"定义在 `.codex/skills/<name>/SKILL.md`。修�
 | `article-tags` | 提取标签 |
 | `article-title` | 生成 SEO 标题 |
 | `article-translate-en` | 中译英 |
-| `subscription` | 按主题路由订阅生成 |
-| `subscription-ai` | 分类生成 AI 订阅摘要 |
-| `subscription-security` | 分类生成安全订阅摘要 |
 | `blog-to-x` | 博客 / 日记 → 推文 / 推文串 |
 | `bazi-fortune`、`ziwei-fortune`、`liuyao-fortune`、`meihua-fortune` | 命理占卜 |
 
@@ -263,3 +254,4 @@ AI 行为以可复用的"技能"定义在 `.codex/skills/<name>/SKILL.md`。修�
 本项目采用 MIT License，详见 [LICENSE](./LICENSE)。
 
 个人项目 —— 欢迎 fork 自用。
+订阅源主题（`ai` 或 `security`）与抓取类型（`rss`、`json`、`github`、`x` 等）分开管理。管理员可在后台手动抓取，系统保存稳定条目 ID、原文链接和发布时间；自动日报发布及其生成 Skill 已退役，历史摘要仍可在工具页查看和删除。

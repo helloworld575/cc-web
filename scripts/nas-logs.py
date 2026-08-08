@@ -16,7 +16,7 @@ except ImportError as exc:
     ) from exc
 
 
-SERVICES = ("app", "claude-worker", "subscription-cron", "cloudflared")
+SERVICES = ("app", "claude-worker", "cloudflared")
 SAFE_SINCE = re.compile(r"^[A-Za-z0-9:TZ+_.-]{1,40}$")
 SENSITIVE_KEY = re.compile(r"PASSWORD|TOKEN|SECRET|API[_-]?KEY|CREDENTIAL|COOKIE", re.I)
 

@@ -8,7 +8,7 @@ vi.mock('node:dns/promises', () => ({
 import {
   fetchPublicHttp,
   validatePublicHttpUrl,
-} from '@/.codex/skills/subscription/scripts/safe-fetch';
+} from '@/lib/subscription-fetchers/safe-fetch';
 
 const mockedLookup = vi.mocked(lookup);
 

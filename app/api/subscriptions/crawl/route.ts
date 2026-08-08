@@ -6,20 +6,16 @@ import { rateLimitByIp } from '@/lib/rateLimit';
 import {
   crawlSubscriptionSources,
   getEnabledSubscriptionSources,
-  hasValidSubscriptionCronToken,
 } from '@/lib/subscription-service';
 import { getRequestId, logServerEvent, summarizeError } from '@/lib/server-log';
 
 export async function POST(req: Request) {
   const requestId = getRequestId(req);
   const startedAt = Date.now();
-  const cronAuthorized = hasValidSubscriptionCronToken(req);
-  if (!cronAuthorized) {
-    const session = await getServerSession(authOptions);
-    if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    const rl = rateLimitByIp(req, 'subscriptions-crawl', 10);
-    if (rl) return rl;
-  }
+  const session = await getServerSession(authOptions);
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const rl = rateLimitByIp(req, 'subscriptions-crawl', 10);
+  if (rl) return rl;
 
   let body: any;
   try { body = await req.json(); } catch { body = {}; }
@@ -31,7 +27,7 @@ export async function POST(req: Request) {
 
   logServerEvent('info', 'subscription-crawl', 'request_started', {
     request_id: requestId,
-    auth_mode: cronAuthorized ? 'cron' : 'session',
+    auth_mode: 'session',
     source_count: sources.length,
     source_id: body.source_id,
   });

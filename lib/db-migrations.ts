@@ -2,6 +2,11 @@ interface SqliteMigrationDatabase {
   exec(sql: string): unknown;
 }
 
+/** Remove state owned by the retired automatic subscription publisher. */
+export function retireSubscriptionDailyRuns(db: SqliteMigrationDatabase) {
+  db.exec('DROP TABLE IF EXISTS subscription_daily_runs');
+}
+
 export function migrateSubscriptionItemObservationColumns(db: SqliteMigrationDatabase) {
   try {
     db.exec("ALTER TABLE subscription_items ADD COLUMN external_id TEXT NOT NULL DEFAULT ''");

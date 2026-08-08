@@ -212,13 +212,6 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 { "source_id": 1 }   // 省略则处理全部启用的订阅源
 ```
 
-### `POST /api/subscriptions/integrate`
-读取已抓取内容并按来源主题调用 `subscription-ai` 或 `subscription-security` 生成摘要。混合批次会在调用服务商前预检全部必需 Skill；任一 Skill 不可调用时返回 HTTP 500 和 `subscription_skill_unavailable`，不会产生上游请求或摘要写入。没有可用 AI 服务商时返回 HTTP 503；单个订阅源整合失败时，`results` 中对应项为 `success: false`，失败文本不会写入 `subscription_briefs`。
-
-`POST /api/subscriptions/fetch` 保留为 `/api/subscriptions/integrate` 的兼容别名。
-
-### `POST /api/subscriptions/daily`
-Cron/管理员接口。先等待所有启用源完成抓取，再按当前 `Asia/Shanghai` 日期幂等发布一篇 `ai` 博客和一篇 `security` 博客。日报正文只包含确定性事实和可点击来源，只有片头允许出现编辑判断。
 
 ### `GET /api/subscriptions/briefs`
 列出生成的摘要，同时返回抓取 `category` 和内容 `topic`。Query 参数 `source_id` 可过滤。
@@ -259,7 +252,6 @@ Cron/管理员接口。先等待所有启用源完成抓取，再按当前 `Asia
 | `ai-chat` | 30 |
 | `ai-providers` | 20 |
 | `subscriptions` | 20 |
-| `subscriptions-fetch` | 5 |
 | `x-post` | 10 |
 | `ai-test` | 10 |
 
@@ -283,5 +275,5 @@ output: content
 
 使用场景：
 - 博客编辑器（`article-brief`、`article-polish`、`article-tags`、`article-title` 等）
-- 订阅抓取器（`subscription` 技能生成摘要）
+- 订阅抓取器（管理员手动触发，保存原文条目）
 - Post to X（`blog-to-x` 技能生成推文）

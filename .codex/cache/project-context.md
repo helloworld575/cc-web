@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-07-24T02:01:51.512Z
+Generated: 2026-08-08T04:19:25.480Z
 
 ## Snapshot
 
@@ -45,8 +45,6 @@ Generated: 2026-07-24T02:01:51.512Z
 - `app/api/uploads/[...path]/route.ts`: Uploaded file streaming endpoint.
 - `app/api/subscriptions/route.ts`: Subscription source CRUD.
 - `app/api/subscriptions/crawl/route.ts`: Crawl subscription content into raw stored items.
-- `app/api/subscriptions/integrate/route.ts`: Generate briefs from stored subscription items.
-- `app/api/subscriptions/fetch/route.ts`: Compatibility alias for subscription integration.
 - `app/api/subscriptions/briefs/route.ts`: Subscription brief retrieval.
 - `app/api/fortune/route.ts`: Streaming fortune analysis route with history integration.
 - `app/api/bazi/route.ts`: Dedicated BaZi streaming route.
@@ -71,7 +69,7 @@ Generated: 2026-07-24T02:01:51.512Z
 - `/` -> `app/page.tsx`: Public homepage.
 - `/tools` -> `app/tools/page.tsx`: Main tool hub.
 
-## API Routes (40)
+## API Routes (37)
 
 - `/api/admin/blog-analytics` -> `app/api/admin/blog-analytics/route.ts`: API route in the application backend.
 - `/api/ai-chat/[id]` -> `app/api/ai-chat/[id]/route.ts`: Read, update, or delete stored AI chat sessions.
@@ -104,9 +102,6 @@ Generated: 2026-07-24T02:01:51.512Z
 - `/api/subscriptions/[id]` -> `app/api/subscriptions/[id]/route.ts`: Single subscription source operations.
 - `/api/subscriptions/briefs` -> `app/api/subscriptions/briefs/route.ts`: List stored subscription briefs.
 - `/api/subscriptions/crawl` -> `app/api/subscriptions/crawl/route.ts`: Fetch remote subscription content into raw stored items without AI.
-- `/api/subscriptions/daily` -> `app/api/subscriptions/daily/route.ts`: API route in the application backend.
-- `/api/subscriptions/fetch` -> `app/api/subscriptions/fetch/route.ts`: Compatibility alias for subscription integration.
-- `/api/subscriptions/integrate` -> `app/api/subscriptions/integrate/route.ts`: Generate subscription briefs from stored crawl items.
 - `/api/subscriptions` -> `app/api/subscriptions/route.ts`: Manage subscription sources.
 - `/api/todos/[id]` -> `app/api/todos/[id]/route.ts`: Single todo operations.
 - `/api/todos` -> `app/api/todos/route.ts`: Todo CRUD.
@@ -117,12 +112,12 @@ Generated: 2026-07-24T02:01:51.512Z
 ## Database
 
 - File: `data/site.db`
-- Tables: `todos`, `files`, `albums`, `diary`, `fortune_history`, `ai_providers`, `ai_chat_history`, `subscription_sources`, `subscription_briefs`, `app_migrations`, `claude_assistant_sessions`, `subscription_items`, `subscription_daily_runs`, `blog_comments`, `blog_view_events`
+- Tables: `todos`, `files`, `albums`, `diary`, `fortune_history`, `ai_providers`, `ai_chat_history`, `subscription_sources`, `subscription_briefs`, `app_migrations`, `claude_assistant_sessions`, `subscription_items`, `blog_comments`, `blog_view_events`
 - PRAGMA settings: `journal_mode = WAL`, `busy_timeout = 5000`, `synchronous = NORMAL`, `cache_size = -8000`, `temp_store = MEMORY`, `mmap_size = 67108864`, `page_size = 4096`
 - Simple migrations: `todos.deadline`, `files.album_id`, `subscription_sources.topic`
 - Prepared statements: `countFiles`, `listFiles`, `insertFile`, `listFortune`, `insertFortune`, `getFortune`, `deleteFortune`, `listProviders`, `getProvider`, `insertProvider`, `updateProvider`, `deleteProvider`, `clearDefaultProvider`, `listChats`, `listChatsByProvider`, `getChat`, `insertChat`, `updateChat`, `deleteChat`
 
-## AI Skills (55)
+## AI Skills (52)
 
 - `agent-browser`: >-
 - `agent-router`: >-
@@ -168,9 +163,6 @@ Generated: 2026-07-24T02:01:51.512Z
 - `source-credibility-check`: Evaluate fetched sources for reliability, freshness, conflicts, and verification needs.
 - `spark-prairie-fire`: >
 - `strategy-router`: >-
-- `subscription`: Route subscription generation to the dedicated AI or security leaf skill. Includes scripts. Includes references.
-- `subscription-ai`: Generate category-specific Chinese AI subscription briefs. Includes references.
-- `subscription-security`: Generate category-specific Chinese security subscription briefs. Includes references.
 - `summarize`: >-
 - `technical-blog-writer`: >-
 - `tmux`: >- Includes scripts.
@@ -187,7 +179,7 @@ Generated: 2026-07-24T02:01:51.512Z
 
 ## Tests
 
-- API and helper test files: 68
+- API and helper test files: 62
 - Examples: `tests/api/admin/blog-analytics.test.ts`, `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai-providers/test.test.ts`, `tests/api/ai/route.test.ts`
 
 ## Notes

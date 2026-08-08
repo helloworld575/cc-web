@@ -177,8 +177,6 @@ export const translations = {
     subscriptionRefreshing: 'Refreshing...',
     subscriptionCrawl: 'Fetch subscriptions',
     subscriptionCrawling: 'Fetching...',
-    subscriptionIntegrate: 'Integrate briefs',
-    subscriptionIntegrating: 'Integrating...',
     subscriptionDeleteConfirm: 'Delete this brief?',
 
     adminNavBlog: 'Blog',
@@ -620,8 +618,6 @@ export const translations = {
     subscriptionRefreshing: '刷新中...',
     subscriptionCrawl: '抓取订阅',
     subscriptionCrawling: '抓取中...',
-    subscriptionIntegrate: '整合摘要',
-    subscriptionIntegrating: '整合中...',
     subscriptionDeleteConfirm: '确定删除此摘要？',
 
     adminNavBlog: '博客',

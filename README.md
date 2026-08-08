@@ -12,7 +12,7 @@ Personal blog & toolbox built with **Next.js 16** and **SQLite**.
 - 🖼️ **Files** — Image uploads organized into albums
 - 🤖 **AI Chat** — Multi-provider chat (OpenAI + Anthropic) with streaming history
 - **Claude Code Worker** — Admin-only web UI that proxies prompts to an isolated Claude Code worker container
-- 📰 **Subscriptions** — Scheduled web/RSS crawling with on-demand AI briefs
+- 📰 **Subscriptions** — Manage web/RSS sources, fetch manually, and review stored briefs
 - 🐦 **Post to X** — Turn blog posts or diary entries into tweets/threads, attach site images
 - 🔮 **Fortune** — Chinese divination (BaZi, ZiWei, I Ching, Plum Blossom)
 
@@ -96,9 +96,6 @@ NAS_HOST=
 NAS_USER=
 NAS_PATH=/volume1/docker/my-site
 NAS_PASSWORD=
-SUBSCRIPTION_CRON_SECRET=
-SUBSCRIPTION_DAILY_HOUR=8
-SUBSCRIPTION_CRON_REQUEST_TIMEOUT_MS=600000
 CONTAINER_LOG_MAX_SIZE=10m
 CONTAINER_LOG_MAX_FILES=5
 ```
@@ -106,8 +103,6 @@ CONTAINER_LOG_MAX_FILES=5
 AI providers are temporarily env-only. `/admin/ai-config` is a read-only verification page for the Claude and Right Code GPT providers configured in `.env.local`; POST/PUT/DELETE provider APIs return 403. By default Claude calls use `https://www.rightapi.ai/claude/v1/messages`, send Anthropic-style text blocks with ephemeral cache control, and stream tokens back to the UI as SSE. AI chat limits provider connection setup to 30 seconds, waits up to 60 seconds for the first visible text, and ends a stream after 30 seconds without additional visible text; override those defaults with `AI_CHAT_CONNECT_TIMEOUT_MS`, `AI_CHAT_FIRST_TOKEN_TIMEOUT_MS`, and `AI_CHAT_STREAM_IDLE_TIMEOUT_MS`. Right Code GPT-5.5 calls use the Responses API at `https://www.rightapi.ai/codex/v1/responses`, send `input_text` message blocks, and stream SSE responses back to the chat UI. AI chat stores full transcripts but sends only the recent conversation window upstream to reduce model context usage. The admin UI also exposes `/admin/claude-code`, which calls an internal Claude Code worker through `/api/claude-code`. Personal-assistant conversations are stored in SQLite; the server owns each Claude session UUID, starts the first turn with `--session-id`, resumes later turns with `--resume`, and locks the workspace for the lifetime of a conversation. The worker maps `CLAUDE_API_KEY`, `CLAUDE_API_HOST`, and `CLAUDE_MODEL` into Claude Code's Anthropic environment variables, defaults to a personal-assistant system prompt, and returns only user-facing text. Docker Compose persists both `/workspaces` and Claude's `/home/claude/.claude` session state. The Tools page also includes an AI Image tool backed by `GPT_IMAGE_API_KEY` and `GPT_IMAGE_API_URL`; it defaults to the rightapi.ai native `/v1/images/generations` endpoint. Set `GPT_IMAGE_API_MODE=chat` only for legacy chat-completions image gateways that still need `GPT_IMAGE_GROUP`.
 
 AI upstream failures are normalized to bounded JSON error codes. Proxy HTML, provider diagnostics, internal hosts, and raw exception messages are never returned to the browser. Image reference files are resized in the browser and encoded as WebP before upload to reduce request latency.
-
-Subscriptions now separate source topic (`ai` or `security`) from fetch type (`rss`, `json`, `github`, `x`, and so on). Structured JSON sources support common list payloads and Next.js `__NEXT_DATA__`, with stable item IDs and official detail links; unrecognized schemas and WAF challenge pages fail closed instead of becoming article content. The security seed set includes the 360 Vulnerability Research Institute RSS feed, ThreatBook's official technical blog, Kirill Firsov's verified `@k_firsov` X account, and the Changting Emergency Response Center. Changting currently requires an interactive SafeLine WAF challenge, so that exact source is recorded but disabled with `WAF_CHALLENGE` until an authorized machine-readable feed is available. The public X timeline endpoint also failed live verification, so Kirill Firsov is recorded but disabled with `X_UPSTREAM_UNAVAILABLE` instead of repeatedly producing crawl failures. `/api/subscriptions/crawl` stores each feed entry with its canonical link, source, first-seen time, and publication time; stable external IDs prevent edited entries from becoming duplicates. `/api/subscriptions/daily` waits for crawling to finish and then publishes one AI post and one security post for the Shanghai calendar day. Security entries are classified as vulnerability advisories, threat intelligence, security incidents, or defensive research; AI entries are classified as model/product, research/evaluation, open-source engineering, or industry/governance. Each class has its own factual fields and balanced selection quota, with source round-robin inside each class. The intro is the only editorial section; the body is rendered deterministically from verifiable source facts and clickable links, so provider failures or proxy HTML cannot enter a daily post. Daily run state makes retries idempotent. Manually generated briefs use the matching `subscription-ai` or `subscription-security` leaf skill through `/api/subscriptions/integrate`; the old `/api/subscriptions/fetch` route is its compatibility alias.
 
 WeChat sources require an administrator to provide a legitimate HTTPS RSS feed in Admin → Subscriptions, such as an RSSHub or WeChat2RSS feed that the administrator operates or has permission to use. The app does not claim official WeChat support and does not automatically scrape or bypass platform restrictions. Recommended accounts to verify before adding a feed include Tencent Security/Xuanwu, Alibaba Security Response, Changting, NSFOCUS, and Qi-Anxin.
 
@@ -146,7 +141,7 @@ docker compose up -d
 docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```
 
-Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`. Claude Code worker deployment also requires `CLAUDE_API_KEY`; `CLAUDE_API_HOST` and `CLAUDE_MODEL` are optional overrides. NAS compose also starts `subscription-cron`, which calls `/api/subscriptions/daily` at `SUBSCRIPTION_DAILY_HOUR` in `Asia/Shanghai` (08:00 by default). Set a dedicated `SUBSCRIPTION_CRON_SECRET`; the compatibility fallback is `ADMIN_PASSWORD`. Generated posts use a persistent writable directory layered over the immutable posts bundled in the image, so both sets survive container upgrades.
+Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, and `CLOUDFLARE_TUNNEL_TOKEN`. Claude Code worker deployment also requires `CLAUDE_API_KEY`; `CLAUDE_API_HOST` and `CLAUDE_MODEL` are optional overrides. The NAS stack contains the app, Claude worker, and Cloudflare tunnel; there is no subscription scheduler. Generated posts use a persistent writable directory layered over the immutable posts bundled in the image, so both sets survive container upgrades.
 
 Container logs use the `json-file` driver with explicit rotation: 10 MB per file and 5 files per service by default. Override these limits with `CONTAINER_LOG_MAX_SIZE` and `CONTAINER_LOG_MAX_FILES`. Deployment verifies the effective logging driver and limits on every NAS container.
 
@@ -243,9 +238,6 @@ Built-in skills:
 | `article-tags` | Extract tags |
 | `article-title` | Generate SEO titles |
 | `article-translate-en` | Translate ZH → EN |
-| `subscription` | Routes subscription generation by source topic |
-| `subscription-ai` | Category-specific AI subscription brief |
-| `subscription-security` | Category-specific security subscription brief |
 | `blog-to-x` | Convert blog/diary → tweets/threads |
 | `bazi-fortune`, `ziwei-fortune`, `liuyao-fortune`, `meihua-fortune` | Chinese divination |
 

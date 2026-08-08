@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
-  getSubscriptionGenerationSkillId,
   isSubscriptionFetchCategory,
+  isSubscriptionTopic,
   SUBSCRIPTION_TOPICS,
 } from '@/lib/subscription-topics';
 
-describe('subscription topic skill routing', () => {
-  it('maps every supported topic to a dedicated generation skill', () => {
-    expect(SUBSCRIPTION_TOPICS.map(topic => [topic, getSubscriptionGenerationSkillId(topic)]))
-      .toEqual([
-        ['ai', 'subscription-ai'],
-        ['security', 'subscription-security'],
-      ]);
+describe('subscription topic classification', () => {
+  it('keeps the supported source topics without generation-skill routing', () => {
+    expect(SUBSCRIPTION_TOPICS).toEqual(['ai', 'security']);
+    expect(isSubscriptionTopic('ai')).toBe(true);
+    expect(isSubscriptionTopic('security')).toBe(true);
+    expect(isSubscriptionTopic('daily')).toBe(false);
   });
 
   it('accepts structured JSON sources alongside RSS and X sources', () => {

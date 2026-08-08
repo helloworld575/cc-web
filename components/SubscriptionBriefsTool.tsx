@@ -29,7 +29,6 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [loading, setLoading] = useState(false);
   const [crawling, setCrawling] = useState(false);
-  const [integrating, setIntegrating] = useState(false);
   const [filter, setFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
@@ -65,31 +64,6 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
       if (!response.ok) await actionError(response);
     } finally {
       setCrawling(false);
-    }
-  }
-
-  async function integrateAll() {
-    setIntegrating(true);
-    setErrorKey(null);
-    try {
-      const response = await fetch('/api/subscriptions/integrate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      if (!response.ok) {
-        await actionError(response);
-        return;
-      }
-
-      const result = await response.json() as { results?: Array<{ success?: boolean; code?: string }> };
-      const failed = result.results?.find(item => item.success === false);
-      if (failed) {
-        setErrorKey(apiErrorTranslationKey(failed.code || null, 'apiErrorGeneric'));
-      }
-      await loadBriefs();
-    } finally {
-      setIntegrating(false);
     }
   }
 
@@ -169,18 +143,10 @@ export default function SubscriptionBriefsTool({ canManage = false }: Subscripti
             <button
               data-testid="subscription-crawl-all"
               onClick={crawlAll}
-              disabled={crawling || integrating}
+              disabled={crawling}
               className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50"
             >
               {crawling ? t('subscriptionCrawling') : t('subscriptionCrawl')}
-            </button>
-            <button
-              data-testid="subscription-integrate-all"
-              onClick={integrateAll}
-              disabled={crawling || integrating}
-              className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50"
-            >
-              {integrating ? t('subscriptionIntegrating') : t('subscriptionIntegrate')}
             </button>
           </div>
         )}

@@ -178,8 +178,6 @@ include_files = [
     "setup.sh",
     "scripts/claude-worker.mjs",
     "scripts/claude-worker-args.mjs",
-    "scripts/crawl-subscriptions.mjs",
-    "scripts/subscription-schedule.mjs",
     "tailwind.config.ts",
     "tsconfig.json",
 ]
@@ -472,7 +470,7 @@ def main() -> int:
                 nas_path=NAS_PATH,
                 compose_file_name=compose_file_name,
                 env_file_name=NAS_ENV_FILE,
-                services=["app", "subscription-cron", "claude-worker", "cloudflared"],
+                services=["app", "claude-worker", "cloudflared"],
             )
         finally:
             if client is not None and remote_stage is not None:

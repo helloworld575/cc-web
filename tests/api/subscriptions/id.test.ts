@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockSession, mockDbStmt, mockRateLimit429 } from '../../helpers';
 import { rateLimitByIp } from '@/lib/rateLimit';
-import { validatePublicHttpUrl } from '@/.codex/skills/subscription/scripts/safe-fetch';
+import { validatePublicHttpUrl } from '@/lib/subscription-fetchers/safe-fetch';
 
-vi.mock('@/.codex/skills/subscription/scripts/safe-fetch', () => ({
+vi.mock('@/lib/subscription-fetchers/safe-fetch', () => ({
   validatePublicHttpUrl: vi.fn(async (value: string) => new URL(value).toString()),
 }));
 

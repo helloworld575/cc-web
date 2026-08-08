@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-24T02:01:51.512Z",
+  "generatedAt": "2026-08-08T04:19:25.480Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -156,14 +156,6 @@
     {
       "file": "app/api/subscriptions/crawl/route.ts",
       "description": "Crawl subscription content into raw stored items."
-    },
-    {
-      "file": "app/api/subscriptions/integrate/route.ts",
-      "description": "Generate briefs from stored subscription items."
-    },
-    {
-      "file": "app/api/subscriptions/fetch/route.ts",
-      "description": "Compatibility alias for subscription integration."
     },
     {
       "file": "app/api/subscriptions/briefs/route.ts",
@@ -423,21 +415,6 @@
         "description": "Fetch remote subscription content into raw stored items without AI."
       },
       {
-        "route": "/api/subscriptions/daily",
-        "file": "app/api/subscriptions/daily/route.ts",
-        "description": "API route in the application backend."
-      },
-      {
-        "route": "/api/subscriptions/fetch",
-        "file": "app/api/subscriptions/fetch/route.ts",
-        "description": "Compatibility alias for subscription integration."
-      },
-      {
-        "route": "/api/subscriptions/integrate",
-        "file": "app/api/subscriptions/integrate/route.ts",
-        "description": "Generate subscription briefs from stored crawl items."
-      },
-      {
         "route": "/api/subscriptions",
         "file": "app/api/subscriptions/route.ts",
         "description": "Manage subscription sources."
@@ -518,7 +495,8 @@
       "lib/skill-taxonomy.ts",
       "lib/skills.ts",
       "lib/subscription-content-types.ts",
-      "lib/subscription-daily.ts",
+      "lib/subscription-fetchers/fetch-content.ts",
+      "lib/subscription-fetchers/safe-fetch.ts",
       "lib/subscription-items.ts",
       "lib/subscription-service.ts",
       "lib/subscription-source-health.ts",
@@ -554,7 +532,6 @@
       "app_migrations",
       "claude_assistant_sessions",
       "subscription_items",
-      "subscription_daily_runs",
       "blog_comments",
       "blog_view_events"
     ],
@@ -1039,36 +1016,6 @@
         "hasReferences": false
       },
       {
-        "id": "subscription",
-        "name": "subscription",
-        "description": "Route subscription generation to the dedicated AI or security leaf skill.",
-        "hasSystem": false,
-        "hasPrompt": false,
-        "output": null,
-        "hasScripts": true,
-        "hasReferences": true
-      },
-      {
-        "id": "subscription-ai",
-        "name": "subscription-ai",
-        "description": "Generate category-specific Chinese AI subscription briefs.",
-        "hasSystem": true,
-        "hasPrompt": true,
-        "output": "content",
-        "hasScripts": false,
-        "hasReferences": true
-      },
-      {
-        "id": "subscription-security",
-        "name": "subscription-security",
-        "description": "Generate category-specific Chinese security subscription briefs.",
-        "hasSystem": true,
-        "hasPrompt": true,
-        "output": "content",
-        "hasScripts": false,
-        "hasReferences": true
-      },
-      {
         "id": "summarize",
         "name": "summarize",
         "description": ">-",
@@ -1192,10 +1139,7 @@
       "tests/api/skills/route.test.ts",
       "tests/api/subscriptions/briefs.test.ts",
       "tests/api/subscriptions/crawl.test.ts",
-      "tests/api/subscriptions/daily.test.ts",
-      "tests/api/subscriptions/fetch.test.ts",
       "tests/api/subscriptions/id.test.ts",
-      "tests/api/subscriptions/integrate.test.ts",
       "tests/api/subscriptions/route.test.ts",
       "tests/api/todos/id.test.ts",
       "tests/api/todos/route.test.ts",
@@ -1208,10 +1152,8 @@
       "tests/config/dockerfile.test.ts",
       "tests/config/platform-modernization.test.ts",
       "tests/config/subscription-admin-health.test.ts",
-      "tests/config/subscription-publishing.test.ts",
+      "tests/config/subscription-daily-retirement.test.ts",
       "tests/config/subscription-readme.test.ts",
-      "tests/config/subscription-schedule.test.ts",
-      "tests/config/subscription-skill.test.ts",
       "tests/config/worker-security.test.ts",
       "tests/lib/auth.test.ts",
       "tests/lib/blog-list.test.ts",
@@ -1226,7 +1168,6 @@
       "tests/lib/safe-fetch.test.ts",
       "tests/lib/server-log.test.ts",
       "tests/lib/skill-taxonomy.test.ts",
-      "tests/lib/subscription-daily.test.ts",
       "tests/lib/subscription-feed.test.ts",
       "tests/lib/subscription-items.test.ts",
       "tests/lib/subscription-source-health.test.ts",
@@ -1235,6 +1176,6 @@
       "tests/lib/theme.test.ts",
       "tests/proxy.test.ts"
     ],
-    "count": 68
+    "count": 62
   }
 }

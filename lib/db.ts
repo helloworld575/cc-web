@@ -3,6 +3,7 @@ import { getRuntimePaths } from '@/lib/runtime-paths';
 import {
   migrateSubscriptionItemObservationColumns,
   migrateSubscriptionSourceHealthColumns,
+  retireSubscriptionDailyRuns,
 } from '@/lib/db-migrations';
 import {
   disableKnownUnreliableSourcesOnce,
@@ -149,19 +150,6 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
-  CREATE TABLE IF NOT EXISTS subscription_daily_runs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    run_date TEXT NOT NULL,
-    topic TEXT NOT NULL CHECK (topic IN ('ai', 'security')),
-    status TEXT NOT NULL CHECK (status IN ('running', 'published', 'failed')),
-    slug TEXT NOT NULL,
-    entry_count INTEGER NOT NULL DEFAULT 0,
-    error_code TEXT,
-    started_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (run_date, topic)
-  );
-
   CREATE TABLE IF NOT EXISTS blog_comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     slug TEXT NOT NULL,
@@ -205,6 +193,15 @@ try {
 
 migrateSubscriptionItemObservationColumns(db);
 migrateSubscriptionSourceHealthColumns(db);
+
+const subscriptionDailyRetirementMigration = '20260808-retire-subscription-daily-v1';
+const subscriptionDailyRetirementApplied = db
+  .prepare('SELECT name FROM app_migrations WHERE name = ?')
+  .get(subscriptionDailyRetirementMigration);
+if (!subscriptionDailyRetirementApplied) {
+  retireSubscriptionDailyRuns(db);
+  db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(subscriptionDailyRetirementMigration);
+}
 
 const subscriptionTopicMigration = '20260716-classify-security-subscriptions';
 const subscriptionTopicMigrationApplied = db
@@ -296,7 +293,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_subscription_items_source_hash ON subscription_items(source_id, content_hash);
   CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_items_source_external
     ON subscription_items(source_id, external_id);
-  CREATE INDEX IF NOT EXISTS idx_subscription_daily_status ON subscription_daily_runs(run_date, status);
   CREATE INDEX IF NOT EXISTS idx_blog_comments_slug_created ON blog_comments(slug, created_at);
   CREATE INDEX IF NOT EXISTS idx_blog_comments_status ON blog_comments(status);
   CREATE INDEX IF NOT EXISTS idx_blog_view_events_slug_created ON blog_view_events(slug, created_at);

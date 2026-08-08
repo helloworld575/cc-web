@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   parseSubscriptionFeed,
   parseSubscriptionJsonPayload,
-} from '@/.codex/skills/subscription/scripts/fetch-content';
+} from '@/lib/subscription-fetchers/fetch-content';
 
 describe('subscription feed parsing', () => {
   it('preserves exact RSS item links and publication dates', () => {

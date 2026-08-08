@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import db from '@/lib/db';
 import { rateLimitByIp } from '@/lib/rateLimit';
-import { validatePublicHttpUrl } from '@/.codex/skills/subscription/scripts/safe-fetch';
+import { validatePublicHttpUrl } from '@/lib/subscription-fetchers/safe-fetch';
 import {
   isSubscriptionFetchCategory,
   isSubscriptionTopic,

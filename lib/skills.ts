@@ -75,7 +75,6 @@ const HIERARCHY_OVERRIDES: Record<string, [string, string, string]> = {
   'skill-creator': ['agent', 'skills', 'authoring'],
   'spark-prairie-fire': ['strategy', 'execution', 'bootstrap'],
   summarize: ['knowledge', 'research', 'summaries'],
-  subscription: ['knowledge', 'research', 'subscriptions'],
   tmux: ['agent', 'automation', 'terminal'],
   'validate-idea': ['business', 'discovery', 'validation'],
   'webapp-testing': ['agent', 'automation', 'testing'],
@@ -184,10 +183,6 @@ function inferHierarchy(id: string, frontmatter: SkillFrontmatter): SkillHierarc
 
     if (id.endsWith('-fortune')) {
       return ['fortune', 'divination', id.replace(/-fortune$/, '')];
-    }
-
-    if (id === 'subscription') {
-      return ['knowledge', 'research', 'subscriptions'];
     }
 
     if (id === 'blog-to-x') {

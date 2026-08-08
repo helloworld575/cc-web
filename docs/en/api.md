@@ -245,14 +245,6 @@ Fetch content into `subscription_items` without calling AI.
 { "source_id": 1 }   // or omit for all enabled sources
 ```
 
-### `POST /api/subscriptions/integrate`
-Generate briefs from stored crawl items with `subscription-ai` or `subscription-security`, selected from each source topic. Mixed batches preflight every required skill before any provider request; an unavailable skill returns HTTP 500 with `subscription_skill_unavailable` and causes no brief writes. The endpoint returns HTTP 503 when no AI provider is available. Per-source failures are returned with `success: false` and are never persisted in `subscription_briefs`.
-
-`POST /api/subscriptions/fetch` remains a compatibility alias for `/api/subscriptions/integrate`.
-
-### `POST /api/subscriptions/daily`
-Cron/admin endpoint that crawls all enabled sources first, then idempotently publishes one `ai` and one `security` blog post for the current `Asia/Shanghai` date. Daily post bodies contain deterministic facts and clickable source links; only the intro may contain editorial judgment.
-
 ### `GET /api/subscriptions/briefs`
 List generated briefs, including both fetch `category` and content `topic`. Query param `source_id` to filter.
 
@@ -292,7 +284,6 @@ Per-IP limits (requests per minute):
 | `ai-chat` | 30 |
 | `ai-providers` | 20 |
 | `subscriptions` | 20 |
-| `subscriptions-fetch` | 5 |
 | `x-post` | 10 |
 | `ai-test` | 10 |
 
@@ -316,5 +307,5 @@ output: content
 
 Used by:
 - Blog editor (`article-brief`, `article-polish`, `article-tags`, `article-title`, etc.)
-- Subscription fetcher (`subscription` skill for generating briefs)
+- Subscription fetcher (administrator-triggered raw item capture)
 - Post to X (`blog-to-x` skill for tweet generation)

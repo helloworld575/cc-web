@@ -20,51 +20,6 @@ describe('POST /api/subscriptions/crawl', () => {
     expect(res.status).toBe(401);
   });
 
-  it('allows a local cron bearer token to crawl subscriptions without a session', async () => {
-    mockSession(false);
-    const insertRun = vi.fn(() => ({ lastInsertRowid: 1, changes: 1 }));
-    const updateRun = vi.fn(() => ({ changes: 1 }));
-    const allSources = vi.fn(() => [
-      { id: 1, name: 'AI Source', url: 'https://example.com/ai', category: 'rss', enabled: 1 },
-    ]);
-    const existingItem = vi.fn(() => undefined);
-    (db.prepare as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
-      if (sql.includes('SELECT * FROM subscription_sources WHERE enabled = 1')) {
-        return { all: allSources };
-      }
-      if (sql.includes('SELECT id FROM subscription_items')) {
-        return { get: existingItem };
-      }
-      if (sql.includes('INSERT INTO subscription_items')) {
-        return { run: insertRun };
-      }
-      if (sql.includes('UPDATE subscription_sources')) {
-        return { run: updateRun };
-      }
-      return { get: vi.fn(), all: vi.fn(() => []), run: vi.fn() };
-    });
-
-    const { POST } = await import('@/app/api/subscriptions/crawl/route');
-    const res = await POST(new Request('http://localhost/api/subscriptions/crawl', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.ADMIN_PASSWORD}` },
-      body: JSON.stringify({}),
-    }));
-
-    expect(res.status).toBe(200);
-    expect(fetchByCategory).toHaveBeenCalledWith('https://example.com/ai', 'rss');
-    expect(insertRun).toHaveBeenCalledWith(
-      1,
-      'https://example.com/ai',
-      'Fetched AI Source',
-      'https://example.com/ai',
-      'Latest AI content from the web',
-      expect.any(String),
-      null,
-    );
-    expect(updateRun).toHaveBeenCalledWith(1);
-  });
-
   it('stores fetched content as a raw subscription item without calling AI', async () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
     mockSession(true);

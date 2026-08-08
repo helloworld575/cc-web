@@ -2,9 +2,21 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   migrateSubscriptionItemObservationColumns,
   migrateSubscriptionSourceHealthColumns,
+  retireSubscriptionDailyRuns,
 } from '@/lib/db-migrations';
 
 describe('subscription database migrations', () => {
+  it('drops the retired daily run table', async () => {
+    const actual = await vi.importActual<typeof import('better-sqlite3')>('better-sqlite3');
+    const legacyDb = new actual.default(':memory:');
+    legacyDb.exec('CREATE TABLE subscription_daily_runs (id INTEGER PRIMARY KEY, run_date TEXT NOT NULL)');
+
+    retireSubscriptionDailyRuns(legacyDb);
+
+    expect(legacyDb.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'subscription_daily_runs'").get()).toBeUndefined();
+    legacyDb.close();
+  });
+
   it('adds and backfills last_seen_at on a real legacy SQLite table', async () => {
     const actual = await vi.importActual<typeof import('better-sqlite3')>('better-sqlite3');
     const legacyDb = new actual.default(':memory:');
