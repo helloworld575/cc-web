@@ -167,7 +167,7 @@ npm run e2e:headed
 npm run test:watch
 ```
 
-The current suite contains 399 Vitest tests across 67 files plus 39 Playwright e2e flows covering API routes, auth, rate limiting, streaming responses, editors, uploads, skills, subscriptions, and the tools workspace.
+The current suite contains 376 Vitest tests across 62 files plus 38 Playwright e2e flows covering API routes, auth, rate limiting, streaming responses, editors, uploads, skills, subscriptions, and the tools workspace.
 The Playwright suite runs against `.tmp/e2e-runtime`, uses mock streaming for AI chat and fortune flows, and always goes through the managed runner so port `3001`, child processes, and temp artifacts are cleaned up after each run.
 
 Use the managed runner when a command may leave ports or child processes behind:

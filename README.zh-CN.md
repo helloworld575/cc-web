@@ -164,7 +164,7 @@ npm run e2e:headed
 npm run test:watch
 ```
 
-当前包含 67 个文件中的 399 项 Vitest 测试，以及 39 条 Playwright e2e 流程，覆盖 API、认证、频率限制、流式响应、编辑器、上传、Skill、订阅和工具工作台。
+当前包含 62 个文件中的 376 项 Vitest 测试，以及 38 条 Playwright e2e 流程，覆盖 API、认证、频率限制、流式响应、编辑器、上传、Skill、订阅和工具工作台。
 
 如果本地命令可能留下监听端口或子进程，优先使用受控执行入口：
 
