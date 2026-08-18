@@ -89,6 +89,10 @@ GPT_IMAGE_GROUP=vip_2_image
 # Cloudflare Tunnel（部署用）
 CLOUDFLARE_TUNNEL_TOKEN=
 
+# 可选 sec_ai_tool 集成（独立部署）
+# SECURITY_API_URL=http://127.0.0.1:3001
+SECURITY_API_KEY=
+
 # Synology NAS 部署（./deploy-to-nas.sh 读取）
 NAS_HOST=
 NAS_USER=
@@ -131,6 +135,54 @@ npm start
 docker compose up -d
 ```
 
+### 可选安全服务
+
+`sec_ai_tool` 是独立部署的二方服务。它的源码、Compose 项目、runner
+镜像、产物/状态卷、egress 策略和前端都应与本项目保持独立。该项目的
+runner 同时提供 `/app/` 工作台和同源 API；请遵循其
+`docs/nas-cc-web.md` 部署契约，使用独立端口（默认 `3001`）。不要把
+安全项目源码复制进本项目的部署包，也不要把 runner 接入 cc-web 的公网
+网络。
+
+cc-web 如需服务端集成，在 `.env.local` 中配置独立的地址和密钥：
+
+```dotenv
+SECURITY_API_URL=http://127.0.0.1:3001
+SECURITY_API_KEY=<在 sec_ai_tool 中配置的随机密钥>
+```
+
+已认证管理员通过 `/api/security/...` 访问；Next.js BFF 只接受文档中的
+安全 API 路径和 GET/POST 方法，在服务端注入密钥，以流方式转发上传和
+下载，并移除 Cookie、客户端 Authorization、转发类请求头和内部响应头。
+浏览器永远拿不到服务密钥。地址或密钥缺失时，BFF 返回
+`503 SECURITY_NOT_CONFIGURED`，主站仍可独立运行。
+
+容器化 cc-web 中的 `127.0.0.1` 指向 app 容器本身；当两个 Compose 项目
+在同一 NAS 上运行时，应改用 app 容器可达的专用 DNS/LAN 地址或经评审的
+反向代理。安全服务的目标白名单和受控 egress 配置保留在它自己的环境
+文件中，静态、接口和域名检测继续遵守其授权及失败关闭策略。
+
+### NAS 不可用时的本地/离线开发
+
+基础 Next.js 应用、单元测试、lint 和生产构建不需要 NAS、SSH 凭据、
+Cloudflare Tunnel token、`sec_ai_tool` 源码或 Docker daemon。在常规本地
+`.env.local` 下可以直接运行：
+
+```bash
+npm run dev
+npm test
+npm run lint
+npm run build
+```
+
+本地开发保持安全服务变量为空。已认证的 `/api/security/*` BFF 仍然
+存在，但在地址或服务端密钥未配置时返回 `503` 和
+`SECURITY_NOT_CONFIGURED`；这是预期的配置状态，不是扫描结果。完整的
+`docker compose up` 属于另一条部署流程，其中的
+Claude worker 和 `cloudflared` 需要额外凭据及外部服务，不能作为离线开发
+入口。Docker 不可用时仍可执行 `docker compose config` 校验 YAML；`build`
+和 `up` 则要求 Docker client 与运行中的 engine 同时可用。
+
 ### 部署到群晖 NAS
 
 现在可以直接运行 `./deploy-to-nas.sh`。脚本会读取根目录 `.env.local`，上传环境文件和 `docker-compose.nas.yml`，在 NAS 上构建 `my-site:latest`，然后执行：
@@ -138,6 +190,15 @@ docker compose up -d
 ```bash
 docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```
+
+NAS 部署包只包含 cc-web、worker 和 Cloudflare Tunnel，不会复制或构建
+`../sec_ai_tool`。请将安全项目独立部署到例如
+`/volume1/docker/sec-ai-tool`，使用它自己的 `runner/docker-compose.nas.yml`、
+不可变 runner 镜像、环境文件、egress 网络和命名卷。该项目 NAS profile
+默认将前端/API 绑定到 loopback 的 `3001`，因此可与 cc-web 的 `3000` 同时
+运行。对外访问请使用专用域名或经过评审的反向代理，并让 `/app/`、`/v1`、
+`/health` 和 `/docs` 保持在安全服务自己的 origin 下。两个部署脚本可以
+独立运行，互不暂存对方源码。
 
 部署日志会按时间写入 `log/deploy/`，脚本退出前会尽量清理远端暂存目录并关闭 SSH / SFTP 会话。
 
@@ -164,7 +225,7 @@ npm run e2e:headed
 npm run test:watch
 ```
 
-当前包含 62 个文件中的 376 项 Vitest 测试，以及 38 条 Playwright e2e 流程，覆盖 API、认证、频率限制、流式响应、编辑器、上传、Skill、订阅和工具工作台。
+当前包含 65 个文件中的 390 项 Vitest 测试，以及 38 条 Playwright e2e 流程，覆盖 API、认证、频率限制、流式响应、编辑器、上传、Skill、订阅和工具工作台。
 
 如果本地命令可能留下监听端口或子进程，优先使用受控执行入口：
 

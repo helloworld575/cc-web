@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-08T04:19:25.480Z",
+  "generatedAt": "2026-08-18T12:50:00.609Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -388,6 +388,11 @@
         "route": "/api/fortune",
         "file": "app/api/fortune/route.ts",
         "description": "General fortune workflow with streaming response."
+      },
+      {
+        "route": "/api/security/[...path]",
+        "file": "app/api/security/[...path]/route.ts",
+        "description": "API route in the application backend."
       },
       {
         "route": "/api/skills/[id]",
@@ -1135,6 +1140,7 @@
       "tests/api/fortune/history/id.test.ts",
       "tests/api/fortune/history/route.test.ts",
       "tests/api/fortune/route.test.ts",
+      "tests/api/security/route.test.ts",
       "tests/api/skills/id.test.ts",
       "tests/api/skills/route.test.ts",
       "tests/api/subscriptions/briefs.test.ts",
@@ -1150,7 +1156,9 @@
       "tests/config/claude-worker.test.ts",
       "tests/config/compose-logging.test.ts",
       "tests/config/dockerfile.test.ts",
+      "tests/config/offline-development.test.ts",
       "tests/config/platform-modernization.test.ts",
+      "tests/config/security-service.test.ts",
       "tests/config/subscription-admin-health.test.ts",
       "tests/config/subscription-daily-retirement.test.ts",
       "tests/config/subscription-readme.test.ts",
@@ -1176,6 +1184,6 @@
       "tests/lib/theme.test.ts",
       "tests/proxy.test.ts"
     ],
-    "count": 62
+    "count": 65
   }
 }

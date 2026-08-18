@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-08-08T04:19:25.480Z
+Generated: 2026-08-18T12:50:00.609Z
 
 ## Snapshot
 
@@ -69,7 +69,7 @@ Generated: 2026-08-08T04:19:25.480Z
 - `/` -> `app/page.tsx`: Public homepage.
 - `/tools` -> `app/tools/page.tsx`: Main tool hub.
 
-## API Routes (37)
+## API Routes (38)
 
 - `/api/admin/blog-analytics` -> `app/api/admin/blog-analytics/route.ts`: API route in the application backend.
 - `/api/ai-chat/[id]` -> `app/api/ai-chat/[id]/route.ts`: Read, update, or delete stored AI chat sessions.
@@ -97,6 +97,7 @@ Generated: 2026-08-08T04:19:25.480Z
 - `/api/fortune/history/[id]` -> `app/api/fortune/history/[id]/route.ts`: Read or delete a single fortune record.
 - `/api/fortune/history` -> `app/api/fortune/history/route.ts`: Fortune history listing and creation.
 - `/api/fortune` -> `app/api/fortune/route.ts`: General fortune workflow with streaming response.
+- `/api/security/[...path]` -> `app/api/security/[...path]/route.ts`: API route in the application backend.
 - `/api/skills/[id]` -> `app/api/skills/[id]/route.ts`: Read, update, or delete a single skill.
 - `/api/skills` -> `app/api/skills/route.ts`: List and manage web-app AI skills.
 - `/api/subscriptions/[id]` -> `app/api/subscriptions/[id]/route.ts`: Single subscription source operations.
@@ -179,7 +180,7 @@ Generated: 2026-08-08T04:19:25.480Z
 
 ## Tests
 
-- API and helper test files: 62
+- API and helper test files: 65
 - Examples: `tests/api/admin/blog-analytics.test.ts`, `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai-providers/test.test.ts`, `tests/api/ai/route.test.ts`
 
 ## Notes

@@ -12,6 +12,8 @@ services:
       - "3000:3000"
     environment:
       CLAUDE_CODE_WORKER_URL: http://claude-worker:8787
+      SECURITY_API_URL: ${SECURITY_API_URL:-}
+      SECURITY_API_KEY: ${SECURITY_API_KEY:-}
       TRUST_PROXY_HEADERS: 1
       SITE_POSTS_DIR: /app/data/posts
       SITE_BUNDLED_POSTS_DIR: /app/content/posts

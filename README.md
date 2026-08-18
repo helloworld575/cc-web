@@ -63,6 +63,10 @@ X_ACCESS_TOKEN_SECRET=
 # Cloudflare Tunnel (for deploy)
 CLOUDFLARE_TUNNEL_TOKEN=
 
+# Optional sec_ai_tool integration (deployed separately)
+# SECURITY_API_URL=http://127.0.0.1:3001
+SECURITY_API_KEY=
+
 # Optional fallback Claude provider (rightapi.ai messages API by default)
 CLAUDE_API_KEY=
 CLAUDE_MODEL=claude-opus-4-8
@@ -133,6 +137,61 @@ Or run with Docker:
 docker compose up -d
 ```
 
+### Optional security service
+
+`sec_ai_tool` is a separately deployed second-party service. Keep its source,
+Compose project, runner image, artifact/state volumes, egress policy, and
+frontend independent from this repository. The sibling repository includes the
+workbench at `/app/` and the API on the same origin; follow its
+`docs/nas-cc-web.md` deployment contract and bind it to a separate local port
+(default `3001`). Do not copy the sibling source into this deployment package
+or attach its runner to cc-web's public network.
+
+When cc-web needs a server-side integration, set a dedicated endpoint and key in
+`.env.local`:
+
+```dotenv
+SECURITY_API_URL=http://127.0.0.1:3001
+SECURITY_API_KEY=<a-random-key-configured-in-sec_ai_tool>
+```
+
+Authenticated administrators call `/api/security/...`; the Next.js BFF accepts
+only the documented security API paths and GET/POST methods, injects the key on
+the server, streams uploads and downloads, and strips cookies, incoming
+authorization, forwarding headers, and internal response headers. The browser
+never receives the service key. If the security endpoint or key is absent, the
+BFF returns `503 SECURITY_NOT_CONFIGURED` and the main site remains available.
+
+For containerized cc-web, `127.0.0.1` means the app container. Use a dedicated
+DNS/LAN endpoint or a reviewed reverse proxy reachable from that container when
+the two Compose projects run on the same NAS. Keep the security service's
+allowlist and controlled egress settings in its own environment file; static,
+API, and domain assessments must retain its fail-closed authorization and
+egress policy.
+
+### Local/offline development without NAS
+
+The base Next.js application, unit tests, lint, and production build do not
+require NAS access, SSH credentials, a Cloudflare Tunnel token, the `sec_ai_tool`
+repository, or a Docker daemon. With the normal local `.env.local`, use:
+
+```bash
+npm run dev
+npm test
+npm run lint
+npm run build
+```
+
+Leave the optional security variables empty for this path. The authenticated
+`/api/security/*` BFF is still present, but when the endpoint or server-side key
+is absent it returns `503` with `SECURITY_NOT_CONFIGURED`; that is an expected
+configuration state, not a scanner finding. A full `docker compose up` is a
+separate deployment workflow:
+the Claude worker and `cloudflared` require their own credentials and external
+services, so it is not the offline development entry point. When Docker is
+unavailable, `docker compose config` can still validate YAML, while `build` and
+`up` require both the Docker client and a running engine.
+
 ### Deploy to Synology NAS
 
 `./deploy-to-nas.sh` reads the root `.env.local`, uploads that env file plus `docker-compose.nas.yml`, builds `my-site:latest` and `my-site-claude-worker:latest` on the NAS, and runs:
@@ -142,6 +201,17 @@ docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```
 
 Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, and `CLOUDFLARE_TUNNEL_TOKEN`. Claude Code worker deployment also requires `CLAUDE_API_KEY`; `CLAUDE_API_HOST` and `CLAUDE_MODEL` are optional overrides. The NAS stack contains the app, Claude worker, and Cloudflare tunnel; there is no subscription scheduler. Generated posts use a persistent writable directory layered over the immutable posts bundled in the image, so both sets survive container upgrades.
+
+The NAS deployment package contains only cc-web, its worker, and its
+Cloudflare Tunnel. It does not copy or build `../sec_ai_tool`; deploy that
+repository separately (for example under `/volume1/docker/sec-ai-tool`) with
+its own `runner/docker-compose.nas.yml`, immutable runner image, environment,
+egress network, and volumes. The sibling NAS profile binds its frontend/API to
+loopback port `3001` by default, so it can run alongside cc-web's port `3000`.
+Use a dedicated hostname or reviewed reverse proxy for external access, and
+keep `/app/`, `/v1`, `/health`, and `/docs` on the security service origin.
+The two deploy scripts can be run independently and neither stages the other
+repository.
 
 Container logs use the `json-file` driver with explicit rotation: 10 MB per file and 5 files per service by default. Override these limits with `CONTAINER_LOG_MAX_SIZE` and `CONTAINER_LOG_MAX_FILES`. Deployment verifies the effective logging driver and limits on every NAS container.
 
@@ -167,7 +237,7 @@ npm run e2e:headed
 npm run test:watch
 ```
 
-The current suite contains 376 Vitest tests across 62 files plus 38 Playwright e2e flows covering API routes, auth, rate limiting, streaming responses, editors, uploads, skills, subscriptions, and the tools workspace.
+The current suite contains 390 Vitest tests across 65 files plus 38 Playwright e2e flows covering API routes, auth, rate limiting, streaming responses, editors, uploads, skills, subscriptions, and the tools workspace.
 The Playwright suite runs against `.tmp/e2e-runtime`, uses mock streaming for AI chat and fortune flows, and always goes through the managed runner so port `3001`, child processes, and temp artifacts are cleaned up after each run.
 
 Use the managed runner when a command may leave ports or child processes behind:
