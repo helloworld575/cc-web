@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-09-24T03:38:49.744Z
+Generated: 2026-09-24T03:50:33.347Z
 
 ## Snapshot
 
@@ -115,10 +115,10 @@ Generated: 2026-09-24T03:38:49.744Z
 ## Database
 
 - File: `data/site.db`
-- Tables: `todos`, `files`, `albums`, `diary`, `fortune_history`, `ai_providers`, `ai_chat_history`, `subscription_sources`, `subscription_briefs`, `app_migrations`, `claude_assistant_sessions`, `subscription_items`, `blog_comments`, `blog_view_events`
+- Tables: `todos`, `files`, `albums`, `diary`, `fortune_history`, `ai_chat_history`, `subscription_sources`, `subscription_briefs`, `app_migrations`, `claude_assistant_sessions`, `subscription_items`, `blog_comments`, `blog_view_events`
 - PRAGMA settings: `journal_mode = WAL`, `busy_timeout = 5000`, `synchronous = NORMAL`, `cache_size = -8000`, `temp_store = MEMORY`, `mmap_size = 67108864`, `page_size = 4096`
 - Simple migrations: `todos.deadline`, `files.album_id`, `subscription_sources.topic`
-- Prepared statements: `countFiles`, `listFiles`, `insertFile`, `listFortune`, `insertFortune`, `getFortune`, `deleteFortune`, `listProviders`, `getProvider`, `insertProvider`, `updateProvider`, `deleteProvider`, `clearDefaultProvider`, `listChats`, `listChatsByProvider`, `getChat`, `insertChat`, `updateChat`, `deleteChat`
+- Prepared statements: `countFiles`, `listFiles`, `insertFile`, `listFortune`, `insertFortune`, `getFortune`, `deleteFortune`, `listChats`, `listChatsByProvider`, `getChat`, `insertChat`, `updateChat`, `deleteChat`
 
 ## AI Skills (52)
 

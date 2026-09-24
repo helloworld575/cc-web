@@ -3,6 +3,7 @@ import {
   migrateAiChatHistoryColumns,
   migrateSubscriptionItemObservationColumns,
   migrateSubscriptionSourceHealthColumns,
+  retireLegacyAiProviders,
   retireSubscriptionDailyRuns,
 } from '@/lib/db-migrations';
 
@@ -101,6 +102,26 @@ describe('AI chat database migration', () => {
       'skill_id', 'provider_name', 'provider_model', 'status',
     ]));
     expect(row).toEqual({ skill_id: null, provider_name: '', provider_model: '', status: 'idle' });
+    legacyDb.close();
+  });
+});
+
+describe('legacy AI provider migration', () => {
+  it('removes the obsolete database provider store and its credentials', async () => {
+    const actual = await vi.importActual<typeof import('better-sqlite3')>('better-sqlite3');
+    const legacyDb = new actual.default(':memory:');
+    legacyDb.exec(`
+      CREATE TABLE ai_providers (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        api_key TEXT NOT NULL
+      );
+      INSERT INTO ai_providers (name, api_key) VALUES ('Legacy', 'secret');
+    `);
+
+    retireLegacyAiProviders(legacyDb);
+
+    expect(legacyDb.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'ai_providers'").get()).toBeUndefined();
     legacyDb.close();
   });
 });

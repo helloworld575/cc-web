@@ -4,6 +4,7 @@ import {
   migrateAiChatHistoryColumns,
   migrateSubscriptionItemObservationColumns,
   migrateSubscriptionSourceHealthColumns,
+  retireLegacyAiProviders,
   retireSubscriptionDailyRuns,
 } from '@/lib/db-migrations';
 import {
@@ -69,20 +70,6 @@ db.exec(`
     preflight TEXT NOT NULL DEFAULT '{}',
     analysis TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS ai_providers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    api_type TEXT NOT NULL DEFAULT 'openai',
-    api_url TEXT NOT NULL,
-    api_key TEXT NOT NULL,
-    model TEXT NOT NULL,
-    system_prompt TEXT NOT NULL DEFAULT '',
-    max_tokens INTEGER NOT NULL DEFAULT 4096,
-    is_default INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS ai_chat_history (
@@ -176,6 +163,15 @@ db.exec(`
 `);
 
 migrateAiChatHistoryColumns(db);
+
+const legacyAiProviderRetirementMigration = '20260924-retire-legacy-ai-providers-v1';
+const legacyAiProviderRetirementApplied = db
+  .prepare('SELECT name FROM app_migrations WHERE name = ?')
+  .get(legacyAiProviderRetirementMigration);
+if (!legacyAiProviderRetirementApplied) {
+  retireLegacyAiProviders(db);
+  db.prepare('INSERT INTO app_migrations (name) VALUES (?)').run(legacyAiProviderRetirementMigration);
+}
 
 // Migrate: add deadline column if not exists
 try {
@@ -319,14 +315,6 @@ export const stmts = {
   insertFortune: db.prepare('INSERT INTO fortune_history (method, input, preflight, analysis) VALUES (?, ?, ?, ?)'),
   getFortune: db.prepare('SELECT * FROM fortune_history WHERE id = ?'),
   deleteFortune: db.prepare('DELETE FROM fortune_history WHERE id = ?'),
-
-  // ai_providers
-  listProviders: db.prepare('SELECT * FROM ai_providers ORDER BY is_default DESC, created_at DESC'),
-  getProvider: db.prepare('SELECT * FROM ai_providers WHERE id = ?'),
-  insertProvider: db.prepare('INSERT INTO ai_providers (name, api_type, api_url, api_key, model, system_prompt, max_tokens, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
-  updateProvider: db.prepare('UPDATE ai_providers SET name=?, api_type=?, api_url=?, api_key=?, model=?, system_prompt=?, max_tokens=?, is_default=?, updated_at=datetime(\'now\') WHERE id=?'),
-  deleteProvider: db.prepare('DELETE FROM ai_providers WHERE id = ?'),
-  clearDefaultProvider: db.prepare('UPDATE ai_providers SET is_default = 0 WHERE is_default = 1'),
 
   // ai_chat_history
   listChats: db.prepare('SELECT id, provider_id, title, skill_id, provider_name, provider_model, status, created_at, updated_at FROM ai_chat_history ORDER BY updated_at DESC LIMIT 50'),

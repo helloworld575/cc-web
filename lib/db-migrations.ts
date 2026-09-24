@@ -2,6 +2,11 @@ interface SqliteMigrationDatabase {
   exec(sql: string): unknown;
 }
 
+/** Remove the retired database-backed provider store after moving to env-only providers. */
+export function retireLegacyAiProviders(db: SqliteMigrationDatabase) {
+  db.exec('DROP TABLE IF EXISTS ai_providers');
+}
+
 export function migrateAiChatHistoryColumns(db: SqliteMigrationDatabase) {
   for (const statement of [
     "ALTER TABLE ai_chat_history ADD COLUMN skill_id TEXT",

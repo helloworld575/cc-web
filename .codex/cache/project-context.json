@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-24T03:38:49.744Z",
+  "generatedAt": "2026-09-24T03:50:33.347Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -540,7 +540,6 @@
       "albums",
       "diary",
       "fortune_history",
-      "ai_providers",
       "ai_chat_history",
       "subscription_sources",
       "subscription_briefs",
@@ -572,12 +571,6 @@
       "insertFortune",
       "getFortune",
       "deleteFortune",
-      "listProviders",
-      "getProvider",
-      "insertProvider",
-      "updateProvider",
-      "deleteProvider",
-      "clearDefaultProvider",
       "listChats",
       "listChatsByProvider",
       "getChat",
