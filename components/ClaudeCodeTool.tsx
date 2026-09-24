@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import StreamingMarkdown from '@/components/StreamingMarkdown';
 import { useLocale } from '@/components/useLocale';
 import { apiErrorTranslationKey, readSafeApiError } from '@/lib/client-api-error';
@@ -24,6 +25,7 @@ interface AssistantChatDetail extends AssistantChatSummary {
 
 export default function ClaudeCodeTool() {
   const { t } = useLocale();
+  const searchParams = useSearchParams();
   const [input, setInput] = useState(() => t('claudeDefaultPrompt'));
   const [cwd, setCwd] = useState('default');
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
@@ -38,8 +40,11 @@ export default function ClaudeCodeTool() {
   const messageEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    refreshHistory();
-  }, []);
+    void refreshHistory().then(() => {
+      const requestedId = Number(searchParams.get('chat'));
+      if (Number.isSafeInteger(requestedId) && requestedId > 0) void loadChat(requestedId);
+    });
+  }, [searchParams]);
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ block: 'nearest' });

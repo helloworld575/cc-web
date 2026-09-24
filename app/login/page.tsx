@@ -20,7 +20,7 @@ export default function LoginPage() {
       body: new URLSearchParams({
         csrfToken,
         password,
-        callbackUrl: `${window.location.origin}/admin/blog`,
+        callbackUrl: `${window.location.origin}/admin`,
         json: 'true',
       }),
     });
@@ -49,7 +49,7 @@ export default function LoginPage() {
     const submitted = await submitCredentials();
 
     if (submitted && await waitForSession()) {
-      window.location.assign('/admin/blog');
+      window.location.assign('/admin');
       return;
     }
 

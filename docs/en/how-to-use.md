@@ -13,6 +13,10 @@ A guide to using the features of this personal site.
 
 ---
 
+## Personal Workbench
+
+After signing in, open `/admin` for the private workbench. It combines due tasks, recent AI Chat and Claude Code sessions, and grouped links to skills, content, and subscriptions. Tool views can be opened directly with `/tools?tab=ai-chat` or `/tools?tab=skills`; switching tabs keeps the mounted AI chat session available, and reopening a saved chat restores its provider and skill.
+
 ## Public Features
 
 ### Theme
@@ -140,3 +144,6 @@ Four Chinese divination methods in **Tools → Fortune**:
 - **Plum Blossom (梅花易数)** — Number-based quick reading
 
 Each method uses an AI skill for detailed interpretation.
+## Personal Workbench
+
+After signing in, open `/admin` for the private workbench. It combines due tasks, recent AI Chat and Claude Code sessions, and grouped links to skills, content, and subscriptions. Tool views can be opened directly with `/tools?tab=ai-chat` or `/tools?tab=skills`; switching tabs keeps the mounted AI chat session available, and reopening a saved chat restores its provider and skill.

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  migrateAiChatHistoryColumns,
   migrateSubscriptionItemObservationColumns,
   migrateSubscriptionSourceHealthColumns,
   retireSubscriptionDailyRuns,
@@ -72,6 +73,34 @@ describe('subscription database migrations', () => {
       'failure_count', 'last_error_code', 'last_failed_at',
     ]));
     expect(row).toEqual({ failure_count: 0, last_error_code: null, last_failed_at: null });
+    legacyDb.close();
+  });
+});
+
+describe('AI chat database migration', () => {
+  it('adds agent metadata and execution state to a legacy chat table', () => {
+    const Database = require('better-sqlite3') as typeof import('better-sqlite3').default;
+    const legacyDb = new Database(':memory:');
+    legacyDb.exec(`
+      CREATE TABLE ai_chat_history (
+        id INTEGER PRIMARY KEY,
+        provider_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        messages TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO ai_chat_history (provider_id, title, messages) VALUES (7, 'Legacy chat', '[]');
+    `);
+
+    migrateAiChatHistoryColumns(legacyDb);
+
+    const columns = legacyDb.prepare("PRAGMA table_info('ai_chat_history')").all() as Array<{ name: string }>;
+    const row = legacyDb.prepare('SELECT skill_id, provider_name, provider_model, status FROM ai_chat_history WHERE id = 1').get();
+    expect(columns.map(column => column.name)).toEqual(expect.arrayContaining([
+      'skill_id', 'provider_name', 'provider_model', 'status',
+    ]));
+    expect(row).toEqual({ skill_id: null, provider_name: '', provider_model: '', status: 'idle' });
     legacyDb.close();
   });
 });

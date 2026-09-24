@@ -180,6 +180,8 @@ export const translations = {
     subscriptionDeleteConfirm: 'Delete this brief?',
 
     adminNavBlog: 'Blog',
+    adminNavWorkbench: 'Workbench',
+    adminNavAiChat: 'AI Chat',
     adminNavAnalytics: 'Analytics',
     adminNavTodos: 'Todos',
     adminNavDiary: 'Diary',
@@ -621,6 +623,8 @@ export const translations = {
     subscriptionDeleteConfirm: '确定删除此摘要？',
 
     adminNavBlog: '博客',
+    adminNavWorkbench: '工作台',
+    adminNavAiChat: 'AI 对话',
     adminNavAnalytics: '分析',
     adminNavTodos: '待办',
     adminNavDiary: '日记',

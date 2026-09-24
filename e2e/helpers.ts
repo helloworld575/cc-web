@@ -24,7 +24,7 @@ export async function login(page: Page) {
     form: {
       password: E2E_ADMIN_PASSWORD,
       csrfToken,
-      callbackUrl: `${E2E_BASE_URL}/admin/blog`,
+      callbackUrl: `${E2E_BASE_URL}/admin`,
       json: 'true',
     },
   });

@@ -1,6 +1,7 @@
 'use client';
 import { startTransition, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'next/navigation';
 import { useLocale } from '@/components/useLocale';
 import StreamingMarkdown from '@/components/StreamingMarkdown';
 import { apiErrorTranslationKey, readSafeApiError } from '@/lib/client-api-error';
@@ -25,14 +26,21 @@ interface ChatSummary {
   title: string;
   created_at: string;
   updated_at: string;
+  skill_id?: string | null;
+  provider_name?: string;
+  provider_model?: string;
+  status?: string;
 }
 
 interface ChatDetail extends ChatSummary {
   messages: ChatMessage[];
 }
 
+const ACTIVE_CHAT_STORAGE_KEY = 'cc-web-active-ai-chat';
+
 export default function AIChatTool() {
   const { t } = useLocale();
+  const searchParams = useSearchParams();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<number | null>(null);
   const [skills, setSkills] = useState<InvocableSkillSummary[]>([]);
@@ -51,6 +59,7 @@ export default function AIChatTool() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const currentChatIdRef = useRef<number | null>(null);
+  const chatLoadVersionRef = useRef(0);
 
   useEffect(() => {
     fetch('/api/ai-providers')
@@ -79,6 +88,15 @@ export default function AIChatTool() {
     if (!selectedProvider) return;
     refreshHistory(selectedProvider);
   }, [selectedProvider]);
+
+  useEffect(() => {
+    if (currentChatIdRef.current !== null) return;
+    const requestedId = Number(searchParams.get('chat'));
+    const savedId = Number(window.localStorage.getItem(ACTIVE_CHAT_STORAGE_KEY));
+    const chatId = Number.isSafeInteger(requestedId) && requestedId > 0 ? requestedId : savedId;
+    if (!Number.isSafeInteger(chatId) || chatId <= 0) return;
+    void loadChat(chatId);
+  }, [searchParams, selectedProvider]);
 
   useEffect(() => {
     setPortalHost(document.body);
@@ -112,6 +130,8 @@ export default function AIChatTool() {
   function setActiveChatId(chatId: number | null) {
     currentChatIdRef.current = chatId;
     setCurrentChatId(chatId);
+    if (chatId === null) window.localStorage.removeItem(ACTIVE_CHAT_STORAGE_KEY);
+    else window.localStorage.setItem(ACTIVE_CHAT_STORAGE_KEY, String(chatId));
   }
 
   async function localizedError(response: Response) {
@@ -134,14 +154,17 @@ export default function AIChatTool() {
   async function loadChat(chatId: number) {
     if (streaming) return;
 
+    const loadVersion = ++chatLoadVersionRef.current;
     setLoadingHistory(true);
     setError('');
     try {
       const response = await fetch(`/api/ai-chat/${chatId}`);
       if (!response.ok) throw new Error(await localizedError(response));
       const chat = await response.json() as ChatDetail;
+      if (loadVersion !== chatLoadVersionRef.current) return;
       const providerId = Number(chat.provider_id);
       setActiveChatId(Number(chat.id));
+      setSelectedSkill(chat.skill_id ?? '');
       if (selectedProvider !== providerId) {
         setSelectedProvider(providerId);
       }
@@ -155,6 +178,7 @@ export default function AIChatTool() {
   }
 
   function newChat() {
+    chatLoadVersionRef.current += 1;
     setActiveChatId(null);
     setMessages([]);
     setInput('');

@@ -20,8 +20,8 @@ test('admin routes redirect anonymous users and login rejects bad credentials', 
 
   await page.getByTestId('login-password').fill(E2E_ADMIN_PASSWORD);
   await page.getByTestId('login-submit').click();
-  await expect(page).toHaveURL(/\/admin\/blog/);
-  await expect(page.getByRole('heading', { name: /blog/i })).toBeVisible();
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByRole('heading', { name: /workbench/i })).toBeVisible();
 });
 
 test('mobile login submits the password and reaches admin', async ({ page }) => {
@@ -34,6 +34,6 @@ test('mobile login submits the password and reaches admin', async ({ page }) => 
   await expect(page.getByTestId('login-submit')).toBeInViewport();
   await page.getByTestId('login-submit').click();
 
-  await expect(page).toHaveURL(/\/admin\/blog/);
-  await expect(page.getByTestId('admin-blog-new-title')).toBeVisible();
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByRole('heading', { name: /workbench/i })).toBeVisible();
 });

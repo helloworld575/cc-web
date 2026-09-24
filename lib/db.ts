@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { getRuntimePaths } from '@/lib/runtime-paths';
 import {
+  migrateAiChatHistoryColumns,
   migrateSubscriptionItemObservationColumns,
   migrateSubscriptionSourceHealthColumns,
   retireSubscriptionDailyRuns,
@@ -89,6 +90,10 @@ db.exec(`
     provider_id INTEGER NOT NULL,
     title TEXT NOT NULL DEFAULT 'New Chat',
     messages TEXT NOT NULL DEFAULT '[]',
+    skill_id TEXT,
+    provider_name TEXT NOT NULL DEFAULT '',
+    provider_model TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'idle' CHECK (status IN ('idle', 'running')),
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -169,6 +174,8 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+migrateAiChatHistoryColumns(db);
 
 // Migrate: add deadline column if not exists
 try {
@@ -322,8 +329,8 @@ export const stmts = {
   clearDefaultProvider: db.prepare('UPDATE ai_providers SET is_default = 0 WHERE is_default = 1'),
 
   // ai_chat_history
-  listChats: db.prepare('SELECT id, provider_id, title, created_at, updated_at FROM ai_chat_history ORDER BY updated_at DESC LIMIT 50'),
-  listChatsByProvider: db.prepare('SELECT id, provider_id, title, created_at, updated_at FROM ai_chat_history WHERE provider_id = ? ORDER BY updated_at DESC LIMIT 50'),
+  listChats: db.prepare('SELECT id, provider_id, title, skill_id, provider_name, provider_model, status, created_at, updated_at FROM ai_chat_history ORDER BY updated_at DESC LIMIT 50'),
+  listChatsByProvider: db.prepare('SELECT id, provider_id, title, skill_id, provider_name, provider_model, status, created_at, updated_at FROM ai_chat_history WHERE provider_id = ? ORDER BY updated_at DESC LIMIT 50'),
   getChat: db.prepare('SELECT * FROM ai_chat_history WHERE id = ?'),
   insertChat: db.prepare('INSERT INTO ai_chat_history (provider_id, title, messages) VALUES (?, ?, ?)'),
   updateChat: db.prepare('UPDATE ai_chat_history SET title=?, messages=?, updated_at=datetime(\'now\') WHERE id=?'),

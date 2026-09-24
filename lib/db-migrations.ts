@@ -2,6 +2,26 @@ interface SqliteMigrationDatabase {
   exec(sql: string): unknown;
 }
 
+export function migrateAiChatHistoryColumns(db: SqliteMigrationDatabase) {
+  for (const statement of [
+    "ALTER TABLE ai_chat_history ADD COLUMN skill_id TEXT",
+    "ALTER TABLE ai_chat_history ADD COLUMN provider_name TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE ai_chat_history ADD COLUMN provider_model TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE ai_chat_history ADD COLUMN status TEXT NOT NULL DEFAULT 'idle'",
+  ]) {
+    try {
+      db.exec(statement);
+    } catch {
+      // Fresh databases and already-migrated databases already have the column.
+    }
+  }
+
+  db.exec(`
+    UPDATE ai_chat_history SET status = 'idle'
+    WHERE status IS NULL OR status NOT IN ('idle', 'running');
+  `);
+}
+
 /** Remove state owned by the retired automatic subscription publisher. */
 export function retireSubscriptionDailyRuns(db: SqliteMigrationDatabase) {
   db.exec('DROP TABLE IF EXISTS subscription_daily_runs');

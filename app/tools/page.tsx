@@ -1,6 +1,7 @@
 'use client';
 import dynamic from 'next/dynamic';
-import { useDeferredValue, useEffect, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Pagination from '@/components/Pagination';
 import { useLocale } from '@/components/useLocale';
@@ -161,7 +162,12 @@ const TOOLS_COPY = {
 } as const;
 
 export default function ToolsPage() {
-  const [tab, setTab] = useState<ToolTab>('todos');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const requestedTab = searchParams.get('tab');
+  const allowedTabs: ToolTab[] = ['todos', 'bazi', 'ai-chat', 'image', 'subscriptions', 'skills'];
+  const tab: ToolTab = allowedTabs.includes(requestedTab as ToolTab) ? requestedTab as ToolTab : 'todos';
   const [todos, setTodos] = useState<Todo[]>([]);
   const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [todoSearch, setTodoSearch] = useState('');
@@ -174,10 +180,19 @@ export default function ToolsPage() {
   const isAuthenticated = status === 'authenticated';
   const copy = TOOLS_COPY[locale];
 
+  const setTab = useCallback((nextTab: ToolTab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextTab === 'todos') params.delete('tab');
+    else params.set('tab', nextTab);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
   useEffect(() => {
+    if (!isAuthenticated) return;
     fetch('/api/todos').then(res => (res.ok ? res.json() : Promise.reject())).then(setTodos).catch(() => {});
     fetch('/api/skills?catalog=all').then(res => (res.ok ? res.json() : Promise.reject())).then(setSkills).catch(() => {});
-  }, []);
+  }, [isAuthenticated]);
 
   const filteredTodos = todos
     .filter(todo => todo.text.toLowerCase().includes(todoSearch.toLowerCase()))
@@ -211,7 +226,7 @@ export default function ToolsPage() {
     if (!isAuthenticated && (tab === 'ai-chat' || tab === 'image')) {
       setTab('todos');
     }
-  }, [isAuthenticated, tab]);
+  }, [isAuthenticated, setTab, tab]);
 
   return (
     <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
@@ -349,7 +364,7 @@ export default function ToolsPage() {
 
         {tab === 'bazi' && <FortuneTool />}
 
-        {tab === 'ai-chat' && <AIChatTool />}
+        {isAuthenticated && <div className={tab === 'ai-chat' ? 'block' : 'hidden'}><AIChatTool /></div>}
 
         {tab === 'image' && <AIImageTool />}
 

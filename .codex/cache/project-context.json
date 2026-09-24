@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-18T12:50:00.609Z",
+  "generatedAt": "2026-09-24T03:38:49.744Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -206,6 +206,11 @@
         "route": "/admin/files",
         "file": "app/admin/files/page.tsx",
         "description": "File and album management page."
+      },
+      {
+        "route": "/admin",
+        "file": "app/admin/page.tsx",
+        "description": "Page route in the Next.js App Router tree."
       },
       {
         "route": "/admin/skills",
@@ -438,6 +443,11 @@
         "route": "/api/uploads/[...path]",
         "file": "app/api/uploads/[...path]/route.ts",
         "description": "Stream uploaded files from disk."
+      },
+      {
+        "route": "/api/workbench/summary",
+        "file": "app/api/workbench/summary/route.ts",
+        "description": "API route in the application backend."
       },
       {
         "route": "/api/x-auth",
@@ -1150,6 +1160,7 @@
       "tests/api/todos/id.test.ts",
       "tests/api/todos/route.test.ts",
       "tests/api/uploads/route.test.ts",
+      "tests/api/workbench/summary.test.ts",
       "tests/api/x-post/route.test.ts",
       "tests/app/seo.test.ts",
       "tests/config/claude-worker-session.test.ts",
@@ -1163,6 +1174,7 @@
       "tests/config/subscription-daily-retirement.test.ts",
       "tests/config/subscription-readme.test.ts",
       "tests/config/worker-security.test.ts",
+      "tests/lib/ai-chat-defaults.test.ts",
       "tests/lib/auth.test.ts",
       "tests/lib/blog-list.test.ts",
       "tests/lib/client-api-error.test.ts",
@@ -1184,6 +1196,6 @@
       "tests/lib/theme.test.ts",
       "tests/proxy.test.ts"
     ],
-    "count": 65
+    "count": 67
   }
 }

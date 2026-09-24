@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-08-18T12:50:00.609Z
+Generated: 2026-09-24T03:38:49.744Z
 
 ## Snapshot
 
@@ -49,7 +49,7 @@ Generated: 2026-08-18T12:50:00.609Z
 - `app/api/fortune/route.ts`: Streaming fortune analysis route with history integration.
 - `app/api/bazi/route.ts`: Dedicated BaZi streaming route.
 
-## Page Routes (17)
+## Page Routes (18)
 
 - `/admin/ai-config` -> `app/admin/ai-config/page.tsx`: Admin page for AI provider configuration.
 - `/admin/blog-analytics` -> `app/admin/blog-analytics/page.tsx`: Page route in the Next.js App Router tree.
@@ -58,6 +58,7 @@ Generated: 2026-08-18T12:50:00.609Z
 - `/admin/claude-code` -> `app/admin/claude-code/page.tsx`: Page route in the Next.js App Router tree.
 - `/admin/diary` -> `app/admin/diary/page.tsx`: Diary management page.
 - `/admin/files` -> `app/admin/files/page.tsx`: File and album management page.
+- `/admin` -> `app/admin/page.tsx`: Page route in the Next.js App Router tree.
 - `/admin/skills` -> `app/admin/skills/page.tsx`: Admin skill management UI.
 - `/admin/subscriptions` -> `app/admin/subscriptions/page.tsx`: Subscription source and brief management.
 - `/admin/tools` -> `app/admin/tools/page.tsx`: Admin tool dashboard.
@@ -69,7 +70,7 @@ Generated: 2026-08-18T12:50:00.609Z
 - `/` -> `app/page.tsx`: Public homepage.
 - `/tools` -> `app/tools/page.tsx`: Main tool hub.
 
-## API Routes (38)
+## API Routes (39)
 
 - `/api/admin/blog-analytics` -> `app/api/admin/blog-analytics/route.ts`: API route in the application backend.
 - `/api/ai-chat/[id]` -> `app/api/ai-chat/[id]/route.ts`: Read, update, or delete stored AI chat sessions.
@@ -107,6 +108,7 @@ Generated: 2026-08-18T12:50:00.609Z
 - `/api/todos/[id]` -> `app/api/todos/[id]/route.ts`: Single todo operations.
 - `/api/todos` -> `app/api/todos/route.ts`: Todo CRUD.
 - `/api/uploads/[...path]` -> `app/api/uploads/[...path]/route.ts`: Stream uploaded files from disk.
+- `/api/workbench/summary` -> `app/api/workbench/summary/route.ts`: API route in the application backend.
 - `/api/x-auth` -> `app/api/x-auth/route.ts`: X/Twitter authentication flow.
 - `/api/x-post` -> `app/api/x-post/route.ts`: Publish generated content to X/Twitter.
 
@@ -180,7 +182,7 @@ Generated: 2026-08-18T12:50:00.609Z
 
 ## Tests
 
-- API and helper test files: 65
+- API and helper test files: 67
 - Examples: `tests/api/admin/blog-analytics.test.ts`, `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai-providers/test.test.ts`, `tests/api/ai/route.test.ts`
 
 ## Notes

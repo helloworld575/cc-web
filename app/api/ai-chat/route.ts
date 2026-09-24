@@ -43,6 +43,9 @@ const MAX_UPSTREAM_CONTEXT_CHARS = 16000;
 const DEFAULT_AI_CHAT_CONNECT_TIMEOUT_MS = 30_000;
 const DEFAULT_AI_CHAT_FIRST_TOKEN_TIMEOUT_MS = 60_000;
 const DEFAULT_AI_CHAT_STREAM_IDLE_TIMEOUT_MS = 30_000;
+const MAX_CHAT_MESSAGES = 50;
+const MAX_CHAT_MESSAGE_CHARS = 16_000;
+const MAX_CHAT_TRANSCRIPT_CHARS = 64_000;
 
 interface AiStreamOptions {
   chatId?: number;
@@ -179,6 +182,70 @@ function saveNewChat(providerId: number, messages: ChatMessage[]) {
 function updateChat(chatId: number, title: string, messages: ChatMessage[]) {
   db.prepare("UPDATE ai_chat_history SET title=?, messages=?, updated_at=datetime('now') WHERE id=?")
     .run(title, JSON.stringify(messages), chatId);
+}
+
+function updateChatMetadata(
+  chatId: number,
+  skillId: string | null,
+  provider: AiProviderConfig,
+  status: 'idle' | 'running',
+) {
+  db.prepare(`
+    UPDATE ai_chat_history
+    SET skill_id=?, provider_name=?, provider_model=?, status=?, updated_at=datetime('now')
+    WHERE id=?
+  `).run(skillId, provider.name, provider.model, status, chatId);
+}
+
+function claimChat(chatId: number) {
+  const result = db.prepare(`
+    UPDATE ai_chat_history
+    SET status = 'running'
+    WHERE id=? AND (
+      status IS NULL
+      OR status='idle'
+      OR (status='running' AND updated_at < datetime('now', '-10 minutes'))
+    )
+  `).run(chatId);
+  return Number(result.changes ?? 0) > 0;
+}
+
+function releaseChat(chatId: number) {
+  db.prepare("UPDATE ai_chat_history SET status='idle' WHERE id=? AND status='running'").run(chatId);
+}
+
+function validateChatMessages(value: unknown): { messages?: ChatMessage[]; response?: Response } {
+  if (!Array.isArray(value) || value.length === 0) {
+    return { response: Response.json({ error: 'Missing provider_id or messages' }, { status: 400 }) };
+  }
+  if (value.length > MAX_CHAT_MESSAGES) {
+    return { response: Response.json({ code: 'ai_chat_input_too_large', error: 'Too many chat messages.' }, { status: 413 }) };
+  }
+
+  let totalChars = 0;
+  const messages: ChatMessage[] = [];
+  for (const message of value) {
+    if (!message || typeof message !== 'object') {
+      return { response: Response.json({ error: 'Invalid chat message.' }, { status: 400 }) };
+    }
+    const candidate = message as { role?: unknown; content?: unknown };
+    if (candidate.role !== 'user' && candidate.role !== 'assistant') {
+      return { response: Response.json({ error: 'Invalid chat message role.' }, { status: 400 }) };
+    }
+    if (typeof candidate.content !== 'string' || !candidate.content.trim()) {
+      return { response: Response.json({ error: 'Invalid chat message content.' }, { status: 400 }) };
+    }
+    if (candidate.content.length > MAX_CHAT_MESSAGE_CHARS) {
+      return { response: Response.json({ code: 'ai_chat_input_too_large', error: 'A chat message is too large.' }, { status: 413 }) };
+    }
+    totalChars += candidate.content.length;
+    if (totalChars > MAX_CHAT_TRANSCRIPT_CHARS) {
+      return { response: Response.json({ code: 'ai_chat_input_too_large', error: 'The chat transcript is too large.' }, { status: 413 }) };
+    }
+    messages.push({ role: candidate.role, content: candidate.content });
+  }
+
+  return { messages };
 }
 
 function enqueueEvent(
@@ -614,8 +681,8 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const providerId = searchParams.get('provider_id');
   const chats = providerId
-    ? db.prepare('SELECT id, provider_id, title, created_at, updated_at FROM ai_chat_history WHERE provider_id = ? ORDER BY updated_at DESC LIMIT 50').all(providerId)
-    : db.prepare('SELECT id, provider_id, title, created_at, updated_at FROM ai_chat_history ORDER BY updated_at DESC LIMIT 50').all();
+    ? db.prepare('SELECT id, provider_id, title, skill_id, provider_name, provider_model, status, created_at, updated_at FROM ai_chat_history WHERE provider_id = ? ORDER BY updated_at DESC LIMIT 50').all(providerId)
+    : db.prepare('SELECT id, provider_id, title, skill_id, provider_name, provider_model, status, created_at, updated_at FROM ai_chat_history ORDER BY updated_at DESC LIMIT 50').all();
 
   return Response.json(chats);
 }
@@ -633,10 +700,13 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { chat_id, provider_id, messages } = body;
-  if (!provider_id || !messages || !Array.isArray(messages) || messages.length === 0) {
+  const { chat_id, provider_id } = body;
+  if (!provider_id) {
     return Response.json({ error: 'Missing provider_id or messages' }, { status: 400 });
   }
+  const validation = validateChatMessages(body.messages);
+  if (validation.response) return validation.response;
+  const messages = validation.messages!;
 
   const skillReference = typeof body.skill === 'string'
     ? body.skill.trim()
@@ -669,6 +739,10 @@ export async function POST(req: Request) {
     }
     chatId = Number(existing.id);
     chatTitle = existing.title || chatTitle;
+    if (!claimChat(chatId)) {
+      return Response.json({ code: 'ai_chat_busy', error: 'This chat is already running.' }, { status: 409 });
+    }
+    updateChatMetadata(chatId, skill?.id ?? null, provider, 'running');
   }
 
   logServerEvent('info', 'ai-chat', 'request_started', {
@@ -686,6 +760,7 @@ export async function POST(req: Request) {
       const saved = saveNewChat(providerId, messages);
       chatId = saved.id;
       chatTitle = saved.title;
+      updateChatMetadata(chatId, skill?.id ?? null, provider, 'running');
     }
 
     const latestUserMessage = [...messages].reverse().find(
@@ -710,6 +785,7 @@ export async function POST(req: Request) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
         }
         updateChat(chatId!, chatTitle, [...messages, { role: 'assistant', content: assistantText }]);
+        releaseChat(chatId!);
         logServerEvent('info', 'ai-chat', 'request_completed', {
           request_id: requestId,
           provider_id: providerId,
@@ -761,6 +837,7 @@ export async function POST(req: Request) {
       signal: connectController.signal,
     });
   } catch (caught: unknown) {
+    if (chatId) releaseChat(chatId);
     const error = safeFetchError(caught);
     logServerEvent('warn', 'ai-chat', 'request_failed', {
       request_id: requestId,
@@ -779,6 +856,7 @@ export async function POST(req: Request) {
   }
 
   if (!upstream.ok) {
+    if (chatId) releaseChat(chatId);
     const failure = await readUpstreamFailure(upstream);
     logServerEvent('warn', 'ai-chat', 'request_failed', {
       request_id: requestId,
@@ -795,6 +873,7 @@ export async function POST(req: Request) {
   }
   const validated = await validateUpstreamSse(upstream);
   if (!validated.ok) {
+    if (chatId) releaseChat(chatId);
     logServerEvent('warn', 'ai-chat', 'request_failed', {
       request_id: requestId,
       provider_id: providerId,
@@ -812,6 +891,7 @@ export async function POST(req: Request) {
     const saved = saveNewChat(providerId, messages);
     chatId = saved.id;
     chatTitle = saved.title;
+    updateChatMetadata(chatId, skill?.id ?? null, provider, 'running');
   } else {
     updateChat(chatId, chatTitle, messages);
   }
@@ -833,6 +913,7 @@ export async function POST(req: Request) {
     },
     onDone() {
       updateChat(chatId!, chatTitle, [...messages, { role: 'assistant', content: assistantText }]);
+      updateChatMetadata(chatId!, skill?.id ?? null, provider, 'idle');
       logServerEvent('info', 'ai-chat', 'request_completed', {
         request_id: requestId,
         provider_id: providerId,
@@ -843,6 +924,7 @@ export async function POST(req: Request) {
       });
     },
     onError(error: SafeUpstreamError) {
+      releaseChat(chatId!);
       logServerEvent('warn', 'ai-chat', 'request_failed', {
         request_id: requestId,
         provider_id: providerId,
@@ -856,6 +938,7 @@ export async function POST(req: Request) {
       });
     },
     onCancel() {
+      releaseChat(chatId!);
       logServerEvent('info', 'ai-chat', 'request_cancelled', {
         request_id: requestId,
         provider_id: providerId,
