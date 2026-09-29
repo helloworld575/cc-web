@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-24T03:50:33.347Z",
+  "generatedAt": "2026-09-29T01:47:18.597Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -1039,7 +1039,7 @@
         "description": ">-",
         "hasSystem": false,
         "hasPrompt": true,
-        "output": null,
+        "output": "text",
         "hasScripts": false,
         "hasReferences": false
       },
@@ -1181,14 +1181,17 @@
       "tests/lib/safe-fetch.test.ts",
       "tests/lib/server-log.test.ts",
       "tests/lib/skill-taxonomy.test.ts",
+      "tests/lib/skills.test.ts",
       "tests/lib/subscription-feed.test.ts",
       "tests/lib/subscription-items.test.ts",
       "tests/lib/subscription-source-health.test.ts",
       "tests/lib/subscription-source-seeds.test.ts",
       "tests/lib/subscription-topics.test.ts",
       "tests/lib/theme.test.ts",
-      "tests/proxy.test.ts"
+      "tests/proxy.test.ts",
+      "tests/scripts/normalize-codex-skills.test.ts",
+      "tests/scripts/skill-catalog.test.ts"
     ],
-    "count": 67
+    "count": 70
   }
 }

@@ -1,11 +1,13 @@
 import fs from 'fs';
 import path from 'path';
+import { pathToFileURL } from 'node:url';
 import matter from 'gray-matter';
 
 const root = process.cwd();
 const skillsRoot = path.join(root, '.codex', 'skills');
 
 const DISPLAY_NAME_WORDS = {
+  api: 'API',
   ai: 'AI',
   faq: 'FAQ',
   x: 'X',
@@ -69,7 +71,7 @@ function cleanupBody(content) {
     .trim();
 }
 
-function writeOpenAiYaml(targetDir, skillName) {
+export function writeOpenAiYaml(targetDir, skillName) {
   const displayName = formatDisplayName(skillName);
   const openAiYaml = [
     'interface:',
@@ -81,7 +83,11 @@ function writeOpenAiYaml(targetDir, skillName) {
 
   const agentsDir = path.join(targetDir, 'agents');
   ensureDir(agentsDir);
-  fs.writeFileSync(path.join(agentsDir, 'openai.yaml'), openAiYaml);
+  const file = path.join(agentsDir, 'openai.yaml');
+  if (fs.existsSync(file)) return false;
+
+  fs.writeFileSync(file, openAiYaml);
+  return true;
 }
 
 function normalizeSkill(skillName) {
@@ -132,4 +138,6 @@ function main() {
   console.log(`Normalized ${skills.length} skill(s) in ${path.relative(root, skillsRoot)}`);
 }
 
-main();
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  main();
+}

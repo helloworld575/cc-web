@@ -2,8 +2,8 @@
 name: knowledge-router
 description: >-
   Router for research and synthesis skills. Use when the user needs deep
-  research, a summary from a URL or file, or a digest from subscribed sources,
-  and you need the right knowledge-processing leaf skill.
+  research, a summary from a URL or file, or a synthesis of fetched feeds, and
+  you need the right knowledge-processing leaf skill.
 invocable: false
 hierarchy:
   domain: knowledge
@@ -40,15 +40,10 @@ orchestration:
         Use when the user needs a summary, transcript extraction, or concise
         synthesis of a URL, file, or media source.
       mode: direct
-    - skill: subscription
-      when: >-
-        Use when the user wants the latest updates or digests from subscribed
-        feeds and tracked sources.
-      mode: route
     - skill: web-research-brief
       when: >-
-        Use when fetched web, RSS, search, or crawler output needs a concise
-        provider-neutral research brief.
+        Use when fetched web, RSS, subscribed-feed, search, or crawler output
+        needs a concise provider-neutral digest.
       mode: direct
     - skill: source-credibility-check
       when: >-
@@ -64,7 +59,7 @@ Pick the smallest synthesis skill that matches the ask.
 
 - Broad multi-source investigation: `research`
 - Single-source or compact summarization: `summarize`
-- Ongoing update digest from followed sources: `subscription`
+- Digest of already-fetched updates from followed sources: `web-research-brief`
 - Fetched web context that needs a concise brief: `web-research-brief`
 - Source reliability and freshness review: `source-credibility-check`
 

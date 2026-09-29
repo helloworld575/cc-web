@@ -83,7 +83,7 @@ orchestration:
       when: >-
         Use when the task clearly needs several skills chained together in a
         standard sequence.
-      mode: route
+      mode: direct
 ---
 # Strategy Router
 

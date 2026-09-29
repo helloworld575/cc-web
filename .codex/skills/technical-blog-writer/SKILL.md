@@ -31,17 +31,15 @@ lookup:
     - implementation
     - 技术博客
     - 脱敏代码
-prompt:
-  output: text
-  mode: transform
-  template: |-
-    Write a practical technical blog post from this implementation context.
+output: text
+prompt: |-
+  Write a practical technical blog post from this implementation context.
 
-    Topic:
-    {{topic}}
+  Topic:
+  {{topic}}
 
-    Context:
-    {{content}}
+  Context:
+  {{content}}
 ---
 # Technical Blog Writer
 
