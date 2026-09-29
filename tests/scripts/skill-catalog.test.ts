@@ -24,6 +24,13 @@ describe('validateSkillCatalog', () => {
     expect(validateSkillCatalog([])).toContain('catalog: at least one skill is required.');
   });
 
+  it('reports malformed catalog entries without throwing', () => {
+    expect(validateSkillCatalog([null, []])).toEqual([
+      'catalog: every skill must be an object with a non-empty id.',
+      'catalog: every skill must be an object with a non-empty id.',
+    ]);
+  });
+
   it('accepts a valid router tree', () => {
     const catalog = [
       skill('root', {

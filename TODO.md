@@ -2,6 +2,8 @@
 
 ## sec-ai-tools NAS and cc-web integration
 
+Status snapshot: 2026-09-29. These observations describe the checks performed that day; recheck before the next deployment. The sanitized log query was `npm run nas:logs -- --service app --since 1h --grep security-bff --no-save`; no matching output does not demonstrate successful authenticated forwarding.
+
 Last read-only NAS checks confirmed that the sec-ai Compose services are healthy: `/health` returns 200 with container attestation, egress policy, toolchains, and network assessments ready; the runner has no restarts, and `/app/` returns 200. The runner, gateway, and egress proxy have the expected network memberships. The older 503 is no longer current, and its exact cause is not in the recent health history.
 
 The cc-web integration is still unconfigured. `SECURITY_API_URL` and `SECURITY_API_KEY` are empty or missing in the local `.env.local`, the NAS cc-web environment file, and the running app container. Unauthenticated BFF requests return the expected 401, but authenticated forwarding has not been tested. Sanitized NAS logs for the last hour had no `security-bff` matches.

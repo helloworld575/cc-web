@@ -26,7 +26,7 @@ Keep this repository coherent as it grows. The reviewer does not own feature wor
 - Confirm styles remain Tailwind-first; reject CSS modules and ad hoc styling systems.
 - Confirm runtime skills stay under `.codex/skills/` and structural skill changes are normalized with `npm run codex:skills`.
 - Confirm project structure changes refresh `.codex/cache/*` with `npm run codex:cache`.
-- When reviewing skills or routers, check the full route graph: references must resolve, duplicate edges and cycles must be intentional, and `route` edges must lead to skills with child routes. When removing a skill, search the whole catalog for reverse references.
+- When reviewing skills or routers, check the full route graph: the catalog must not be empty, references must resolve, duplicate edges and cycles are rejected, and `route` edges must lead to skills with child routes. Roots and routers must have children; leaves must not. Explicit malformed frontmatter must fail validation instead of becoming a default value. When removing a skill, search the whole catalog for reverse references.
 - Flag newly enlarged React files when they cross the architecture check's 900-line limit; avoid speculative refactors.
 
 ## Context Cleanup Protocol

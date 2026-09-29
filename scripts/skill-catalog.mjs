@@ -59,6 +59,10 @@ export function validateSkillCatalog(skills) {
   }
 
   for (const skill of skills) {
+    if (!skill || typeof skill !== 'object' || Array.isArray(skill)) {
+      failures.push('catalog: every skill must be an object with a non-empty id.');
+      continue;
+    }
     if (!isNonEmptyString(skill.id)) {
       failures.push('catalog: every skill must have a non-empty id.');
       continue;
