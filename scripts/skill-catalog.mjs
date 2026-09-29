@@ -5,9 +5,58 @@ function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+export function toSkillCatalogEntry(id, frontmatter) {
+  const invocable = frontmatter.invocable
+    ?? frontmatter.user_invocable
+    ?? Boolean(frontmatter.prompt && frontmatter.output);
+  const hasOrchestration = Object.prototype.hasOwnProperty.call(frontmatter, 'orchestration');
+  let orchestration = {
+    role: 'leaf',
+    mode: invocable ? 'direct' : 'reference',
+    children: [],
+  };
+
+  if (hasOrchestration) {
+    const rawOrchestration = frontmatter.orchestration;
+    if (!rawOrchestration || typeof rawOrchestration !== 'object' || Array.isArray(rawOrchestration)) {
+      orchestration = rawOrchestration;
+    } else {
+      const hasChildren = Object.prototype.hasOwnProperty.call(rawOrchestration, 'children');
+      const children = hasChildren ? rawOrchestration.children : [];
+      const hasRole = Object.prototype.hasOwnProperty.call(rawOrchestration, 'role');
+      const hasMode = Object.prototype.hasOwnProperty.call(rawOrchestration, 'mode');
+      orchestration = {
+        ...rawOrchestration,
+        role: hasRole ? rawOrchestration.role : (Array.isArray(children) && children.length ? 'router' : 'leaf'),
+        mode: hasMode
+          ? rawOrchestration.mode
+          : (Array.isArray(children) && children.length
+              ? (invocable ? 'hybrid' : 'route')
+              : (invocable ? 'direct' : 'reference')),
+        children,
+      };
+    }
+  }
+
+  return {
+    id,
+    name: frontmatter.name,
+    description: frontmatter.description,
+    invocable,
+    prompt: frontmatter.prompt,
+    output: frontmatter.output,
+    orchestration,
+  };
+}
+
 export function validateSkillCatalog(skills) {
   const failures = [];
   const skillById = new Map();
+
+  if (!Array.isArray(skills) || skills.length === 0) {
+    failures.push('catalog: at least one skill is required.');
+    return failures;
+  }
 
   for (const skill of skills) {
     if (!isNonEmptyString(skill.id)) {
@@ -44,6 +93,12 @@ export function validateSkillCatalog(skills) {
     if (!Array.isArray(orchestration.children)) {
       failures.push(`${id}: orchestration children must be an array.`);
       continue;
+    }
+    if ((orchestration.role === 'root' || orchestration.role === 'router') && orchestration.children.length === 0) {
+      failures.push(`${id}: ${orchestration.role} skills must define child routes.`);
+    }
+    if (orchestration.role === 'leaf' && orchestration.children.length > 0) {
+      failures.push(`${id}: leaf skills cannot define child routes.`);
     }
 
     const childIds = new Set();

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { validateSkillCatalog } from '../../scripts/skill-catalog.mjs';
+import {
+  toSkillCatalogEntry,
+  validateSkillCatalog,
+} from '../../scripts/skill-catalog.mjs';
 
 function skill(id: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -17,6 +20,10 @@ function skill(id: string, overrides: Record<string, unknown> = {}) {
 }
 
 describe('validateSkillCatalog', () => {
+  it('rejects an empty skill catalog', () => {
+    expect(validateSkillCatalog([])).toContain('catalog: at least one skill is required.');
+  });
+
   it('accepts a valid router tree', () => {
     const catalog = [
       skill('root', {
@@ -73,6 +80,44 @@ describe('validateSkillCatalog', () => {
 
     expect(validateSkillCatalog(catalog)).toContain(
       'router: route target "leaf" has no child routes.',
+    );
+  });
+
+  it('rejects root and router skills without children and leaves with children', () => {
+    const catalog = [
+      skill('empty-root', {
+        orchestration: { role: 'root', mode: 'route', children: [] },
+      }),
+      skill('empty-router', {
+        orchestration: { role: 'router', mode: 'route', children: [] },
+      }),
+      skill('leaf-with-child', {
+        orchestration: {
+          role: 'leaf',
+          mode: 'reference',
+          children: [{ skill: 'child', when: 'Continue', mode: 'direct' }],
+        },
+      }),
+      skill('child'),
+    ];
+
+    expect(validateSkillCatalog(catalog)).toEqual(expect.arrayContaining([
+      'empty-root: root skills must define child routes.',
+      'empty-router: router skills must define child routes.',
+      'leaf-with-child: leaf skills cannot define child routes.',
+    ]));
+  });
+
+  it('preserves malformed orchestration values for validation', () => {
+    const entry = toSkillCatalogEntry('broken', {
+      name: 'broken',
+      description: 'broken description',
+      invocable: false,
+      orchestration: 'bad',
+    });
+
+    expect(validateSkillCatalog([entry])).toContain(
+      'broken: orchestration must be an object.',
     );
   });
 

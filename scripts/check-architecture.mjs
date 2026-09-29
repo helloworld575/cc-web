@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
-import { validateSkillCatalog } from './skill-catalog.mjs';
+import { toSkillCatalogEntry, validateSkillCatalog } from './skill-catalog.mjs';
 
 const root = process.cwd();
 const failures = [];
@@ -135,27 +135,14 @@ function assertSkillCatalog() {
       continue;
     }
 
-    const children = frontmatter.orchestration?.children ?? [];
-    const invocable = frontmatter.invocable
-      ?? frontmatter.user_invocable
-      ?? Boolean(frontmatter.prompt && frontmatter.output);
-    skills.push({
-      id,
-      name: frontmatter.name,
-      description: frontmatter.description,
-      invocable,
-      prompt: frontmatter.prompt,
-      output: frontmatter.output,
-      orchestration: {
-        role: frontmatter.orchestration?.role ?? (Array.isArray(children) && children.length ? 'router' : 'leaf'),
-        mode: frontmatter.orchestration?.mode
-          ?? (Array.isArray(children) && children.length ? (invocable ? 'hybrid' : 'route') : (invocable ? 'direct' : 'reference')),
-        children,
-      },
-    });
+    skills.push(toSkillCatalogEntry(id, frontmatter));
   }
 
   for (const failure of validateSkillCatalog(skills)) {
+    if (failure.startsWith('catalog:')) {
+      report('.codex/skills', failure.slice('catalog:'.length).trim());
+      continue;
+    }
     const skillId = failure.split(':', 1)[0];
     report(`.codex/skills/${skillId}/SKILL.md`, failure.slice(skillId.length + 2));
   }
