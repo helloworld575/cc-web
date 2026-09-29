@@ -7,7 +7,10 @@ import { rateLimitByIp } from '@/lib/rateLimit';
 import { getRequestId, logServerEvent, summarizeError } from '@/lib/server-log';
 
 const MAX_PROMPT_CHARS = 20000;
-const WORKER_TIMEOUT_MS = 10 * 60_000;
+const MAX_REQUEST_BODY_BYTES = 128 * 1024;
+const MAX_TRANSCRIPT_MESSAGES = 100;
+const MAX_TRANSCRIPT_CHARS = 200_000;
+const WORKER_TIMEOUT_MS = 9 * 60_000;
 const STALE_SESSION_MINUTES = 15;
 
 interface AssistantMessage {
@@ -22,6 +25,7 @@ interface AssistantSessionRow {
   cwd: string;
   messages: string;
   status: 'idle' | 'running';
+  run_token?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -31,6 +35,8 @@ const SAFE_WORKER_ERRORS: Record<string, { error: string; status: number }> = {
   CLAUDE_OUTPUT_TOO_LARGE: { error: 'Claude response exceeded the safe output limit.', status: 502 },
   CLAUDE_INVALID_RESPONSE: { error: 'Claude returned an invalid response.', status: 502 },
   CLAUDE_FAILED: { error: 'Claude request failed. Check worker logs.', status: 502 },
+  WORKER_BUSY: { error: 'The assistant worker is busy. Try again shortly.', status: 429 },
+  WORKER_SHUTTING_DOWN: { error: 'The assistant worker is restarting. Try again shortly.', status: 503 },
   INVALID_SESSION: { error: 'Claude session is invalid.', status: 502 },
   WORKER_NOT_CONFIGURED: { error: 'Claude worker is not configured.', status: 503 },
   UNAUTHORIZED: { error: 'Claude worker rejected the request.', status: 502 },
@@ -57,21 +63,59 @@ function parseMessages(raw: string): AssistantMessage[] {
   }
 }
 
+function limitTranscript(messages: AssistantMessage[]) {
+  const limited: AssistantMessage[] = [];
+  let chars = 0;
+  for (let index = messages.length - 1; index >= 0 && limited.length < MAX_TRANSCRIPT_MESSAGES; index -= 1) {
+    const message = messages[index];
+    const nextChars = chars + message.content.length;
+    if (limited.length > 0 && nextChars > MAX_TRANSCRIPT_CHARS) break;
+    limited.unshift(message);
+    chars = nextChars;
+  }
+  return limited;
+}
+
+function normalizeCwd(value: unknown) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+/g, '/');
+  if (!normalized || normalized === '.' || normalized === 'default') return 'default';
+  if (/^[A-Za-z]:/.test(normalized)
+    || normalized.length > 240
+    || normalized.split('/').some(segment => !segment || segment === '.' || segment === '..')) return undefined;
+  return normalized;
+}
+
+async function readRequestBody(req: Request) {
+  const contentType = (req.headers.get('content-type') || '').toLowerCase();
+  if (!contentType.startsWith('application/json')) throw new Error('Content-Type must be application/json');
+  const declaredLength = Number(req.headers.get('content-length'));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_REQUEST_BODY_BYTES) {
+    throw new Error('Request body is too large');
+  }
+  const raw = await req.text();
+  if (new TextEncoder().encode(raw).byteLength > MAX_REQUEST_BODY_BYTES) {
+    throw new Error('Request body is too large');
+  }
+  return JSON.parse(raw || '{}') as unknown;
+}
+
 function releaseStaleSessions() {
   db.prepare(`
     UPDATE claude_assistant_sessions
-    SET status = 'idle', updated_at = datetime('now')
+    SET status = 'idle', run_token = NULL, updated_at = datetime('now')
     WHERE status = 'running'
       AND updated_at < datetime('now', ?)
   `).run(`-${STALE_SESSION_MINUTES} minutes`);
 }
 
-function resetSession(chatId: number, isNew: boolean) {
+function resetSession(chatId: number, isNew: boolean, runToken: string) {
   if (isNew) {
-    db.prepare('DELETE FROM claude_assistant_sessions WHERE id = ?').run(chatId);
+    db.prepare('DELETE FROM claude_assistant_sessions WHERE id = ? AND run_token = ?').run(chatId, runToken);
     return;
   }
-  db.prepare("UPDATE claude_assistant_sessions SET status = 'idle', updated_at = datetime('now') WHERE id = ?").run(chatId);
+  db.prepare("UPDATE claude_assistant_sessions SET status = 'idle', run_token = NULL, updated_at = datetime('now') WHERE id = ? AND run_token = ?").run(chatId, runToken);
 }
 
 function workerError(code: string, error: string, status = 502, requestId?: string) {
@@ -115,7 +159,11 @@ export async function POST(req: Request) {
 
   let body: { message?: unknown; prompt?: unknown; cwd?: unknown; chat_id?: unknown };
   try {
-    body = await req.json();
+    const parsed = await readRequestBody(req);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Request body must be a JSON object');
+    }
+    body = parsed as typeof body;
   } catch {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
@@ -131,7 +179,7 @@ export async function POST(req: Request) {
   if (!workerUrl) {
     return workerError('CLAUDE_WORKER_NOT_CONFIGURED', 'Claude Code worker is not configured.', 503, requestId);
   }
-  const workerToken = process.env.NEXTAUTH_SECRET;
+  const workerToken = process.env.CLAUDE_WORKER_TOKEN;
   if (!workerToken) {
     return workerError('CLAUDE_WORKER_NOT_CONFIGURED', 'Claude Code worker authentication is not configured.', 503, requestId);
   }
@@ -144,14 +192,16 @@ export async function POST(req: Request) {
   }
 
   releaseStaleSessions();
-  const requestedCwd = typeof body.cwd === 'string' && body.cwd.trim()
-    ? body.cwd.trim()
-    : null;
+  const requestedCwd = normalizeCwd(body.cwd);
+  if (requestedCwd === undefined) {
+    return Response.json({ code: 'CLAUDE_CWD_INVALID', error: 'Workspace path is invalid.' }, { status: 400 });
+  }
   let chatId: number;
   let claudeSessionId: string;
   let cwd: string;
   let previousMessages: AssistantMessage[];
   let isNew = false;
+  const runToken = randomUUID();
 
   if (requestedChatId !== null) {
     const existing = db.prepare('SELECT * FROM claude_assistant_sessions WHERE id = ?')
@@ -168,9 +218,9 @@ export async function POST(req: Request) {
 
     const acquired = db.prepare(`
       UPDATE claude_assistant_sessions
-      SET status = 'running', updated_at = datetime('now')
+      SET status = 'running', run_token = ?, updated_at = datetime('now')
       WHERE id = ? AND status = 'idle'
-    `).run(requestedChatId);
+    `).run(runToken, requestedChatId);
     if (acquired.changes !== 1) {
       return Response.json({ code: 'CLAUDE_CHAT_BUSY', error: 'Conversation is already running.' }, { status: 409 });
     }
@@ -186,9 +236,9 @@ export async function POST(req: Request) {
     previousMessages = [];
     const title = prompt.replace(/\s+/g, ' ').slice(0, 80) || 'New Conversation';
     const inserted = db.prepare(`
-      INSERT INTO claude_assistant_sessions (session_uuid, title, cwd, messages, status)
-      VALUES (?, ?, ?, '[]', 'running')
-    `).run(claudeSessionId, title, cwd);
+      INSERT INTO claude_assistant_sessions (session_uuid, title, cwd, messages, status, run_token)
+      VALUES (?, ?, ?, '[]', 'running', ?)
+    `).run(claudeSessionId, title, cwd, runToken);
     chatId = Number(inserted.lastInsertRowid);
   }
 
@@ -207,7 +257,8 @@ export async function POST(req: Request) {
   });
 
   const timeoutSignal = AbortSignal.timeout(WORKER_TIMEOUT_MS);
-  const signal = AbortSignal.any([req.signal, timeoutSignal]);
+  const upstreamAbort = new AbortController();
+  const signal = AbortSignal.any([req.signal, timeoutSignal, upstreamAbort.signal]);
   let upstream: Response;
   try {
     upstream = await fetch(`${workerUrl}/run`, {
@@ -227,7 +278,7 @@ export async function POST(req: Request) {
       signal,
     });
   } catch (caught: unknown) {
-    resetSession(chatId, isNew);
+    resetSession(chatId, isNew, runToken);
     const code = req.signal.aborted
       ? 'CLAUDE_CANCELLED'
       : timeoutSignal.aborted
@@ -251,7 +302,7 @@ export async function POST(req: Request) {
     const upstreamStatus = upstream.status;
     const responseCode = await readWorkerFailure(upstream);
     const safe = responseCode ? SAFE_WORKER_ERRORS[responseCode] : null;
-    resetSession(chatId, isNew);
+    resetSession(chatId, isNew, runToken);
     logServerEvent('warn', 'claude-code', 'worker_failed', {
       ...logFields,
       duration_ms: Date.now() - startedAt,
@@ -267,13 +318,13 @@ export async function POST(req: Request) {
     );
   }
   if (!upstream.body) {
-    resetSession(chatId, isNew);
+    resetSession(chatId, isNew, runToken);
     return workerError('CLAUDE_WORKER_INVALID_RESPONSE', 'Claude Code worker returned an invalid response.', 502, requestId);
   }
   const contentType = upstream.headers.get('content-type') || '';
   if (!contentType.toLowerCase().startsWith('text/plain')) {
     await upstream.body.cancel().catch(() => undefined);
-    resetSession(chatId, isNew);
+    resetSession(chatId, isNew, runToken);
     logServerEvent('warn', 'claude-code', 'worker_failed', {
       ...logFields,
       duration_ms: Date.now() - startedAt,
@@ -297,16 +348,16 @@ export async function POST(req: Request) {
         const { done, value } = await reader.read();
         if (done) {
           responseText += decoder.decode();
-          const nextMessages: AssistantMessage[] = [
+          const nextMessages = limitTranscript([
             ...previousMessages,
             { role: 'user', content: prompt },
             { role: 'assistant', content: responseText },
-          ];
+          ]);
           db.prepare(`
             UPDATE claude_assistant_sessions
-            SET messages = ?, status = 'idle', updated_at = datetime('now')
-            WHERE id = ?
-          `).run(JSON.stringify(nextMessages), chatId);
+            SET messages = ?, status = 'idle', run_token = NULL, updated_at = datetime('now')
+            WHERE id = ? AND run_token = ?
+          `).run(JSON.stringify(nextMessages), chatId, runToken);
           finished = true;
           logServerEvent('info', 'claude-code', 'request_completed', {
             ...logFields,
@@ -323,7 +374,10 @@ export async function POST(req: Request) {
         responseText += decoder.decode(value, { stream: true });
         controller.enqueue(value);
       } catch (caught: unknown) {
-        if (!finished) resetSession(chatId, isNew);
+        if (!finished) {
+          upstreamAbort.abort();
+          resetSession(chatId, isNew, runToken);
+        }
         logServerEvent('warn', 'claude-code', 'stream_failed', {
           ...logFields,
           duration_ms: Date.now() - startedAt,
@@ -334,7 +388,10 @@ export async function POST(req: Request) {
       }
     },
     async cancel() {
-      if (!finished) resetSession(chatId, isNew);
+      if (!finished) {
+        upstreamAbort.abort();
+        resetSession(chatId, isNew, runToken);
+      }
       await reader.cancel().catch(() => undefined);
       logServerEvent('info', 'claude-code', 'request_cancelled', {
         ...logFields,

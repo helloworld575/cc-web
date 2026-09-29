@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29T01:47:18.597Z",
+  "generatedAt": "2026-09-29T11:48:39.484Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -550,6 +550,10 @@
       "blog_view_events"
     ],
     "migrations": [
+      {
+        "table": "claude_assistant_sessions",
+        "column": "run_token"
+      },
       {
         "table": "todos",
         "column": "deadline"

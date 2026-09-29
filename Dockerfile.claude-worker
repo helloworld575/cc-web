@@ -8,6 +8,7 @@ RUN apk add --no-cache bash git libgcc libstdc++ ripgrep && \
 WORKDIR /worker
 COPY scripts/claude-worker.mjs ./claude-worker.mjs
 COPY scripts/claude-worker-args.mjs ./claude-worker-args.mjs
+COPY scripts/claude-worker-config.mjs ./claude-worker-config.mjs
 
 RUN mkdir -p /workspaces /home/claude/.claude && \
     chown -R claude:claude /worker /workspaces /home/claude

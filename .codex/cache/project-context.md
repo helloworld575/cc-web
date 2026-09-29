@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-09-29T01:47:18.597Z
+Generated: 2026-09-29T11:48:39.484Z
 
 ## Snapshot
 
@@ -117,7 +117,7 @@ Generated: 2026-09-29T01:47:18.597Z
 - File: `data/site.db`
 - Tables: `todos`, `files`, `albums`, `diary`, `fortune_history`, `ai_chat_history`, `subscription_sources`, `subscription_briefs`, `app_migrations`, `claude_assistant_sessions`, `subscription_items`, `blog_comments`, `blog_view_events`
 - PRAGMA settings: `journal_mode = WAL`, `busy_timeout = 5000`, `synchronous = NORMAL`, `cache_size = -8000`, `temp_store = MEMORY`, `mmap_size = 67108864`, `page_size = 4096`
-- Simple migrations: `todos.deadline`, `files.album_id`, `subscription_sources.topic`
+- Simple migrations: `claude_assistant_sessions.run_token`, `todos.deadline`, `files.album_id`, `subscription_sources.topic`
 - Prepared statements: `countFiles`, `listFiles`, `insertFile`, `listFortune`, `insertFortune`, `getFortune`, `deleteFortune`, `listChats`, `listChatsByProvider`, `getChat`, `insertChat`, `updateChat`, `deleteChat`
 
 ## AI Skills (52)

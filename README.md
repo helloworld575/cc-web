@@ -76,6 +76,7 @@ AI_CHAT_CONNECT_TIMEOUT_MS=30000
 AI_CHAT_FIRST_TOKEN_TIMEOUT_MS=60000
 AI_CHAT_STREAM_IDLE_TIMEOUT_MS=30000
 CLAUDE_CODE_WORKER_URL=http://claude-worker:8787
+CLAUDE_WORKER_TOKEN=<dedicated random secret shared only by app and worker>
 CLAUDE_PERMISSION_MODE=dontAsk
 CLAUDE_ALLOWED_TOOLS=Read,Glob,Grep
 CLAUDE_DISALLOWED_TOOLS=Bash,Edit,Write,NotebookEdit
@@ -200,7 +201,7 @@ unavailable, `docker compose config` can still validate YAML, while `build` and
 docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```
 
-Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, and `CLOUDFLARE_TUNNEL_TOKEN`. Claude Code worker deployment also requires `CLAUDE_API_KEY`; `CLAUDE_API_HOST` and `CLAUDE_MODEL` are optional overrides. The NAS stack contains the app, Claude worker, and Cloudflare tunnel; there is no subscription scheduler. Generated posts use a persistent writable directory layered over the immutable posts bundled in the image, so both sets survive container upgrades.
+Required deploy vars live in `.env.local`: `NAS_HOST`, `NAS_USER`, `NAS_PATH`, `NAS_PASSWORD`, `CLOUDFLARE_TUNNEL_TOKEN`, `CLAUDE_API_KEY`, and a dedicated random `CLAUDE_WORKER_TOKEN`. Keep the worker token separate from `NEXTAUTH_SECRET`; it is used only between the app and worker containers. `CLAUDE_API_HOST` and `CLAUDE_MODEL` are optional overrides. The NAS stack contains the app, Claude worker, and Cloudflare tunnel; there is no subscription scheduler. Generated posts use a persistent writable directory layered over the immutable posts bundled in the image, so both sets survive container upgrades.
 
 The NAS deployment package contains only cc-web, its worker, and its
 Cloudflare Tunnel. It does not copy or build `../sec_ai_tool`; deploy that

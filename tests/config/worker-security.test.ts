@@ -14,8 +14,10 @@ describe('Claude worker security', () => {
     expect(worker).not.toContain("res.write(`\\n[worker stderr]");
   });
 
-  it('passes the existing auth secret to the worker container', () => {
+  it('uses a dedicated worker token in both compose profiles', () => {
     const compose = read('docker-compose.nas.yml');
-    expect(compose).toContain('CLAUDE_WORKER_TOKEN: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}');
+    expect(compose).toContain('CLAUDE_WORKER_TOKEN: ${CLAUDE_WORKER_TOKEN:?CLAUDE_WORKER_TOKEN is required}');
+    expect(compose).not.toContain('CLAUDE_WORKER_TOKEN: ${NEXTAUTH_SECRET');
+    expect(read('docker-compose.yml')).toContain('CLAUDE_WORKER_TOKEN: ${CLAUDE_WORKER_TOKEN:?CLAUDE_WORKER_TOKEN is required}');
   });
 });

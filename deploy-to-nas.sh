@@ -135,6 +135,8 @@ require_env([
     "NAS_PATH",
     "NAS_PASSWORD",
     "CLOUDFLARE_TUNNEL_TOKEN",
+    "CLAUDE_API_KEY",
+    "CLAUDE_WORKER_TOKEN",
 ])
 
 if should_reject_admin_password(os.environ["ADMIN_PASSWORD"]):
@@ -178,6 +180,7 @@ include_files = [
     "setup.sh",
     "scripts/claude-worker.mjs",
     "scripts/claude-worker-args.mjs",
+    "scripts/claude-worker-config.mjs",
     "tailwind.config.ts",
     "tsconfig.json",
 ]

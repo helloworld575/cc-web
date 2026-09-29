@@ -21,7 +21,8 @@ describe('POST /api/claude-code', () => {
     mockFetch.mockReset();
     vi.mocked(db.prepare).mockClear();
     delete process.env.CLAUDE_CODE_WORKER_URL;
-    process.env.NEXTAUTH_SECRET = 'worker-shared-secret';
+    process.env.CLAUDE_WORKER_TOKEN = 'worker-shared-secret';
+    delete process.env.NEXTAUTH_SECRET;
   });
 
   it('returns 401 without session', async () => {
@@ -47,11 +48,40 @@ describe('POST /api/claude-code', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects non-object JSON bodies before touching the worker', async () => {
+    mockSession(true);
+    process.env.CLAUDE_CODE_WORKER_URL = 'http://claude-worker:8787';
+    const { POST } = await import('@/app/api/claude-code/route');
+    const res = await POST(makePostReq(['inspect repo']));
+    expect(res.status).toBe(400);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects traversal and drive-letter workspace paths', async () => {
+    mockSession(true);
+    process.env.CLAUDE_CODE_WORKER_URL = 'http://claude-worker:8787';
+    const { POST } = await import('@/app/api/claude-code/route');
+
+    await expect(POST(makePostReq({ prompt: 'inspect repo', cwd: '../outside' }))).resolves.toMatchObject({ status: 400 });
+    await expect(POST(makePostReq({ prompt: 'inspect repo', cwd: 'C:/outside' }))).resolves.toMatchObject({ status: 400 });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it('returns 503 when worker URL is not configured', async () => {
     mockSession(true);
     const { POST } = await import('@/app/api/claude-code/route');
     const res = await POST(makePostReq({ prompt: 'inspect repo' }));
     expect(res.status).toBe(503);
+  });
+
+  it('returns 503 when the dedicated worker token is not configured', async () => {
+    mockSession(true);
+    process.env.CLAUDE_CODE_WORKER_URL = 'http://claude-worker:8787';
+    delete process.env.CLAUDE_WORKER_TOKEN;
+    const { POST } = await import('@/app/api/claude-code/route');
+    const res = await POST(makePostReq({ prompt: 'inspect repo' }));
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toMatchObject({ code: 'CLAUDE_WORKER_NOT_CONFIGURED' });
   });
 
   it('returns 502 when the worker rejects the request', async () => {
@@ -67,6 +97,36 @@ describe('POST /api/claude-code', () => {
       code: 'CLAUDE_WORKER_FAILED',
       error: 'Claude Code worker failed. Check the server logs and try again.',
     });
+  });
+
+  it('maps a busy worker to a retryable conflict', async () => {
+    mockSession(true);
+    process.env.CLAUDE_CODE_WORKER_URL = 'http://claude-worker:8787';
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({ code: 'WORKER_BUSY' }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    const { POST } = await import('@/app/api/claude-code/route');
+    const res = await POST(makePostReq({ prompt: 'inspect repo' }));
+
+    expect(res.status).toBe(429);
+    await expect(res.json()).resolves.toMatchObject({ code: 'WORKER_BUSY' });
+  });
+
+  it('uses a dedicated worker token when configured', async () => {
+    mockSession(true);
+    process.env.CLAUDE_CODE_WORKER_URL = 'http://claude-worker:8787';
+    process.env.CLAUDE_WORKER_TOKEN = 'dedicated-worker-secret';
+    mockFetch.mockResolvedValue(new Response('ok', {
+      status: 200,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    }));
+
+    const { POST } = await import('@/app/api/claude-code/route');
+    await POST(makePostReq({ prompt: 'inspect repo' }));
+
+    expect(mockFetch.mock.calls[0][1].headers['X-Claude-Worker-Token']).toBe('dedicated-worker-secret');
   });
 
   it('does not expose HTML returned by the worker', async () => {

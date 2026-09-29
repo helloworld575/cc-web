@@ -57,6 +57,7 @@ Requires Node.js 20.19 or newer.
    - `ADMIN_PASSWORD` — login password; use a strong value (`changeme` is blocked in production)
    - `NEXTAUTH_SECRET` — generate with `openssl rand -base64 32`
    - `NEXTAUTH_URL` — e.g., `http://localhost:3000`
+   - `CLAUDE_WORKER_TOKEN` — generate a separate random secret for the app-to-worker request header; never reuse `NEXTAUTH_SECRET`
 5. Optional but recommended:
    - AI provider vars (can also be set via Admin UI)
    - `X_CONSUMER_KEY`, `X_CONSUMER_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET` for posting to X

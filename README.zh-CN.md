@@ -70,6 +70,7 @@ AI_CHAT_CONNECT_TIMEOUT_MS=30000
 AI_CHAT_FIRST_TOKEN_TIMEOUT_MS=60000
 AI_CHAT_STREAM_IDLE_TIMEOUT_MS=30000
 CLAUDE_CODE_WORKER_URL=http://claude-worker:8787
+CLAUDE_WORKER_TOKEN=<仅供 app 与 worker 共享的独立随机密钥>
 CLAUDE_PERMISSION_MODE=dontAsk
 CLAUDE_ALLOWED_TOOLS=Read,Glob,Grep
 CLAUDE_DISALLOWED_TOOLS=Bash,Edit,Write,NotebookEdit
@@ -193,7 +194,8 @@ Claude worker 和 `cloudflared` 需要额外凭据及外部服务，不能作为
 docker compose --env-file .env.local -f docker-compose.nas.yml up -d
 ```
 
-NAS 部署包只包含 cc-web、worker 和 Cloudflare Tunnel，不会复制或构建
+NAS 部署要求 `.env.local` 同时配置 `CLAUDE_API_KEY` 和独立的
+`CLAUDE_WORKER_TOKEN`；后者不能复用 `NEXTAUTH_SECRET`。部署包只包含 cc-web、worker 和 Cloudflare Tunnel，不会复制或构建
 `../sec_ai_tool`。请将安全项目独立部署到例如
 `/volume1/docker/sec-ai-tool`，使用它自己的 `runner/docker-compose.nas.yml`、
 不可变 runner 镜像、环境文件、egress 网络和命名卷。该项目 NAS profile

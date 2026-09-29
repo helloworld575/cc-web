@@ -139,7 +139,7 @@ Returns one saved conversation with its user-facing message history. Internal Cl
 Deletes an idle conversation. A conversation with an active turn returns `409 CLAUDE_CHAT_BUSY`.
 
 ### `POST /api/claude-code`
-Admin-only proxy to the internal Claude Code worker. The browser calls the site; the site forwards the request to `CLAUDE_CODE_WORKER_URL`. The first turn creates a server-owned conversation and Claude session; later turns provide only the numeric `chat_id`.
+Admin-only proxy to the internal Claude Code worker. The browser calls the site; the site forwards the request to `CLAUDE_CODE_WORKER_URL` using the dedicated server-side `CLAUDE_WORKER_TOKEN`. The first turn creates a server-owned conversation and Claude session; later turns provide only the numeric `chat_id`.
 
 Request body:
 
@@ -153,7 +153,7 @@ Follow-up request:
 { "chat_id": 12, "message": "Now list the three highest risks" }
 ```
 
-Successful responses use `text/plain`, include `X-Claude-Chat-ID`, and contain only user-facing text. The workspace cannot change after the first turn. Failed and cancelled turns do not overwrite the last successful transcript. Docker Compose sets the worker URL to `http://claude-worker:8787` and persists the worker's Claude session directory.
+Successful responses use `text/plain`, include `X-Claude-Chat-ID`, and contain only user-facing text. The workspace cannot change after the first turn. Failed and cancelled turns do not overwrite the last successful transcript. Docker Compose sets the worker URL to `http://claude-worker:8787`, requires `CLAUDE_WORKER_TOKEN` and `CLAUDE_API_KEY`, and persists the worker's Claude session directory. The worker returns `429 WORKER_BUSY` when its global or per-session concurrency limit is reached and `503 WORKER_SHUTTING_DOWN` during container restart.
 
 ---
 

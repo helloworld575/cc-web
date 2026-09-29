@@ -21,7 +21,9 @@ describe('Claude Code worker configuration', () => {
     expect(dockerfile).toContain('CLAUDE_SYSTEM_PROMPT');
     expect(dockerfile).toContain('FROM node:22-alpine');
     expect(dockerfile).toContain('COPY scripts/claude-worker-args.mjs ./claude-worker-args.mjs');
+    expect(dockerfile).toContain('COPY scripts/claude-worker-config.mjs ./claude-worker-config.mjs');
     expect(deployScript).toContain('"scripts/claude-worker-args.mjs"');
+    expect(deployScript).toContain('"scripts/claude-worker-config.mjs"');
   });
 
   it('logs request lifecycle metadata without dumping raw stderr objects', () => {
@@ -32,5 +34,17 @@ describe('Claude Code worker configuration', () => {
     expect(worker).toContain('duration_ms');
     expect(worker).toContain('request_id');
     expect(worker).not.toContain("console.error('[claude-worker] claude stderr:'");
+  });
+
+  it('enforces runtime isolation and lifecycle controls', () => {
+    const worker = fs.readFileSync(path.join(process.cwd(), 'scripts/claude-worker.mjs'), 'utf8');
+
+    expect(worker).toContain('activeSessions');
+    expect(worker).toContain('maxConcurrentRuns');
+    expect(worker).toContain("child.kill('SIGKILL')");
+    expect(worker).toContain('realpath');
+    expect(worker).toContain('getWorkerReadiness');
+    expect(worker).toContain('isPlainObject(body)');
+    expect(worker).not.toContain('const env = { ...process.env }');
   });
 });

@@ -37,14 +37,34 @@ export default function ClaudeCodeTool() {
   const [error, setError] = useState('');
   const abortRef = useRef<AbortController | null>(null);
   const currentChatIdRef = useRef<number | null>(null);
+  const runningRef = useRef(false);
+  const loadingChatRef = useRef(false);
+  const historyRequestRef = useRef(0);
+  const chatRequestRef = useRef(0);
   const messageEndRef = useRef<HTMLDivElement>(null);
+  const [initializing, setInitializing] = useState(true);
 
   useEffect(() => {
-    void refreshHistory().then(() => {
+    let cancelled = false;
+    setInitializing(true);
+    void (async () => {
+      await refreshHistory();
+      if (cancelled) return;
       const requestedId = Number(searchParams.get('chat'));
-      if (Number.isSafeInteger(requestedId) && requestedId > 0) void loadChat(requestedId);
-    });
+      if (Number.isSafeInteger(requestedId) && requestedId > 0) await loadChat(requestedId);
+      if (!cancelled) setInitializing(false);
+    })();
+    return () => {
+      cancelled = true;
+      chatRequestRef.current += 1;
+      loadingChatRef.current = false;
+      setLoadingChat(false);
+    };
   }, [searchParams]);
+
+  useEffect(() => () => {
+    abortRef.current?.abort();
+  }, []);
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ block: 'nearest' });
@@ -55,42 +75,57 @@ export default function ClaudeCodeTool() {
     setCurrentChatId(chatId);
   }
 
+  function setRunningState(value: boolean) {
+    runningRef.current = value;
+    setRunning(value);
+  }
+
+  function setLoadingChatState(value: boolean) {
+    loadingChatRef.current = value;
+    setLoadingChat(value);
+  }
+
   async function localizedError(response: Response) {
     const safe = await readSafeApiError(response, t('apiErrorGeneric'));
     return t(apiErrorTranslationKey(safe.code, 'apiErrorGeneric'));
   }
 
   async function refreshHistory() {
+    const requestId = ++historyRequestRef.current;
     try {
       const response = await fetch('/api/claude-code');
       if (!response.ok) throw new Error(await localizedError(response));
-      setHistory(await response.json() as AssistantChatSummary[]);
+      const nextHistory = await response.json() as AssistantChatSummary[];
+      if (requestId === historyRequestRef.current) setHistory(nextHistory);
     } catch {
-      setError(t('claudeLoadHistoryFailed'));
+      if (requestId === historyRequestRef.current) setError(t('claudeLoadHistoryFailed'));
     }
   }
 
   async function loadChat(chatId: number) {
-    if (running || loadingChat) return;
-    setLoadingChat(true);
+    if (runningRef.current || loadingChatRef.current) return;
+    const requestId = ++chatRequestRef.current;
+    setLoadingChatState(true);
     setError('');
     try {
       const response = await fetch(`/api/claude-code/${chatId}`);
       if (!response.ok) throw new Error(await localizedError(response));
       const chat = await response.json() as AssistantChatDetail;
+      if (requestId !== chatRequestRef.current) return;
       setActiveChatId(Number(chat.id));
       setCwd(chat.cwd || 'default');
       setMessages(Array.isArray(chat.messages) ? chat.messages : []);
       setInput('');
     } catch {
-      setError(t('claudeLoadChatFailed'));
+      if (requestId === chatRequestRef.current) setError(t('claudeLoadChatFailed'));
     } finally {
-      setLoadingChat(false);
+      if (requestId === chatRequestRef.current) setLoadingChatState(false);
     }
   }
 
   function newChat() {
-    if (running) return;
+    if (runningRef.current) return;
+    chatRequestRef.current += 1;
     setActiveChatId(null);
     setCwd('default');
     setMessages([]);
@@ -99,7 +134,7 @@ export default function ClaudeCodeTool() {
   }
 
   async function deleteChat(chat: AssistantChatSummary) {
-    if (running || deletingChatId) return;
+    if (runningRef.current || loadingChatRef.current || deletingChatId) return;
     if (!window.confirm(`${t('claudeDeleteConfirm')} ${chat.title}`)) return;
 
     setDeletingChatId(chat.id);
@@ -118,7 +153,7 @@ export default function ClaudeCodeTool() {
 
   async function send() {
     const prompt = input.trim();
-    if (!prompt || running) return;
+    if (!prompt || runningRef.current || loadingChatRef.current || initializing) return;
 
     const chatIdBeforeRequest = currentChatIdRef.current;
     const previousMessages = messages;
@@ -131,7 +166,7 @@ export default function ClaudeCodeTool() {
     setMessages(pendingMessages);
     setInput('');
     setError('');
-    setRunning(true);
+    setRunningState(true);
     let fullText = '';
 
     try {
@@ -194,7 +229,7 @@ export default function ClaudeCodeTool() {
       setError(errorLike?.name === 'AbortError' ? t('claudeStopped') : t('claudeCallFailed'));
     } finally {
       abortRef.current = null;
-      setRunning(false);
+      setRunningState(false);
     }
   }
 
@@ -220,7 +255,7 @@ export default function ClaudeCodeTool() {
         <button
           type="button"
           onClick={newChat}
-          disabled={running}
+          disabled={running || initializing}
           className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm disabled:opacity-40"
         >
           {t('claudeNewChat')}
@@ -248,7 +283,7 @@ export default function ClaudeCodeTool() {
                 <button
                   type="button"
                   onClick={() => loadChat(chat.id)}
-                  disabled={running || loadingChat}
+                  disabled={running || loadingChat || initializing}
                   className="min-w-0 flex-1 px-2 py-2 text-left disabled:opacity-50"
                 >
                   <span className="block truncate text-sm font-medium text-slate-800">{chat.title}</span>
@@ -259,7 +294,7 @@ export default function ClaudeCodeTool() {
                   aria-label={`${t('claudeDelete')} ${chat.title}`}
                   title={t('claudeDelete')}
                   onClick={() => deleteChat(chat)}
-                  disabled={running || deletingChatId === chat.id}
+                  disabled={running || loadingChat || deletingChatId === chat.id || initializing}
                   className="rounded-lg px-2 py-2 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                 >
                   ×
@@ -278,7 +313,7 @@ export default function ClaudeCodeTool() {
                 onChange={event => setCwd(event.target.value)}
                 className="min-w-0 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-normal normal-case tracking-normal text-slate-800 outline-none focus:border-slate-400 disabled:bg-slate-50"
                 placeholder="default"
-                disabled={running || currentChatId !== null}
+                disabled={running || loadingChat || initializing || currentChatId !== null}
               />
             </label>
             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${running ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
@@ -320,7 +355,7 @@ export default function ClaudeCodeTool() {
                 onChange={event => setInput(event.target.value)}
                 onKeyDown={handleKeyDown}
                 className="min-h-24 w-full resize-y rounded-xl border border-slate-200 px-3 py-3 text-sm leading-6 outline-none focus:border-slate-400"
-                disabled={running}
+                disabled={running || initializing}
                 aria-label={t('claudeMessage')}
               />
             </label>
@@ -337,7 +372,7 @@ export default function ClaudeCodeTool() {
               <button
                 type="button"
                 onClick={send}
-                disabled={running || !input.trim()}
+                disabled={running || loadingChat || initializing || !input.trim()}
                 className="rounded-xl bg-slate-950 px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {running ? t('claudeRunning') : t('claudeSend')}

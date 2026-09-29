@@ -124,6 +124,7 @@ db.exec(`
     cwd TEXT NOT NULL DEFAULT 'default',
     messages TEXT NOT NULL DEFAULT '[]',
     status TEXT NOT NULL DEFAULT 'idle' CHECK (status IN ('idle', 'running')),
+    run_token TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -163,6 +164,13 @@ db.exec(`
 `);
 
 migrateAiChatHistoryColumns(db);
+
+// Migrate: add an ownership token so late stream cleanup cannot reset a newer turn.
+try {
+  db.exec('ALTER TABLE claude_assistant_sessions ADD COLUMN run_token TEXT');
+} catch {
+  // column already exists, ignore
+}
 
 const legacyAiProviderRetirementMigration = '20260924-retire-legacy-ai-providers-v1';
 const legacyAiProviderRetirementApplied = db

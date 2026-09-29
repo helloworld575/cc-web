@@ -1,18 +1,25 @@
 import { createServer } from 'node:http';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, realpath } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
 import { buildClaudeArgs, isValidSessionId } from './claude-worker-args.mjs';
+import { getWorkerConfig, getWorkerReadiness, isPlainObject } from './claude-worker-config.mjs';
 
-const port = Number(process.env.CLAUDE_WORKER_PORT || 8787);
+const config = getWorkerConfig();
+const port = config.port;
 const workspaceRoot = path.resolve(process.env.CLAUDE_WORKSPACE_ROOT || '/workspaces');
-const maxPromptChars = Number(process.env.CLAUDE_MAX_PROMPT_CHARS || 20000);
-const requestTimeoutMs = Number(process.env.CLAUDE_REQUEST_TIMEOUT_MS || 600000);
-const maxOutputBytes = Number(process.env.CLAUDE_MAX_OUTPUT_BYTES || 1024 * 1024);
-const workerToken = process.env.CLAUDE_WORKER_TOKEN || '';
+const maxPromptChars = config.maxPromptChars;
+const requestTimeoutMs = config.requestTimeoutMs;
+const maxOutputBytes = config.maxOutputBytes;
+const maxRequestBytes = config.maxRequestBytes;
+const workerToken = String(process.env.CLAUDE_WORKER_TOKEN || '').trim();
 const WORKER_TOKEN_HEADER = 'X-Claude-Worker-Token';
 const REQUEST_ID_HEADER = 'x-request-id';
+const activeChildren = new Set();
+const activeSessions = new Set();
+let shuttingDown = false;
+let workspaceRootReal;
 const DEFAULT_PERSONAL_ASSISTANT_PROMPT = [
   '你是 ThomasLee 的个人助理。',
   '你的职责是用直接、清晰、可执行的文本帮助他处理日常事务、写作、代码分析、计划拆解和决策整理。',
@@ -68,27 +75,68 @@ function logWorkerEvent(level, event, fields = {}) {
 }
 
 async function readJson(req) {
-  let raw = '';
+  const declaredLength = Number(req.headers['content-length']);
+  if (Number.isFinite(declaredLength) && declaredLength > maxRequestBytes) {
+    throw new Error('Request body is too large');
+  }
+  let bytes = 0;
+  const chunks = [];
   for await (const chunk of req) {
-    raw += chunk;
-    if (raw.length > maxPromptChars + 4096) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    bytes += buffer.length;
+    if (bytes > maxRequestBytes) {
       throw new Error('Request body is too large');
     }
+    chunks.push(buffer);
   }
-  return JSON.parse(raw || '{}');
+  return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 }
 
-function resolveWorkspace(cwd) {
-  const relative = typeof cwd === 'string' && cwd.trim() ? cwd.trim() : 'default';
-  const resolved = path.resolve(workspaceRoot, relative);
-  if (resolved !== workspaceRoot && !resolved.startsWith(`${workspaceRoot}${path.sep}`)) {
+async function resolveWorkspace(cwd) {
+  const raw = typeof cwd === 'string' && cwd.trim() ? cwd.trim() : 'default';
+  const relative = raw.replace(/[\\/]+/g, path.sep);
+  if (path.isAbsolute(relative) || /^[A-Za-z]:[\\/]/.test(raw)) {
     throw new Error('cwd must stay inside the worker workspace root');
   }
-  return resolved;
+  let current = workspaceRootReal || workspaceRoot;
+  for (const segment of relative.split(path.sep)) {
+    if (!segment || segment === '.') continue;
+    if (segment === '..') throw new Error('cwd must stay inside the worker workspace root');
+    const next = path.join(current, segment);
+    try {
+      current = await realpath(next);
+    } catch (caught) {
+      if (caught?.code !== 'ENOENT') throw caught;
+      await mkdir(next);
+      current = await realpath(next);
+    }
+    if (current !== workspaceRootReal && !current.startsWith(`${workspaceRootReal}${path.sep}`)) {
+      throw new Error('cwd must stay inside the worker workspace root');
+    }
+  }
+  return current;
 }
 
 function buildClaudeEnv() {
-  const env = { ...process.env };
+  const env = {
+    HOME: process.env.HOME || '/home/claude',
+    PATH: process.env.PATH || '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
+    LANG: process.env.LANG || 'C.UTF-8',
+    LC_ALL: process.env.LC_ALL || 'C.UTF-8',
+    NODE_ENV: process.env.NODE_ENV || 'production',
+    USE_BUILTIN_RIPGREP: process.env.USE_BUILTIN_RIPGREP || '0',
+  };
+  const mappings = {
+    CLAUDE_API_KEY: 'CLAUDE_API_KEY',
+    CLAUDE_API_HOST: 'CLAUDE_API_HOST',
+    CLAUDE_MODEL: 'CLAUDE_MODEL',
+    ANTHROPIC_API_KEY: 'ANTHROPIC_API_KEY',
+    ANTHROPIC_BASE_URL: 'ANTHROPIC_BASE_URL',
+    ANTHROPIC_MODEL: 'ANTHROPIC_MODEL',
+  };
+  for (const [source, target] of Object.entries(mappings)) {
+    if (process.env[source]) env[target] = process.env[source];
+  }
   if (env.CLAUDE_API_KEY && !env.ANTHROPIC_API_KEY) {
     env.ANTHROPIC_API_KEY = env.CLAUDE_API_KEY;
   }
@@ -133,6 +181,10 @@ async function handleRun(req, res, requestId) {
     json(res, 400, { error: caught?.message || 'Invalid JSON' });
     return;
   }
+  if (!isPlainObject(body)) {
+    json(res, 400, { error: 'Request body must be a JSON object' });
+    return;
+  }
 
   const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
   if (!prompt) {
@@ -154,15 +206,31 @@ async function handleRun(req, res, requestId) {
     ? body.turn_index
     : 1;
 
+  if (shuttingDown) {
+    json(res, 503, { code: 'WORKER_SHUTTING_DOWN', error: 'The Claude worker is restarting.' });
+    return;
+  }
+
   let cwd;
   try {
-    cwd = resolveWorkspace(body.cwd);
-    await mkdir(cwd, { recursive: true });
+    cwd = await resolveWorkspace(body.cwd);
   } catch (caught) {
     logWorkerEvent('warn', 'request_rejected', { request_id: requestId, error_code: 'INVALID_WORKSPACE' });
     json(res, 400, { error: caught?.message || 'Invalid workspace' });
     return;
   }
+
+  if (activeChildren.size >= config.maxConcurrentRuns || activeSessions.has(sessionId)) {
+    logWorkerEvent('warn', 'request_rejected', {
+      request_id: requestId,
+      error_code: 'WORKER_BUSY',
+      active_runs: activeChildren.size,
+      session_hash: hashSessionId(sessionId),
+    });
+    json(res, 429, { code: 'WORKER_BUSY', error: 'The Claude worker is busy.' });
+    return;
+  }
+  activeSessions.add(sessionId);
 
   logWorkerEvent('info', 'request_started', {
     request_id: requestId,
@@ -186,11 +254,24 @@ async function handleRun(req, res, requestId) {
   appendCsvOption(args, '--allowedTools', process.env.CLAUDE_ALLOWED_TOOLS);
   appendCsvOption(args, '--disallowedTools', process.env.CLAUDE_DISALLOWED_TOOLS);
   appendCsvOption(args, '--max-budget-usd', process.env.CLAUDE_MAX_BUDGET_USD);
-  const child = spawn('claude', args, {
-    cwd,
-    env: buildClaudeEnv(),
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  let child;
+  try {
+    child = spawn('claude', args, {
+      cwd,
+      env: buildClaudeEnv(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    activeChildren.add(child);
+  } catch (caught) {
+    activeSessions.delete(sessionId);
+    logWorkerEvent('error', 'request_failed', {
+      request_id: requestId,
+      error_code: 'CLAUDE_FAILED',
+      spawn_error: sanitizeDiagnostic(caught?.message || caught),
+    });
+    json(res, 502, { code: 'CLAUDE_FAILED', error: 'Claude request failed. Check worker logs.' });
+    return;
+  }
 
   const stdout = [];
   const stderr = [];
@@ -200,20 +281,33 @@ async function handleRun(req, res, requestId) {
   let outputTooLarge = false;
   let aborted = false;
   let finalized = false;
+  let forceKillTimer;
+
+  function terminateChild() {
+    if (finalized) return;
+    child.kill('SIGTERM');
+    if (!forceKillTimer) {
+      forceKillTimer = setTimeout(() => {
+        if (!finalized) child.kill('SIGKILL');
+      }, config.shutdownGraceMs);
+      forceKillTimer.unref?.();
+    }
+  }
 
   const timeout = setTimeout(() => {
     timedOut = true;
-    child.kill('SIGTERM');
+    terminateChild();
   }, requestTimeoutMs);
+  timeout.unref?.();
 
   req.on('aborted', () => {
     aborted = true;
-    child.kill('SIGTERM');
+    terminateChild();
   });
   res.on('close', () => {
     if (finalized || res.writableEnded) return;
     aborted = true;
-    child.kill('SIGTERM');
+    terminateChild();
   });
 
   child.stdout.on('data', chunk => {
@@ -221,7 +315,7 @@ async function handleRun(req, res, requestId) {
     stdoutBytes += buffer.length;
     if (stdoutBytes > maxOutputBytes) {
       outputTooLarge = true;
-      child.kill('SIGTERM');
+      terminateChild();
       return;
     }
     stdout.push(buffer);
@@ -238,6 +332,9 @@ async function handleRun(req, res, requestId) {
     if (finalized) return;
     finalized = true;
     clearTimeout(timeout);
+    if (forceKillTimer) clearTimeout(forceKillTimer);
+    activeChildren.delete(child);
+    activeSessions.delete(sessionId);
     const stderrText = Buffer.concat(stderr).toString('utf8').replace(/\s+/g, ' ').slice(0, 2000);
     const diagnosticFields = {
       request_id: requestId,
@@ -259,6 +356,11 @@ async function handleRun(req, res, requestId) {
     }
     if (aborted) {
       logWorkerEvent('info', 'request_cancelled', diagnosticFields);
+      return;
+    }
+    if (shuttingDown) {
+      logWorkerEvent('info', 'request_cancelled', { ...diagnosticFields, error_code: 'WORKER_SHUTTING_DOWN' });
+      if (!res.destroyed) json(res, 503, { code: 'WORKER_SHUTTING_DOWN', error: 'The Claude worker is restarting.' });
       return;
     }
     if (outputTooLarge) {
@@ -295,31 +397,62 @@ async function handleRun(req, res, requestId) {
 }
 
 const server = createServer(async (req, res) => {
-  if (req.method === 'GET' && req.url === '/health') {
-    json(res, 200, { ok: true });
-    return;
-  }
-
-  if (req.method === 'POST' && req.url === '/run') {
-    const requestId = getRequestId(req);
-    if (!workerToken) {
-      logWorkerEvent('error', 'request_rejected', { request_id: requestId, error_code: 'WORKER_NOT_CONFIGURED' });
-      json(res, 503, { code: 'WORKER_NOT_CONFIGURED', error: 'Worker authentication is not configured.' });
+  try {
+    if (req.method === 'GET' && req.url === '/health') {
+      const readiness = getWorkerReadiness();
+      json(res, readiness.ok ? 200 : 503, { ok: readiness.ok, ready: readiness.ok, missing: readiness.missing });
       return;
     }
-    if (!isAuthorized(req)) {
-      logWorkerEvent('warn', 'request_rejected', { request_id: requestId, error_code: 'UNAUTHORIZED' });
-      json(res, 401, { code: 'UNAUTHORIZED', error: 'Unauthorized' });
+
+    if (req.method === 'POST' && req.url === '/run') {
+      const requestId = getRequestId(req);
+      if (!workerToken) {
+        logWorkerEvent('error', 'request_rejected', { request_id: requestId, error_code: 'WORKER_NOT_CONFIGURED' });
+        json(res, 503, { code: 'WORKER_NOT_CONFIGURED', error: 'Worker authentication is not configured.' });
+        return;
+      }
+      if (!isAuthorized(req)) {
+        logWorkerEvent('warn', 'request_rejected', { request_id: requestId, error_code: 'UNAUTHORIZED' });
+        json(res, 401, { code: 'UNAUTHORIZED', error: 'Unauthorized' });
+        return;
+      }
+      const contentType = String(req.headers['content-type'] || '').toLowerCase();
+      if (!contentType.startsWith('application/json')) {
+        json(res, 415, { code: 'INVALID_CONTENT_TYPE', error: 'Content-Type must be application/json.' });
+        return;
+      }
+      await handleRun(req, res, requestId);
       return;
     }
-    await handleRun(req, res, requestId);
-    return;
-  }
 
-  json(res, 404, { error: 'Not found' });
+    json(res, 404, { error: 'Not found' });
+  } catch (caught) {
+    logWorkerEvent('error', 'request_failed', { error_code: 'WORKER_INTERNAL_ERROR', error: sanitizeDiagnostic(caught?.message || caught) });
+    if (!res.headersSent && !res.destroyed) {
+      json(res, 500, { code: 'WORKER_INTERNAL_ERROR', error: 'The Claude worker encountered an internal error.' });
+    }
+  }
+}).on('error', error => {
+  logWorkerEvent('error', 'server_error', { error: sanitizeDiagnostic(error?.message || error) });
 });
 
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logWorkerEvent('info', 'worker_shutdown_started', { signal, active_runs: activeChildren.size });
+  server.close();
+  for (const child of activeChildren) child.kill('SIGTERM');
+  const timer = setTimeout(() => {
+    for (const child of activeChildren) child.kill('SIGKILL');
+  }, config.shutdownGraceMs);
+  timer.unref?.();
+}
+
+process.on('SIGTERM', () => { void shutdown('SIGTERM'); });
+process.on('SIGINT', () => { void shutdown('SIGINT'); });
+
 await mkdir(workspaceRoot, { recursive: true });
+workspaceRootReal = await realpath(workspaceRoot);
 server.listen(port, '0.0.0.0', () => {
   logWorkerEvent('info', 'worker_started', {
     port,
