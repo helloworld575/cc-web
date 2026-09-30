@@ -23,7 +23,7 @@ const POST_PATHS = [
   /^v1\/projects$/,
   /^v1\/artifacts$/,
   /^v1\/assessments$/,
-  /^v1\/assessments\/(?:requirements|code|api|reverse-mobile|domain|components)$/,
+  /^v1\/assessments\/(?:requirements|code|api|reverse-mobile|domain|components|image)$/,
   new RegExp(`^v1/assessments/${RESOURCE_ID}/(?:approve|cancel)$`),
   /^v1\/reports$/,
   /^v1\/gates\/evaluate$/,

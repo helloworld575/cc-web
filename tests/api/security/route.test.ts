@@ -111,6 +111,37 @@ describe('/api/security/[...path]', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps the image assessment creation route available', async () => {
+    authenticate();
+    process.env.SECURITY_API_URL = 'http://sec-ai:3000';
+    process.env.SECURITY_API_KEY = 'server-only-key';
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ data: { id: 'asm_image_1' } }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const { POST } = await import('@/app/api/security/[...path]/route');
+
+    const response = await POST(
+      new Request('http://localhost/api/security/v1/assessments/image', {
+        method: 'POST',
+        body: JSON.stringify({
+          kind: 'image',
+          input: { artifactId: 'art_image', dockerfileArtifactId: 'art_dockerfile' },
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      context(['v1', 'assessments', 'image']),
+    );
+
+    expect(response.status).toBe(201);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(vi.mocked(fetch).mock.calls[0][0])).toBe(
+      'http://sec-ai:3000/v1/assessments/image',
+    );
+  });
+
   it('injects the server key and forwards only explicitly allowed request headers', async () => {
     authenticate();
     process.env.SECURITY_API_URL = 'http://sec-ai:3000';
