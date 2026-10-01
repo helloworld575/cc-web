@@ -111,7 +111,7 @@ AI upstream failures are normalized to bounded JSON error codes. Proxy HTML, pro
 
 WeChat sources require an administrator to provide a legitimate HTTPS RSS feed in Admin → Subscriptions, such as an RSSHub or WeChat2RSS feed that the administrator operates or has permission to use. The app does not claim official WeChat support and does not automatically scrape or bypass platform restrictions. Recommended accounts to verify before adding a feed include Tencent Security/Xuanwu, Alibaba Security Response, Changting, NSFOCUS, and Qi-Anxin.
 
-Public discovery is exposed through `/sitemap.xml`, `/robots.txt`, and `/feed.xml`. Blog detail pages publish canonical, Open Graph, Twitter, and `BlogPosting` JSON-LD metadata from the saved article fields. Admin, API, tools, and login surfaces are excluded from the sitemap and return `X-Robots-Tag: noindex, nofollow, noarchive`. The navigation theme control switches between light and dark surfaces, follows the system preference on first visit, and persists an explicit choice locally.
+Public discovery is exposed through `/sitemap.xml`, `/robots.txt`, and `/feed.xml`. Blog detail pages publish canonical, Open Graph, Twitter, and `BlogPosting` JSON-LD metadata from the saved article fields. The site and each article also expose a generated 1200x630 PNG share image at `/opengraph-image`; article cards pass the saved title to that route. Admin, API, tools, and login surfaces are excluded from the sitemap and return `X-Robots-Tag: noindex, nofollow, noarchive`. The navigation theme control switches between light and dark surfaces, follows the system preference on first visit, and persists an explicit choice locally.
 
 ## Quality Gates
 

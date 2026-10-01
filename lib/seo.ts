@@ -18,6 +18,11 @@ export function markdownToPlainText(content: string) {
     .trim();
 }
 
+export function blogImageUrl(title?: string) {
+  if (!title) return `${SITE_URL}/opengraph-image`;
+  return `${SITE_URL}/opengraph-image?title=${encodeURIComponent(title.slice(0, 80))}`;
+}
+
 export function buildBlogPostingJsonLd(post: Pick<Post, 'slug' | 'title' | 'date' | 'brief' | 'content'>) {
   const url = blogUrl(post.slug);
   return {

@@ -3,7 +3,7 @@ import { getPost, getPosts } from '@/lib/markdown';
 import { notFound } from 'next/navigation';
 import PostClient from './PostClient';
 import { blogUrl, SITE_AUTHOR, SITE_NAME } from '@/lib/site';
-import { blogPublishedTime, buildBlogPostingJsonLd, serializeJsonLd } from '@/lib/seo';
+import { blogImageUrl, blogPublishedTime, buildBlogPostingJsonLd, serializeJsonLd } from '@/lib/seo';
 
 export const revalidate = 60;
 
@@ -38,11 +38,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       locale: 'zh_CN',
       authors: [SITE_AUTHOR],
       publishedTime: blogPublishedTime(post.date),
+      images: [{ url: blogImageUrl(post.title), width: 1200, height: 630, alt: post.title }],
     },
     twitter: {
-      card: 'summary',
+      card: 'summary_large_image',
       title: post.title,
       description: post.brief,
+      images: [blogImageUrl(post.title)],
     },
   };
 }

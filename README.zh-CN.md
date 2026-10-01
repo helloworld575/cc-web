@@ -111,7 +111,7 @@ AI 服务商暂时改为 `.env.local` 只读配置。`/admin/ai-config` 只展�
 
 微信订阅需要管理员在“管理 — 订阅”中手动提供合法的 HTTPS RSS 地址，例如由管理员自行部署或确认来源的 RSSHub、WeChat2RSS feed。系统不提供官方微信接口，也不会自动抓取或绕过平台限制；推荐先核验腾讯安全/玄武、阿里安全响应、长亭、绿盟、奇安信等账号的授权 feed，再录入 URL。
 
-网站通过 `/sitemap.xml`、`/robots.txt` 和 `/feed.xml` 提供公开发现入口。博客详情页以已保存的文章字段生成 canonical、Open Graph、Twitter 和 `BlogPosting` JSON-LD 元数据；管理端、API、工具页和登录页不进入 sitemap，并返回 `X-Robots-Tag: noindex, nofollow, noarchive`。导航栏支持浅色/深色主题切换，首次访问遵循系统偏好，主动选择会保存在本地。
+网站通过 `/sitemap.xml`、`/robots.txt` 和 `/feed.xml` 提供公开发现入口。博客详情页以已保存的文章字段生成 canonical、Open Graph、Twitter 和 `BlogPosting` JSON-LD 元数据，并通过 `/opengraph-image` 动态生成 1200x630 PNG 分享图；文章分享图会带上文章标题。管理端、API、工具页和登录页不进入 sitemap，并返回 `X-Robots-Tag: noindex, nofollow, noarchive`。导航栏支持浅色/深色主题切换，首次访问遵循系统偏好，主动选择会保存在本地。
 
 ## 质量门禁
 

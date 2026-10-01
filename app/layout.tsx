@@ -12,6 +12,7 @@ import ThemeProvider from '@/components/ThemeProvider';
 import { localeToHtmlLang, resolveLocale } from '@/lib/i18n';
 import { themeScript } from '@/lib/theme';
 import { SITE_URL } from '@/lib/site';
+import { blogImageUrl } from '@/lib/seo';
 
 const siteUrl = SITE_URL;
 const currentYear = new Date().getFullYear();
@@ -38,11 +39,13 @@ export const metadata: Metadata = {
     siteName: "ThomasLee's Blog",
     title: "ThomasLee's Blog",
     description: "ThomasLee's personal blog for tech notes, tools, AI workflows, and long-form thoughts.",
+    images: [{ url: blogImageUrl(), width: 1200, height: 630, alt: "ThomasLee's Blog" }],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: "ThomasLee's Blog",
     description: "ThomasLee's personal blog for tech notes, tools, AI workflows, and long-form thoughts.",
+    images: [blogImageUrl()],
   },
   other: {
     copyright: `Copyright © ${currentYear} ThomasLee`,

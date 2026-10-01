@@ -65,8 +65,11 @@ describe('public SEO routes', () => {
     expect(metadata.alternates?.canonical).toBe('https://thomaslee.site/blog/seo-post');
     expect(openGraph.url).toBe('https://thomaslee.site/blog/seo-post');
     expect(openGraph.publishedTime).toBe('2026-07-16T00:00:00+08:00');
-    expect(twitter.card).toBe('summary');
-  });
+    expect(twitter.card).toBe('summary_large_image');
+    const expectedImage = 'https://thomaslee.site/opengraph-image?title=%E4%B8%AD%E6%96%87%20SEO%20%E6%96%87%E7%AB%A0';
+    expect((openGraph.images as Array<{ url: string }>)[0].url).toBe(expectedImage);
+    expect((twitter.images as string[])[0]).toBe(expectedImage);
+  }, 30_000);
 
   it('builds BlogPosting JSON-LD from the edited title, content and date', async () => {
     const { buildBlogPostingJsonLd } = await import('@/lib/seo');
@@ -86,7 +89,15 @@ describe('public SEO routes', () => {
     const layout = fs.readFileSync('app/layout.tsx', 'utf8');
 
     expect(layout).toContain("'application/rss+xml': '/feed.xml'");
-    expect(layout).toContain("card: 'summary'");
+    expect(layout).toContain("card: 'summary_large_image'");
     expect(layout).toContain('SITE_URL');
+  });
+
+  it('defines a branded dynamic Open Graph image', async () => {
+    const imageRoute = fs.readFileSync('app/opengraph-image.tsx', 'utf8');
+    expect(imageRoute).toContain("export const contentType = 'image/png'");
+    expect(imageRoute).toContain('width: 1200');
+    expect(imageRoute).toContain('height: 630');
+    expect(imageRoute).toContain('THOMASLEE / BLOG');
   });
 });
