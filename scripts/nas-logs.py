@@ -71,7 +71,8 @@ def sanitize(text: str, env: dict[str, str]) -> str:
 
 
 def run_remote(client: "paramiko.SSHClient", command: str, timeout: int = 60) -> tuple[int, str]:
-    stdin, stdout, stderr = client.exec_command(f"sh -lc {shlex.quote(command)}", timeout=timeout)
+    remote_command = f"export PATH=/usr/local/bin:/usr/bin:/bin:$PATH; {command}"
+    stdin, stdout, stderr = client.exec_command(f"sh -lc {shlex.quote(remote_command)}", timeout=timeout)
     del stdin
     output = stdout.read().decode("utf-8", errors="replace")
     error = stderr.read().decode("utf-8", errors="replace")
@@ -107,6 +108,10 @@ def main() -> int:
                 "docker info --format 'default={{.LoggingDriver}} plugins={{json .Plugins.Log}}'",
             ),
             ("compose_ps", f"cd {shlex.quote(remote_path)} && {compose} ps"),
+            (
+                "subscription_orphans",
+                "docker ps -a --filter name=subscription --format '{{.Names}} {{.Status}}'",
+            ),
             (
                 "log_config",
                 f"cd {shlex.quote(remote_path)} && "

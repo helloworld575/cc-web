@@ -227,7 +227,8 @@ def create_package(target: Path) -> list[str]:
 
 
 def run_remote(client: "paramiko.SSHClient", cmd: str, timeout: int = 300) -> tuple[int, str, str]:
-    stdin, stdout, stderr = client.exec_command(f"sh -lc {shlex.quote(cmd)}", timeout=timeout)
+    remote_cmd = f"export PATH=/usr/local/bin:/usr/bin:/bin:$PATH; {cmd}"
+    stdin, stdout, stderr = client.exec_command(f"sh -lc {shlex.quote(remote_cmd)}", timeout=timeout)
     del stdin
     out = stdout.read().decode("utf-8", errors="replace")
     err = stderr.read().decode("utf-8", errors="replace")

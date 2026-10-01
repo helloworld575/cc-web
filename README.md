@@ -12,7 +12,7 @@ Personal blog & toolbox built with **Next.js 16** and **SQLite**.
 - 🖼️ **Files** — Image uploads organized into albums
 - 🤖 **AI Chat** — Multi-provider chat (OpenAI + Anthropic) with streaming history
 - **Claude Code Worker** — Admin-only web UI that proxies prompts to an isolated Claude Code worker container
-- 📰 **Subscriptions** — Manage web/RSS sources, fetch manually, and review stored briefs
+- 📰 **Subscriptions** — Manage web/RSS sources, fetch manually, and generate topic digests for AI and security news
 - 🐦 **Post to X** — Turn blog posts or diary entries into tweets/threads, attach site images
 - 🔮 **Fortune** — Chinese divination (BaZi, ZiWei, I Ching, Plum Blossom)
 

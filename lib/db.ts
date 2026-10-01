@@ -161,6 +161,20 @@ db.exec(`
     ip_hash TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS subscription_digests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic TEXT NOT NULL CHECK (topic IN ('ai', 'security')),
+    summary TEXT NOT NULL,
+    item_ids TEXT NOT NULL DEFAULT '[]',
+    item_count INTEGER NOT NULL DEFAULT 0,
+    input_hash TEXT NOT NULL,
+    provider_name TEXT NOT NULL DEFAULT '',
+    provider_model TEXT NOT NULL DEFAULT '',
+    generated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(topic, input_hash)
+  );
 `);
 
 migrateAiChatHistoryColumns(db);
@@ -304,6 +318,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_subscription_items_source_hash ON subscription_items(source_id, content_hash);
   CREATE UNIQUE INDEX IF NOT EXISTS idx_subscription_items_source_external
     ON subscription_items(source_id, external_id);
+  CREATE INDEX IF NOT EXISTS idx_subscription_digests_topic_generated
+    ON subscription_digests(topic, generated_at);
   CREATE INDEX IF NOT EXISTS idx_blog_comments_slug_created ON blog_comments(slug, created_at);
   CREATE INDEX IF NOT EXISTS idx_blog_comments_status ON blog_comments(status);
   CREATE INDEX IF NOT EXISTS idx_blog_view_events_slug_created ON blog_view_events(slug, created_at);

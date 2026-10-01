@@ -218,6 +218,12 @@ Query 参数：`page`、`pageSize`（最大 100）、`search`、`from`、`to`、
 
 ### `DELETE /api/subscriptions/briefs?id=<id>`
 
+### `GET /api/subscriptions/digests?topic=ai|security|all&limit=<n>`
+列出手动生成的 AI 主题摘要。`all` 返回两个主题；响应为数组。每条摘要包含 Markdown `summary` 和少量用于核验的 `source_items` 来源证据。
+
+### `POST /api/subscriptions/digests`
+管理员登录后手动生成摘要。请求体为 `{ "topic": "ai" }`、`{ "topic": "security" }` 或 `{ "topic": "all" }`；`all` 会尝试生成两个主题，并在没有来源条目时返回 `skipped_topics`。此接口不会创建或发布博客文章。
+
 ---
 
 ## X / Twitter

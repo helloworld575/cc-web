@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29T11:48:39.484Z",
+  "generatedAt": "2026-10-01T03:19:13.240Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -425,6 +425,11 @@
         "description": "Fetch remote subscription content into raw stored items without AI."
       },
       {
+        "route": "/api/subscriptions/digests",
+        "file": "app/api/subscriptions/digests/route.ts",
+        "description": "API route in the application backend."
+      },
+      {
         "route": "/api/subscriptions",
         "file": "app/api/subscriptions/route.ts",
         "description": "Manage subscription sources."
@@ -510,6 +515,7 @@
       "lib/skill-taxonomy.ts",
       "lib/skills.ts",
       "lib/subscription-content-types.ts",
+      "lib/subscription-digest.ts",
       "lib/subscription-fetchers/fetch-content.ts",
       "lib/subscription-fetchers/safe-fetch.ts",
       "lib/subscription-items.ts",
@@ -547,7 +553,8 @@
       "claude_assistant_sessions",
       "subscription_items",
       "blog_comments",
-      "blog_view_events"
+      "blog_view_events",
+      "subscription_digests"
     ],
     "migrations": [
       {
@@ -1152,6 +1159,7 @@
       "tests/api/skills/route.test.ts",
       "tests/api/subscriptions/briefs.test.ts",
       "tests/api/subscriptions/crawl.test.ts",
+      "tests/api/subscriptions/digests.test.ts",
       "tests/api/subscriptions/id.test.ts",
       "tests/api/subscriptions/route.test.ts",
       "tests/api/todos/id.test.ts",
@@ -1186,6 +1194,7 @@
       "tests/lib/server-log.test.ts",
       "tests/lib/skill-taxonomy.test.ts",
       "tests/lib/skills.test.ts",
+      "tests/lib/subscription-digest.test.ts",
       "tests/lib/subscription-feed.test.ts",
       "tests/lib/subscription-items.test.ts",
       "tests/lib/subscription-source-health.test.ts",
@@ -1196,6 +1205,6 @@
       "tests/scripts/normalize-codex-skills.test.ts",
       "tests/scripts/skill-catalog.test.ts"
     ],
-    "count": 70
+    "count": 72
   }
 }

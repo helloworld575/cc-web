@@ -250,6 +250,12 @@ List generated briefs, including both fetch `category` and content `topic`. Quer
 
 ### `DELETE /api/subscriptions/briefs?id=<id>`
 
+### `GET /api/subscriptions/digests?topic=ai|security|all&limit=<n>`
+List manually generated AI topic digests. `all` returns both topics; the response is an array. Each digest includes the Markdown `summary` and a small `source_items` evidence list.
+
+### `POST /api/subscriptions/digests`
+Generate a digest for an authenticated administrator. The request body is `{ "topic": "ai" }` or `{ "topic": "security" }`; `{ "topic": "all" }` generates both topics and reports topics with no source items as skipped. This endpoint never creates or publishes a blog post.
+
 ---
 
 ## X / Twitter

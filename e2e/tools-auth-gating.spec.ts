@@ -43,6 +43,30 @@ test('authenticated tools show AI and subscription crawl action', async ({ page 
       body: '[]',
     });
   });
+  await page.route('**/api/subscriptions/digests*', async route => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: 1,
+          topic: 'ai',
+          title: 'AI news digest',
+          summary: '## Key changes\n- A concise AI news synthesis.',
+          item_count: 1,
+          item_ids: [1],
+          source_items: [{ id: 1, title: 'Representative source', url: 'https://example.com/source', source_name: 'AI Feed' }],
+          generated_at: '2026-10-01 10:00:00',
+        }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: '[]',
+    });
+  });
 
   await page.goto('/tools');
 
@@ -51,6 +75,9 @@ test('authenticated tools show AI and subscription crawl action', async ({ page 
 
   await page.getByTestId('tools-tab-subscriptions').click();
   await expect(page.getByTestId('subscription-crawl-all')).toBeVisible();
+  await expect(page.getByTestId('subscription-digest-generate-ai')).toBeVisible();
+  await page.getByTestId('subscription-digest-generate-ai').click();
+  await expect(page.getByTestId('subscription-digest-card')).toContainText('A concise AI news synthesis.');
 });
 
 test('subscription briefs are compact, paginated, and filterable', async ({ page }) => {

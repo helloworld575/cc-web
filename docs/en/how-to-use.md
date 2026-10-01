@@ -48,7 +48,7 @@ Five tabs available to all logged-in users:
 - **Diary** — Date-based diary entries with markdown support
 - **Fortune** — Chinese divination tools (Bazi, Ziwei, I Ching, Plum Blossom)
 - **AI Chat** — Chat with configured AI providers and reopen saved conversation history
-- **Subscriptions** — Manage sources, fetch manually, and review stored briefs
+- **Subscriptions** — Manage sources, fetch manually, and generate topic digests for AI and security news
 
 ---
 
@@ -102,14 +102,15 @@ Track latest updates from blogs, GitHub repos, X accounts, and more.
    - **URL** — the source URL
    - **Subscription topic** — `AI` or `Security`
    - **Category** — fetch type such as `rss`, `github`, `selfblog`, `newsletter`, or `reddit`
-    - **Fetch interval** — source metadata used when an administrator fetches the source
+   - **Fetch interval** — source metadata; sources are not fetched or published on a schedule
 4. Click **Save**
 
-### Viewing briefs
+### Reviewing topic digests
 
 1. Go to **Tools → Subscriptions**
-2. Click **Fetch subscriptions** to retrieve current source entries. The fetcher stores canonical links and stable IDs in SQLite; it does not publish blog posts automatically.
-3. Open a stored brief to read the source-grounded content and follow its original link.
+2. Click **Fetch subscriptions** to retrieve current source entries manually. The fetcher stores canonical links and stable IDs in SQLite.
+3. Use **Generate AI digest**, **Generate security digest**, or **Generate all digests** to ask AI for a short, topic-based summary of the recent changes, impact, and uncertainty.
+4. Expand **Evidence sources** to verify the summary against a small set of representative links. Fetching and digest generation never create or publish blog posts automatically.
 
 ---
 

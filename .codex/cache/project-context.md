@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-09-29T11:48:39.484Z
+Generated: 2026-10-01T03:19:13.240Z
 
 ## Snapshot
 
@@ -70,7 +70,7 @@ Generated: 2026-09-29T11:48:39.484Z
 - `/` -> `app/page.tsx`: Public homepage.
 - `/tools` -> `app/tools/page.tsx`: Main tool hub.
 
-## API Routes (39)
+## API Routes (40)
 
 - `/api/admin/blog-analytics` -> `app/api/admin/blog-analytics/route.ts`: API route in the application backend.
 - `/api/ai-chat/[id]` -> `app/api/ai-chat/[id]/route.ts`: Read, update, or delete stored AI chat sessions.
@@ -104,6 +104,7 @@ Generated: 2026-09-29T11:48:39.484Z
 - `/api/subscriptions/[id]` -> `app/api/subscriptions/[id]/route.ts`: Single subscription source operations.
 - `/api/subscriptions/briefs` -> `app/api/subscriptions/briefs/route.ts`: List stored subscription briefs.
 - `/api/subscriptions/crawl` -> `app/api/subscriptions/crawl/route.ts`: Fetch remote subscription content into raw stored items without AI.
+- `/api/subscriptions/digests` -> `app/api/subscriptions/digests/route.ts`: API route in the application backend.
 - `/api/subscriptions` -> `app/api/subscriptions/route.ts`: Manage subscription sources.
 - `/api/todos/[id]` -> `app/api/todos/[id]/route.ts`: Single todo operations.
 - `/api/todos` -> `app/api/todos/route.ts`: Todo CRUD.
@@ -115,7 +116,7 @@ Generated: 2026-09-29T11:48:39.484Z
 ## Database
 
 - File: `data/site.db`
-- Tables: `todos`, `files`, `albums`, `diary`, `fortune_history`, `ai_chat_history`, `subscription_sources`, `subscription_briefs`, `app_migrations`, `claude_assistant_sessions`, `subscription_items`, `blog_comments`, `blog_view_events`
+- Tables: `todos`, `files`, `albums`, `diary`, `fortune_history`, `ai_chat_history`, `subscription_sources`, `subscription_briefs`, `app_migrations`, `claude_assistant_sessions`, `subscription_items`, `blog_comments`, `blog_view_events`, `subscription_digests`
 - PRAGMA settings: `journal_mode = WAL`, `busy_timeout = 5000`, `synchronous = NORMAL`, `cache_size = -8000`, `temp_store = MEMORY`, `mmap_size = 67108864`, `page_size = 4096`
 - Simple migrations: `claude_assistant_sessions.run_token`, `todos.deadline`, `files.album_id`, `subscription_sources.topic`
 - Prepared statements: `countFiles`, `listFiles`, `insertFile`, `listFortune`, `insertFortune`, `getFortune`, `deleteFortune`, `listChats`, `listChatsByProvider`, `getChat`, `insertChat`, `updateChat`, `deleteChat`
@@ -182,7 +183,7 @@ Generated: 2026-09-29T11:48:39.484Z
 
 ## Tests
 
-- API and helper test files: 70
+- API and helper test files: 72
 - Examples: `tests/api/admin/blog-analytics.test.ts`, `tests/api/ai-chat/id.test.ts`, `tests/api/ai-chat/route.test.ts`, `tests/api/ai-image/route.test.ts`, `tests/api/ai-providers/id.test.ts`, `tests/api/ai-providers/route.test.ts`, `tests/api/ai-providers/test.test.ts`, `tests/api/ai/route.test.ts`
 
 ## Notes

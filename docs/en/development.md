@@ -74,7 +74,7 @@ SQLite schema is defined inline in `lib/db.ts`. On first run, all tables are cre
 Tables:
 - `todos`, `files`, `albums`, `diary`, `fortune_history`
 - `ai_providers`, `ai_chat_history`
-- `subscription_sources`, `subscription_briefs`
+- `subscription_sources`, `subscription_items`, `subscription_digests`, and legacy `subscription_briefs`
 
 Prepared statements are exported from `lib/db.ts` via `stmts` for performance.
 
