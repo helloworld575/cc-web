@@ -217,6 +217,18 @@ const skill = getSkill('my-skill');
 
 The web app runtime source of truth is `.codex/skills/`. Run `npm run codex:skills` after structural edits so frontmatter and prompt contracts stay normalized for both the app and Codex.
 
+Both skill execution and AI Chat send the YAML `system` and `prompt`; they do not
+automatically include the Markdown body or reference files. Keep essential rules
+in `system` and use only `{{content}}` as a placeholder. Supply the topic, source
+extracts, dates, versions, and verification records in that input. Text-only calls
+cannot retrieve GitHub or linux.do sources; tool-enabled agents can research them.
+The `technical-blog-writer` requires claim-level evidence, quantitative provenance,
+software capability changes, and concrete security analysis. See its
+[research protocol](../../.codex/skills/technical-blog-writer/references/evidence-and-security.md)
+and [behavioral cases](../../.codex/skills/technical-blog-writer/evals/cases.md).
+It does not change the separate subscription digest or publish articles. Existing
+NAS containers receive skill changes only after deployment.
+
 ## Testing
 
 ```bash

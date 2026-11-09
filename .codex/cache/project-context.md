@@ -1,6 +1,6 @@
 # Codex Project Context
 
-Generated: 2026-10-01T03:19:13.240Z
+Generated: 2026-11-09T02:53:27.596Z
 
 ## Snapshot
 
@@ -168,7 +168,7 @@ Generated: 2026-10-01T03:19:13.240Z
 - `spark-prairie-fire`: >
 - `strategy-router`: >-
 - `summarize`: >-
-- `technical-blog-writer`: >-
+- `technical-blog-writer`: >- Includes references.
 - `tmux`: >- Includes scripts.
 - `validate-idea`: >-
 - `web-research-brief`: Summarize fetched web, RSS, search, or crawler output into a source-grounded research brief.

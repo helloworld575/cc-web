@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01T03:19:13.240Z",
+  "generatedAt": "2026-11-09T02:53:27.596Z",
   "project": {
     "name": "my-site",
     "version": "0.1.0",
@@ -1048,11 +1048,11 @@
         "id": "technical-blog-writer",
         "name": "technical-blog-writer",
         "description": ">-",
-        "hasSystem": false,
+        "hasSystem": true,
         "hasPrompt": true,
         "output": "text",
         "hasScripts": false,
-        "hasReferences": false
+        "hasReferences": true
       },
       {
         "id": "tmux",

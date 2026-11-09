@@ -8,7 +8,7 @@ describe('on-disk skill contracts', () => {
 
     expect(isInvocableSkill(skill)).toBe(true);
     expect(skill?.output).toBe('text');
-    expect(skill?.prompt).toContain('{{topic}}');
-    expect(skill?.prompt).toContain('{{content}}');
+    expect(skill?.system?.trim()).toBeTruthy();
+    expect(skill?.prompt?.match(/\{\{[^}]+\}\}/g)).toEqual(['{{content}}']);
   });
 });

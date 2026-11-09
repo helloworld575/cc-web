@@ -308,11 +308,22 @@ Built-in skills:
 | `article-polish` | Rewrite for clarity |
 | `article-tags` | Extract tags |
 | `article-title` | Generate SEO titles |
+| `technical-blog-writer` | Evidence-backed AI/security analysis and implementation posts |
 | `article-translate-en` | Translate ZH → EN |
 | `blog-to-x` | Convert blog/diary → tweets/threads |
 | `bazi-fortune`, `ziwei-fortune`, `liuyao-fortune`, `meihua-fortune` | Chinese divination |
 
 See [docs/en/development.md](./docs/en/development.md#adding-an-ai-skill) for how to add your own.
+
+The blog writer requires claim-level evidence and reasoning, traceable data, software
+provenance/version changes, and concrete security analysis. Agents with retrieval
+tools investigate GitHub and relevant linux.do discussions; text-only skill calls
+use supplied source extracts and disclose missing evidence. See its
+[research protocol](.codex/skills/technical-blog-writer/references/evidence-and-security.md).
+The web APIs send YAML `system` and `prompt` only; include topic and source material
+inside `{{content}}`. Changes to Markdown instructions alone do not change those
+calls. This skill does not change the separate subscription digest prompt or publish
+articles. Existing NAS containers need a later deployment to receive skill changes.
 
 ## Troubleshooting
 

@@ -2,8 +2,9 @@
 name: content-router
 description: >-
   Router for writing and publishing workflows. Use this whenever the task is
-  about article structure, polishing, FAQ generation, titles, tags, translation,
-  or turning content into social posts before picking a leaf content skill.
+  about technical or AI/security blogs, evidence-based revisions, article
+  structure, polishing, FAQ generation, titles, tags, translation, or turning
+  content into social posts before picking a leaf content skill.
 invocable: false
 hierarchy:
   domain: content
@@ -54,9 +55,9 @@ orchestration:
       mode: direct
     - skill: technical-blog-writer
       when: >-
-        Use when drafting a practical technical blog, implementation note, build
-        diary, debugging post, or project case study that should include
-        concrete tips, sanitized code snippets, and verification details.
+        Use when drafting or substantively revising technical blogs, AI/security
+        news analysis, software assessments, implementation notes, or debugging
+        posts with traceable evidence, data, mechanisms, and verification.
       mode: direct
     - skill: article-polish
       when: >-
@@ -87,7 +88,7 @@ Route to the most specific content leaf skill instead of doing several writing t
 
 - Reader support blocks: `article-faq`
 - Headline and packaging: `article-title`, `article-brief`, `article-tags`
-- Practical implementation posts: `technical-blog-writer`
+- Technical blogs, AI/security analysis, and evidence/technical-depth revisions: `technical-blog-writer`
 - Editorial improvements: `article-structure`, `article-polish`
 - Language change: `article-translate-en`
 - Distribution copy: `blog-to-x`

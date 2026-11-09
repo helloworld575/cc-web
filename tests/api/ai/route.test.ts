@@ -123,6 +123,43 @@ describe('POST /api/ai', () => {
     expect(streamText).toContain('"model":"claude-sonnet-4-6"');
   });
 
+  it.each(['anthropic', 'responses'])('sends the on-disk blog evidence contract through %s', async (apiStyle) => {
+    mockSession(true);
+    const actualSkills = await vi.importActual<typeof import('@/lib/skills')>('@/lib/skills');
+    const skill = actualSkills.getSkill('technical-blog-writer');
+    expect(skill?.system?.trim()).toBeTruthy();
+    vi.mocked(getSkill).mockReturnValue(skill);
+    const content = 'Topic: agent release review\nSource extract: vendor reports 18/20 local checks.';
+
+    if (apiStyle === 'responses') {
+      delete process.env.CLAUDE_API_KEY;
+      process.env.RIGHT_CODE_GPT_API_KEY = 'test-key';
+      process.env.RIGHT_CODE_GPT_API_STYLE = 'responses';
+      process.env.RIGHT_CODE_GPT_API_URL = 'https://example.invalid/v1';
+      mockFetch.mockResolvedValue(new Response(
+        'data: {"type":"response.output_text.delta","delta":"draft"}\n\n'
+        + 'data: {"type":"response.completed"}\n\n',
+        { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+      ));
+    } else {
+      mockStreamResponse();
+    }
+    const { POST } = await import('@/app/api/ai/route');
+    const res = await POST(postReq({ skill: 'technical-blog-writer', content }));
+    expect(res.status).toBe(200);
+    await res.text();
+
+    const payload = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const system = apiStyle === 'responses' ? payload.instructions : payload.system;
+    const prompt = apiStyle === 'responses'
+      ? payload.input[0].content[0].text
+      : payload.messages[0].content[0].text;
+    expect(system).toBe(skill?.system);
+    expect(prompt).toBe(skill?.prompt?.replace('{{content}}', content));
+    expect(prompt).toContain(content);
+    expect(prompt).not.toMatch(/\{\{[^}]+\}\}/);
+  });
+
   it('sends skill prompts to Claude with the rightapi.ai messages request shape', async () => {
     mockSession(true);
     delete process.env.CLAUDE_API_HOST;
